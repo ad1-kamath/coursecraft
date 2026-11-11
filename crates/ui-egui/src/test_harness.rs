@@ -2,7 +2,10 @@
 
 use crate::*;
 use coursecraft_course::Course;
-use egui::{Context, Event, Key, Modifiers, PointerButton, Pos2, RawInput, Rect, pos2, vec2};
+use egui::epaint::{ClippedShape, Shape};
+use egui::{
+    Context, Event, Key, LayerId, Modifiers, Order, PointerButton, Pos2, RawInput, Rect, pos2, vec2,
+};
 
 pub(crate) fn text_center(t: &egui::epaint::TextShape) -> Pos2 {
     let r = t.visual_bounding_rect();
@@ -25,9 +28,22 @@ impl TestHarness {
         Self::new_with_size(course, (1280.0, 900.0))
     }
 
-    pub fn new_with_size(course: Course, (w, h): (f32, f32)) -> Self {
+    pub fn new_with_size(course: Course, size: (f32, f32)) -> Self {
+        Self::new_with_theme(course, size, coursecraft_render::ThemeMode::Dark)
+    }
+
+    pub fn new_with_theme(
+        course: Course,
+        (w, h): (f32, f32),
+        mode: coursecraft_render::ThemeMode,
+    ) -> Self {
         let ctx = Context::default();
-        coursecraft_render::apply_style(&ctx, coursecraft_render::ThemeMode::Dark);
+        coursecraft_render::apply_style(&ctx, mode);
+        // Like the snapshot renderer: no animation, so a window is at its final size and
+        // position after the warm-up frames.
+        let mut style = (*ctx.global_style()).clone();
+        style.animation_time = 0.0;
+        ctx.set_global_style(style);
         let screen_rect = Rect::from_min_size(pos2(0.0, 0.0), vec2(w, h));
         let editor = Editor::new(course);
         Self {
@@ -443,4 +459,294 @@ impl TestHarness {
             pos2(self.screen_rect.max.x, self.bottom_panel_top()),
         )
     }
+}
+
+/// What one layout-checked frame found.
+#[derive(Debug, Default)]
+pub(crate) struct LayoutReport {
+    /// One readable line per problem.
+    pub findings: Vec<String>,
+    /// Every non-blank text painted in the frame (to prove a window really was on screen).
+    pub texts: Vec<String>,
+}
+
+impl LayoutReport {
+    pub fn painted(&self, needle: &str) -> bool {
+        self.texts.iter().any(|t| t.contains(needle))
+    }
+}
+
+impl TestHarness {
+    /// Run `warmup` idle frames, then one more frame whose painted shapes are checked for
+    /// clipped, overlapping and off-window text. See [`check_layout`].
+    pub fn layout_report(&mut self, warmup: usize) -> LayoutReport {
+        for _ in 0..warmup {
+            self.idle_frame();
+        }
+        let raw_input = RawInput {
+            screen_rect: Some(self.screen_rect),
+            ..Default::default()
+        };
+        let screen = self.screen_rect;
+        let mut layers: Vec<(LayerId, Vec<ClippedShape>)> = Vec::new();
+        let mut regions = Vec::new();
+        let output = self.ctx.run_ui(raw_input, |ui| {
+            let _ = self.editor.show(ui);
+            let ctx = ui.ctx().clone();
+            regions = crate::content_region::content_regions(&ctx);
+            layers = capture_layers(&ctx);
+        });
+        let mut report = check_layout(&layers, screen, &regions);
+        // The per-layer walk must see every text the final output has, or a layer was missed.
+        let from_layers: usize = layers
+            .iter()
+            .map(|(_, shapes)| shapes.iter().map(|c| count_texts(&c.shape)).sum::<usize>())
+            .sum();
+        let from_output: usize = output.shapes.iter().map(|c| count_texts(&c.shape)).sum();
+        if from_layers != from_output {
+            report.findings.push(format!(
+                "internal: layer walk saw {from_layers} texts, final output has {from_output}"
+            ));
+        }
+        output.drop_without_applying_deltas();
+        report
+    }
+}
+
+/// Every layer's painted shapes so far this pass. Only valid inside the `run_ui` closure: the
+/// final output has already lost the layer ids.
+pub(crate) fn capture_layers(ctx: &Context) -> Vec<(LayerId, Vec<ClippedShape>)> {
+    let mut ids: Vec<LayerId> = ctx.memory(|m| m.layer_ids().collect());
+    ids.push(LayerId::background());
+    ids.sort_by_key(|id| (id.order, id.id.value()));
+    ids.dedup();
+    let mut layers = Vec::new();
+    ctx.graphics(|g| {
+        for id in ids {
+            if let Some(list) = g.get(id) {
+                layers.push((id, list.all_entries().cloned().collect()));
+            }
+        }
+    });
+    layers
+}
+
+fn count_texts(shape: &Shape) -> usize {
+    match shape {
+        Shape::Text(_) => 1,
+        Shape::Vec(v) => v.iter().map(count_texts).sum(),
+        _ => 0,
+    }
+}
+
+struct BoxItem {
+    rect: Rect,
+    clip: Rect,
+}
+
+struct TextItem {
+    text: String,
+    /// Where the whole galley sits.
+    full: Rect,
+    /// The part of it a viewer can see.
+    visible: Rect,
+    clip: Rect,
+}
+
+fn is_invisible(t: &egui::epaint::TextShape) -> bool {
+    if t.opacity_factor <= 0.0 {
+        return true;
+    }
+    let colors_clear = t
+        .galley
+        .job
+        .sections
+        .iter()
+        .all(|s| s.format.color == egui::Color32::TRANSPARENT);
+    colors_clear && t.override_text_color.is_none_or(|c| c.a() == 0)
+}
+
+fn collect_boxes(shape: &Shape, clip: Rect, out: &mut Vec<BoxItem>) {
+    match shape {
+        Shape::Rect(r) => {
+            let drawn = r.fill.a() > 0 || (r.stroke.width > 0.0 && r.stroke.color.a() > 0);
+            // Small framed widgets only: panel and card backgrounds are meant to bleed.
+            if drawn && r.rect.is_positive() && r.rect.height() < 120.0 && r.rect.width() < 600.0 {
+                out.push(BoxItem { rect: r.rect, clip });
+            }
+        }
+        Shape::Vec(v) => {
+            for s in v {
+                collect_boxes(s, clip, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn collect_texts(shape: &Shape, clip: Rect, out: &mut Vec<TextItem>) {
+    match shape {
+        Shape::Text(t) => {
+            let text = t.galley.text().to_owned();
+            if text.trim().is_empty() || is_invisible(t) {
+                return;
+            }
+            let full = t.galley.rect.translate(t.pos.to_vec2());
+            let visible = full.intersect(clip);
+            if !visible.is_positive() {
+                return;
+            }
+            out.push(TextItem {
+                text,
+                full,
+                visible,
+                clip,
+            });
+        }
+        Shape::Vec(v) => {
+            for s in v {
+                collect_texts(s, clip, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn layer_name(id: LayerId) -> String {
+    id.short_debug_format()
+}
+
+fn fmt_rect(r: Rect) -> String {
+    format!(
+        "[{:.0},{:.0} .. {:.0},{:.0}]",
+        r.min.x, r.min.y, r.max.x, r.max.y
+    )
+}
+
+fn shorten(text: &str) -> String {
+    let one_line: String = text
+        .chars()
+        .map(|c| if c == '\n' { ' ' } else { c })
+        .collect();
+    if one_line.chars().count() > 40 {
+        let cut: String = one_line.chars().take(40).collect();
+        format!("{cut}...")
+    } else {
+        one_line
+    }
+}
+
+/// Look for editor-chrome text that is cut off, runs under other text, or leaves the window.
+///
+/// `layers` holds every layer's painted shapes (tooltips are skipped). Text whose visible centre
+/// is inside a registered slide-content region of its own layer is left alone, because slide
+/// content may overlap by design. Reports:
+/// - **clipped:** the label extends more than 1 pt past the clip rect it was painted with, left
+///   or right, so part of it is cut off;
+/// - **overlap:** two labels of one layer whose visible rects intersect by more than 2 pt in
+///   both axes;
+/// - **off-window:** visible text beyond `screen`.
+pub(crate) fn check_layout(
+    layers: &[(LayerId, Vec<ClippedShape>)],
+    screen: Rect,
+    regions: &[(LayerId, Rect)],
+) -> LayoutReport {
+    const CLIP_TOLERANCE: f32 = 1.0;
+    const OVERLAP_TOLERANCE: f32 = 2.0;
+    let mut findings = Vec::new();
+    let mut texts = Vec::new();
+    for (layer, shapes) in layers {
+        if layer.order == Order::Tooltip {
+            continue;
+        }
+        let name = layer_name(*layer);
+        let mut items = Vec::new();
+        for clipped in shapes {
+            collect_texts(&clipped.shape, clipped.clip_rect, &mut items);
+        }
+        let mut boxes = Vec::new();
+        for clipped in shapes {
+            collect_boxes(&clipped.shape, clipped.clip_rect, &mut boxes);
+        }
+        for b in &boxes {
+            let visible = b.rect.intersect(b.clip);
+            if !visible.is_positive()
+                || regions
+                    .iter()
+                    .any(|(l, r)| l == layer && r.contains(visible.center()))
+            {
+                continue;
+            }
+            if b.rect.max.x - b.clip.max.x > 1.5 && visible.width() > 4.0 {
+                findings.push(format!(
+                    "clipped-widget: {name} box {} is cut off at the right by its clip {}",
+                    fmt_rect(b.rect),
+                    fmt_rect(b.clip)
+                ));
+            }
+        }
+        texts.extend(items.iter().map(|item| item.text.clone()));
+        items.retain(|item| {
+            !regions
+                .iter()
+                .any(|(l, r)| l == layer && r.contains(item.visible.center()))
+        });
+        for item in &items {
+            let over_right = item.full.max.x - item.clip.max.x;
+            let over_left = item.clip.min.x - item.full.min.x;
+            if over_right > CLIP_TOLERANCE || over_left > CLIP_TOLERANCE {
+                findings.push(format!(
+                    "clipped: {name} \"{}\" {} is cut off by its clip {}",
+                    shorten(&item.text),
+                    fmt_rect(item.full),
+                    fmt_rect(item.clip)
+                ));
+            }
+            let v = item.visible;
+            if item.full.max.x > screen.max.x + CLIP_TOLERANCE
+                || item.full.min.x < screen.min.x - CLIP_TOLERANCE
+                || v.max.y > screen.max.y + CLIP_TOLERANCE
+                || v.min.y < screen.min.y - CLIP_TOLERANCE
+            {
+                findings.push(format!(
+                    "off-window: {name} \"{}\" {} is outside the window {}",
+                    shorten(&item.text),
+                    fmt_rect(item.full),
+                    fmt_rect(screen)
+                ));
+            }
+        }
+        // Sweep by left edge so a busy layer stays cheap.
+        let mut order: Vec<usize> = (0..items.len()).collect();
+        order.sort_by(|a, b| items[*a].visible.min.x.total_cmp(&items[*b].visible.min.x));
+        for (pos, &i) in order.iter().enumerate() {
+            let a = &items[i];
+            for &j in &order[pos + 1..] {
+                let b = &items[j];
+                if b.visible.min.x >= a.visible.max.x - OVERLAP_TOLERANCE {
+                    break;
+                }
+                let both = a.visible.intersect(b.visible);
+                if both.width() <= OVERLAP_TOLERANCE || both.height() <= OVERLAP_TOLERANCE {
+                    continue;
+                }
+                // The same text drawn twice in one place (a faux-bold or a doubled label) is
+                // not something a viewer can see.
+                let same_spot = a.text == b.text
+                    && (a.visible.min - b.visible.min).length() < 1.0
+                    && (a.visible.max - b.visible.max).length() < 1.0;
+                if same_spot {
+                    continue;
+                }
+                findings.push(format!(
+                    "overlap: {name} \"{}\" {} runs under \"{}\" {}",
+                    shorten(&a.text),
+                    fmt_rect(a.visible),
+                    shorten(&b.text),
+                    fmt_rect(b.visible)
+                ));
+            }
+        }
+    }
+    LayoutReport { findings, texts }
 }

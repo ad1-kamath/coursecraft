@@ -1085,6 +1085,7 @@ fn show_slides_content(editor: &mut Editor, ui: &mut Ui, panel_rect: Rect) {
                 );
             }
 
+            crate::content_region::mark_content_region(ui.ctx(), ui.layer_id(), thumb_rect);
             slide_rows.push((scene.id.clone(), slide.id.clone(), slide_idx, thumb_rect));
 
             // Thumbnail click, drag and context menu interaction

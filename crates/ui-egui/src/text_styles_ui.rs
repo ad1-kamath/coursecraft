@@ -182,6 +182,9 @@ fn update_from_selection(id: &str, object: &Object) -> Option<Action> {
 
 /// The small "Text styles" window: rename and delete.
 pub fn show_manage_styles_window(editor: &mut crate::Editor, ctx: &Context) {
+    if std::mem::take(&mut editor.ui.open_text_styles_window) {
+        set_manage_open(ctx, true);
+    }
     if !manage_open(ctx) {
         return;
     }

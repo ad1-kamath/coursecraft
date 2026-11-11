@@ -32,6 +32,226 @@ pub struct SnapshotSelect {
     pub preview: bool,
     /// Show AI Settings on the Agents tab.
     pub connect_agent: bool,
+    /// Open one editor window or dialog by name (see [`WINDOWS`]).
+    pub window: Option<String>,
+}
+
+impl SnapshotSelect {
+    /// Put `editor` into the state this selection describes.
+    ///
+    /// The CLI snapshot and the layout tests both come through here, so they cannot drift
+    /// apart. An unknown `window` name opens nothing; check it with [`window_spec`] first.
+    pub fn apply(&self, editor: &mut Editor) {
+        if let Some(ref slide_id) = self.slide {
+            editor.selection.slide = slide_id.clone();
+            editor.selection.clear_objects();
+        }
+        if let Some(ref obj_id) = self.object {
+            editor.selection.object = Some(obj_id.clone());
+        }
+        if let Some(tab) = self.inspector_tab {
+            editor.ui.inspector_tab = tab;
+        }
+        if let Some(tab) = self.bottom_tab {
+            editor.ui.bottom_tab = tab;
+        }
+        if self.course_settings {
+            editor.ui.show_course_settings_window = true;
+        }
+        if self.theme_dialog {
+            editor.ui.show_theme_window = true;
+        }
+        if self.welcome {
+            editor.ui.show_welcome = true;
+        }
+        if self.shortcuts {
+            editor.ui.show_shortcuts_dialog = true;
+        }
+        if let Some(coach) = self.coach_mark {
+            editor.set_coach_marks_done(false);
+            editor.ui.current_coach_mark = Some(coach);
+        }
+        editor.selection.repair(&editor.session.course);
+        if self.connect_agent {
+            editor.automation_available = true;
+            editor.automation_enabled = true;
+            editor.agent_exe_path =
+                Some("/Applications/CourseCraft.app/Contents/MacOS/CourseCraft".to_owned());
+            editor.open_agent_settings();
+            editor.ui.ai.agents_detected = true;
+            for row in &mut editor.ui.ai.agents {
+                row.status = coursecraft_ai::agents::AgentStatus::Found;
+            }
+        }
+        if self.preview {
+            editor.open_preview();
+        }
+        if let Some(name) = self.window.as_deref() {
+            open_window(editor, name);
+        }
+    }
+}
+
+/// One editor window or dialog a snapshot or a layout test can open by name.
+#[derive(Clone, Copy)]
+pub struct WindowSpec {
+    /// The `--window` name.
+    pub name: &'static str,
+    /// Text that must be painted when the window is really on screen.
+    pub shows: &'static str,
+    /// Opens it the way the app does.
+    pub open: fn(&mut Editor),
+}
+
+macro_rules! window {
+    ($name:literal, $shows:literal, $open:expr) => {
+        WindowSpec {
+            name: $name,
+            shows: $shows,
+            open: $open,
+        }
+    };
+}
+
+fn open_trigger_editor(editor: &mut Editor) {
+    crate::toolbar::insert_trigger(editor);
+}
+
+fn open_layer_settings_first(editor: &mut Editor) {
+    let slide_id = editor.selection.slide.clone();
+    let layer_id = editor
+        .session
+        .course
+        .slide(&slide_id)
+        .and_then(|s| s.layers.first().map(|l| l.id.clone()));
+    if let Some(layer_id) = layer_id {
+        crate::layers::open_layer_settings(editor, &slide_id, &layer_id);
+    }
+}
+
+/// Every window and dialog the editor can open, by `--window` name.
+pub const WINDOWS: &[WindowSpec] = &[
+    window!("course-settings", "Course Settings", |e| {
+        e.ui.show_course_settings_window = true;
+    }),
+    window!("theme", "Theme", |e| e.ui.show_theme_window = true),
+    window!("palette", "Palette", |e| e.ui.show_theme_window = true),
+    window!("text-styles", "Text styles", |e| {
+        e.ui.open_text_styles_window = true;
+    }),
+    window!("welcome", "Recent courses", |e| e.ui.show_welcome = true),
+    window!("shortcuts", "Keyboard shortcuts", |e| {
+        e.ui.show_shortcuts_dialog = true;
+    }),
+    window!("coach-1", "Your slides live here", |e| {
+        e.set_coach_marks_done(false);
+        e.ui.current_coach_mark = Some(1);
+    }),
+    window!("coach-2", "Add text", |e| {
+        e.set_coach_marks_done(false);
+        e.ui.current_coach_mark = Some(2);
+    }),
+    window!("coach-3", "Select anything", |e| {
+        e.set_coach_marks_done(false);
+        e.ui.current_coach_mark = Some(3);
+    }),
+    window!("preview", " / 12", |e| e.open_preview()),
+    window!("ai-settings", "AI Settings", |e| e.open_ai_settings()),
+    window!("agents", "AI Settings", |e| {
+        e.automation_available = true;
+        e.automation_enabled = true;
+        e.agent_exe_path =
+            Some("/Applications/CourseCraft.app/Contents/MacOS/CourseCraft".to_owned());
+        e.open_agent_settings();
+        e.ui.ai.agents_detected = true;
+        for row in &mut e.ui.ai.agents {
+            row.status = coursecraft_ai::agents::AgentStatus::Found;
+        }
+    }),
+    window!("report", "Report a Problem", |e| e.open_report()),
+    window!("crash", "CourseCraft closed unexpectedly", |e| {
+        e.set_crash_note(Some("The editor closed while saving.".to_owned()));
+    }),
+    window!("version-history", "Version History", |e| {
+        e.set_project_has_file(true);
+        e.show_version_history(Vec::new());
+    }),
+    window!("preferences", "Preferences", |e| e.open_preferences()),
+    window!("publish", "Publish course", |e| {
+        e.file_ops_available = true;
+        e.open_publish_dialog();
+    }),
+    window!("export-video", "Export Video", |e| e.open_export_dialog()),
+    window!("export-review", "Export for Review", |e| {
+        e.open_export_review(crate::ReviewFormat::Pdf);
+    }),
+    window!("export-translation", "Export Translation", |e| {
+        e.ui.show_export_translation = true;
+    }),
+    window!("translation-report", "Translation Import Report", |e| {
+        e.set_translation_report("Applied 3 unit(s).\nMissing target: s-intro.title");
+    }),
+    window!("media-library", "Media Library", |e| {
+        e.ui.show_media_library = true;
+    }),
+    window!("fonts", "Fonts", |e| e.ui.show_fonts_window = true),
+    window!("shape-gallery", "Shapes", |e| {
+        e.ui.show_shape_gallery_window = true;
+    }),
+    window!("web", "Insert Web Object", |e| e.ui.show_web_window = true),
+    window!("outline", "Slides from Outline", |e| e
+        .open_outline_dialog()),
+    window!("find", "Find and Replace", crate::find::open),
+    window!("slide-size", "Slide Size", |e| e.open_slide_size_dialog()),
+    window!("alt-text", "Suggest Alt Text", |e| e.open_alt_text_dialog()),
+    window!("translate", "Translate with AI", |e| {
+        e.open_translate_dialog();
+    }),
+    window!("record-narration", "Record Narration", |e| {
+        e.open_record_narration();
+    }),
+    window!("speech", "Narration from Text", |e| e.open_speech_dialog()),
+    window!("document", "Course from Document", |e| {
+        e.open_document_dialog();
+    }),
+    window!("validation", "Check Course", |e| {
+        e.ui.show_validation_window = true;
+    }),
+    window!("error-history", "Error History", |e| {
+        e.ui.error_history = vec!["Could not save the file.".to_owned()];
+        e.ui.show_error_history_window = true;
+    }),
+    window!("pptx-report", "PowerPoint Import Report", |e| {
+        e.ui.pptx_import_report = Some("Imported 4 slides.".to_owned());
+    }),
+    window!("trigger-editor", "Trigger", open_trigger_editor),
+    window!("layer-settings", "Layer", open_layer_settings_first),
+    window!("delete-scene", "Delete scene", |e| {
+        let id = e.session.course.scenes.first().map(|s| s.id.clone());
+        e.ui.pending_delete_scene = id;
+    }),
+];
+
+/// The names `--window` accepts, in table order.
+pub fn window_names() -> impl Iterator<Item = &'static str> {
+    WINDOWS.iter().map(|w| w.name)
+}
+
+/// Look a window up by its `--window` name.
+#[must_use]
+pub fn window_spec(name: &str) -> Option<&'static WindowSpec> {
+    WINDOWS.iter().find(|w| w.name == name)
+}
+
+/// Open the window called `name`. Returns false for an unknown name.
+pub fn open_window(editor: &mut Editor, name: &str) -> bool {
+    match window_spec(name) {
+        Some(spec) => {
+            (spec.open)(editor);
+            true
+        }
+        None => false,
+    }
 }
 
 /// Capture a headless editor UI snapshot for a course to an in-memory RGBA image.
@@ -52,51 +272,7 @@ pub fn snapshot_editor(
 ) -> Result<RgbaImage, RenderError> {
     let mut editor = Editor::new(course);
     editor.media = media;
-
-    if let Some(ref slide_id) = select.slide {
-        editor.selection.slide = slide_id.clone();
-        editor.selection.clear_objects();
-    }
-    if let Some(ref obj_id) = select.object {
-        editor.selection.object = Some(obj_id.clone());
-    }
-    if let Some(tab) = select.inspector_tab {
-        editor.ui.inspector_tab = tab;
-    }
-    if let Some(tab) = select.bottom_tab {
-        editor.ui.bottom_tab = tab;
-    }
-    if select.course_settings {
-        editor.ui.show_course_settings_window = true;
-    }
-    if select.theme_dialog {
-        editor.ui.show_theme_window = true;
-    }
-    if select.welcome {
-        editor.ui.show_welcome = true;
-    }
-    if select.shortcuts {
-        editor.ui.show_shortcuts_dialog = true;
-    }
-    if let Some(coach) = select.coach_mark {
-        editor.set_coach_marks_done(false);
-        editor.ui.current_coach_mark = Some(coach);
-    }
-    editor.selection.repair(&editor.session.course);
-    if select.connect_agent {
-        editor.automation_available = true;
-        editor.automation_enabled = true;
-        editor.agent_exe_path =
-            Some("/Applications/CourseCraft.app/Contents/MacOS/CourseCraft".to_owned());
-        editor.open_agent_settings();
-        editor.ui.ai.agents_detected = true;
-        for row in &mut editor.ui.ai.agents {
-            row.status = coursecraft_ai::agents::AgentStatus::Found;
-        }
-    }
-    if select.preview {
-        editor.open_preview();
-    }
+    select.apply(&mut editor);
 
     render_ui(
         size.0,

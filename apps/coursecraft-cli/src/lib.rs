@@ -340,9 +340,15 @@ enum Cmd {
         /// Snapshot a blank course.
         #[arg(long)]
         blank: bool,
+        /// Open one editor window or dialog by name (see --list-windows).
+        #[arg(long)]
+        window: Option<String>,
+        /// Print the names --window accepts and exit.
+        #[arg(long)]
+        list_windows: bool,
         /// Output PNG path.
         #[arg(short, long)]
-        out: PathBuf,
+        out: Option<PathBuf>,
     },
     /// Snapshot the learner player UI to a PNG file.
     #[command(name = "snapshot-player")]
@@ -881,8 +887,28 @@ fn run_snapshot_editor(
     preview: bool,
     connect_agent: bool,
     blank: bool,
-    out: PathBuf,
+    window: Option<String>,
+    list_windows: bool,
+    out: Option<PathBuf>,
 ) -> Res<ExitCode> {
+    if list_windows {
+        for name in coursecraft_ui_egui::window_names() {
+            println!("{name}");
+        }
+        return Ok(ExitCode::SUCCESS);
+    }
+    let Some(out) = out else {
+        return Err("snapshot-editor needs -o <png> (or --list-windows)".to_owned());
+    };
+    if let Some(name) = window.as_deref()
+        && coursecraft_ui_egui::window_spec(name).is_none()
+    {
+        let names: Vec<&str> = coursecraft_ui_egui::window_names().collect();
+        return Err(format!(
+            "unknown window '{name}'; expected one of: {}",
+            names.join(", ")
+        ));
+    }
     let theme_mode = match theme.to_ascii_lowercase().as_str() {
         "dark" => coursecraft_render::ThemeMode::Dark,
         "light" => coursecraft_render::ThemeMode::Light,
@@ -966,6 +992,7 @@ fn run_snapshot_editor(
         coach_mark: coach,
         preview,
         connect_agent,
+        window,
     };
 
     let img = coursecraft_ui_egui::snapshot_editor(
@@ -1833,6 +1860,8 @@ fn run(cli: Cli) -> Res<ExitCode> {
             preview,
             connect_agent,
             blank,
+            window,
+            list_windows,
             out,
         } => run_snapshot_editor(
             course,
@@ -1849,6 +1878,8 @@ fn run(cli: Cli) -> Res<ExitCode> {
             preview,
             connect_agent,
             blank,
+            window,
+            list_windows,
             out,
         ),
         Cmd::SnapshotPlayer {

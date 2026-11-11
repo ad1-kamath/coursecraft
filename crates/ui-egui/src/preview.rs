@@ -578,6 +578,11 @@ impl Preview {
                             None => None,
                         };
                         let out: FrameOutput = frame.show(ui, &player, view, media_arg);
+                        crate::content_region::mark_content_region(
+                            ctx,
+                            ui.layer_id(),
+                            out.slide_rect,
+                        );
                         if let Some(volume) = out.volume {
                             media_driver.set_volume(volume);
                         }

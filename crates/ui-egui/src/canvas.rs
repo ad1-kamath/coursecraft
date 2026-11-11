@@ -4902,6 +4902,7 @@ pub fn show_canvas_and_layers(editor: &mut Editor, ui: &mut Ui) {
         }
 
         editor.ui.last_slide_rect = Some(t.slide_rect());
+        crate::content_region::mark_content_region(ui.ctx(), ui.layer_id(), t.slide_rect());
         editor.ui.last_zoom_hud_rect = Some(zoom_hud_rect);
 
         // Layer pills above the slide, left-aligned with slide left edge

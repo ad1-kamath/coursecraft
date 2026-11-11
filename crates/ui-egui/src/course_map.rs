@@ -351,6 +351,7 @@ fn show_map_thumbnail(
         );
     }
 
+    crate::content_region::mark_content_region(ui.ctx(), ui.layer_id(), thumb_rect);
     let resp = ui.interact(
         hit_rect,
         ui.scope_id().with("map_thumb").with(slide_id),

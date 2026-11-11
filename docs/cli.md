@@ -117,7 +117,7 @@ Run `coursecraft-cli <command> --help` for every option. A `<course>` is a `cour
 | `export-xliff <course> --target-language <tag> -o <file>` | Export strings for translation |
 | `import-xliff <course> <file> -o <out>` | Apply a translation to a copy |
 | `render <course> --slide <id> -o <png>` | Render a slide without a window; also takes `--width`, `--mode`, `--layer`, `--at-ms` |
-| `snapshot-editor <course> -o <png>` | Picture of the editor UI |
+| `snapshot-editor <course> -o <png>` | Picture of the editor UI. `--window <name>` opens one window or dialog (`--list-windows` prints the names); `--slide`, `--object`, `--inspector`, `--bottom`, `--theme`, `--size` pick the state |
 | `snapshot-player <course> -o <png>` | Picture of the learner player |
 | `editor <method> [json]` | Call a running app |
 | `guide` | Print this page |

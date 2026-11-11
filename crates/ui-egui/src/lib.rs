@@ -22,6 +22,7 @@ pub mod canvas;
 pub mod clipboard;
 pub mod coach;
 pub mod connect_agent;
+mod content_region;
 pub mod course_map;
 pub mod course_settings;
 pub mod crop;
@@ -78,6 +79,8 @@ mod audio_ai_tests;
 mod document_tests;
 #[cfg(test)]
 mod find_tests;
+#[cfg(test)]
+mod layout_tests;
 #[cfg(test)]
 mod outline_tests;
 #[cfg(test)]
@@ -146,7 +149,9 @@ pub use slides::{
     PANEL_PADDING_X, PANEL_PADDING_Y, SCENE_HEADER_HEIGHT, SLIDE_INFO_HEIGHT, SLIDE_ROW_GAP,
     SLIDES_PANEL_WIDTH, THUMBNAIL_HEIGHT, THUMBNAIL_WIDTH, show_slides_panel, slide_thumbnail_rect,
 };
-pub use snapshot::{SnapshotSelect, snapshot_editor};
+pub use snapshot::{
+    SnapshotSelect, WINDOWS, WindowSpec, open_window, snapshot_editor, window_names, window_spec,
+};
 pub use states::{SUGGESTED_STATE_NAMES, StateEditBuffer, StatesState, show_states_section};
 pub use status::{STATUS_BAR_HEIGHT, navigate_to_issue_path, show_status_bar};
 pub use theme_dialog::{ThemeDialogState, show_theme_dialog_window};
@@ -656,6 +661,8 @@ pub struct UiState {
     pub trigger_form: Option<TriggerFormState>,
     pub show_course_settings_window: bool,
     pub show_theme_window: bool,
+    /// Open the Text styles window on the next frame (it keeps its open flag in the context).
+    pub open_text_styles_window: bool,
     pub preview_state: Option<String>,
     pub bottom_tab: BottomTab,
     pub inspector_tab: InspectorTab,
@@ -956,6 +963,7 @@ impl Editor {
                 trigger_form: None,
                 show_course_settings_window: false,
                 show_theme_window: false,
+                open_text_styles_window: false,
                 preview_state: None,
                 bottom_tab: BottomTab::Timeline,
                 inspector_tab: InspectorTab::Slide,
