@@ -404,12 +404,10 @@ pub fn default_config_dir() -> Option<PathBuf> {
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
-        if let Some(xdg) = std::env::var_os("XDG_CONFIG_HOME") {
-            Some(PathBuf::from(xdg).join("coursecraft"))
-        } else if let Some(home) = std::env::var_os("HOME") {
-            Some(PathBuf::from(home).join(".config/coursecraft"))
-        } else {
-            None
-        }
+        std::env::var_os("XDG_CONFIG_HOME")
+            .map(|xdg| PathBuf::from(xdg).join("coursecraft"))
+            .or_else(|| {
+                std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config/coursecraft"))
+            })
     }
 }
