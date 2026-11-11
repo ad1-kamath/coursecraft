@@ -1,0 +1,5 @@
+type,question,choice1,choice2,choice3,choice4,correct,feedback_correct,feedback_incorrect,points
+multiple_choice,Which colour means stop?,Red,Green,Blue,Yellow,1,Right. Red means stop.,Not quite. Red means stop.,10
+multiple_response,Which of these are fire exits?,Front door,Window,Back door,Cupboard,1;3,Both exits are correct.,Pick every real exit.,20
+true_false,"Wear gloves, goggles and a coat in the lab.",,,,,true,Yes.,Safety kit is always required.,5
+fill_in,The number to call in an emergency is,,,,,"112; one one two",Correct.,Check the poster by the door.,10

@@ -1,0 +1,77 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "player-web",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd apps/coursecraft-player && exec trunk serve --port 8088 --watch . --watch ../../crates"
+      ],
+      "port": 8088
+    },
+    {
+      "name": "mock-lms",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8090",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "target/mock-lms"
+      ],
+      "port": 8090
+    },
+    {
+      "name": "mock-lrs",
+      "runtimeExecutable": "cargo",
+      "runtimeArgs": [
+        "xtask",
+        "mock-lrs",
+        "--port",
+        "8095"
+      ],
+      "port": 8095,
+      "autoPort": false
+    },
+    {
+      "name": "editor-web",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd apps/coursecraft && exec trunk serve --port 8089 --watch . --watch ../../crates"
+      ],
+      "port": 8089
+    },
+    {
+      "name": "editor-frozen",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8091",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "target/editor-frozen"
+      ],
+      "port": 8091
+    },
+    {
+      "name": "media-demo",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8092",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "target/media-demo-pkg"
+      ],
+      "port": 8092
+    }
+  ]
+}

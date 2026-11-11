@@ -1,0 +1,17 @@
+[package]
+name = "coursecraft-lti"
+description = "CourseCraft LTI 1.3 (L4): OIDC login, id_token validation, tool JWKS, client assertion and AGS scores as pure functions."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+base64.workspace = true
+ring.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,23 @@
+[package]
+name = "coursecraft-playback"
+description = "CourseCraft media playback backends (L2): audio and video for the player and the editor preview."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+log.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rodio.workspace = true
+cpal.workspace = true
+coursecraft-video-native.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys.workspace = true
+wasm-bindgen = "0.2"
+web-sys = { workspace = true, features = ["Window", "Document", "Element", "HtmlElement", "HtmlMediaElement", "HtmlAudioElement", "HtmlVideoElement", "CssStyleDeclaration", "Node", "Blob", "BlobPropertyBag", "Url", "Event", "EventTarget"] }
+
+[lints]
+workspace = true

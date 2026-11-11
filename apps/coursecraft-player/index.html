@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CourseCraft player</title>
+  <link data-trunk rel="rust" href="Cargo.toml" data-bin="coursecraft-player">
+  <link data-trunk rel="copy-file" href="../../examples/hello-course/course.json">
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #202124; }
+    #coursecraft_canvas { width: 100%; height: 100%; display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="coursecraft_canvas"></canvas>
+</body>
+</html>

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<!--
+  CourseCraft mock LMS (test tooling, never shipped).
+
+  A minimal SCORM 1.2 runtime (window.API) by default, or a SCORM 2004
+  4th Edition runtime (window.API_1484_11) with ?standard=2004 or when the
+  page is served under a path containing /scorm2004/. Values live in
+  localStorage under a key per standard, so the two runtimes never share a
+  learner. Loads the published package from ./package/index.html in an iframe
+  and records every call.
+
+  This is the one hand-written JavaScript file in the repository. It exists
+  only because a SCORM API lives in JavaScript; see docs/plans/m2-publish.md.
+  Inspect state from devtools via window.mockLms.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mock LMS</title>
+  <style>
+    :root {
+      --bg: #f4f5f7; --panel: #ffffff; --text: #1f2328; --muted: #656d76;
+      --border: #d8dee4; --accent: #2f6feb; --ok: #1a7f37; --bad: #cf222e;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0d1117; --panel: #161b22; --text: #e6edf3; --muted: #8d96a0;
+        --border: #30363d; --accent: #4493f8; --ok: #3fb950; --bad: #f85149;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text);
+      font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
+      padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+    header h1 { font-size: 14px; margin: 0 8px 0 0; }
+    .stat { color: var(--muted); }
+    .stat b { color: var(--text); font-variant-numeric: tabular-nums; }
+    .stat b.passed, .stat b.completed { color: var(--ok); }
+    .stat b.failed { color: var(--bad); }
+    body:not(.mode-2004) [data-mode="04"] { display: none; }
+    body.mode-2004 [data-mode="12"] { display: none; }
+    button { font: inherit; padding: 4px 10px; border-radius: 6px; cursor: pointer;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+    button:hover { border-color: var(--accent); }
+    .spacer { flex: 1; }
+    .course-nav { display: flex; gap: 16px; align-items: center; padding: 4px 16px;
+      background: var(--panel); border-bottom: 1px solid var(--border); font-size: 12px; }
+    .course-nav a { color: var(--accent); text-decoration: none; font-weight: 500; }
+    .course-nav a:hover { text-decoration: underline; }
+    main { display: grid; grid-template-columns: minmax(0, 1fr) 420px; height: calc(100vh - 74px); }
+    iframe { width: 100%; height: 100%; border: 0; background: #202124; }
+    aside { overflow: auto; border-left: 1px solid var(--border); background: var(--panel); }
+    table { width: 100%; border-collapse: collapse; font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    td { padding: 3px 8px; border-bottom: 1px solid var(--border); vertical-align: top; word-break: break-all; }
+    td.n { color: var(--muted); width: 1%; white-space: nowrap; }
+    tr.err td { color: var(--bad); }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; grid-template-rows: 60vh auto; height: auto; }
+      aside { border-left: 0; border-top: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+  <nav class="course-nav">
+    <a href="/index.html">hello-course</a>
+    <a href="/showcase/index.html">showcase</a>
+    <a href="/scorm2004/index.html">showcase (SCORM 2004)</a>
+  </nav>
+  <header>
+    <h1>Mock LMS</h1>
+    <span class="stat" data-mode="12">status <b id="s-status">-</b></span>
+    <span class="stat" data-mode="12">score <b id="s-score">-</b></span>
+    <span class="stat" data-mode="04">completion <b id="s-completion">-</b></span>
+    <span class="stat" data-mode="04">success <b id="s-success">-</b></span>
+    <span class="stat" data-mode="04">scaled <b id="s-scaled">-</b></span>
+    <span class="stat">location <b id="s-location">-</b></span>
+    <span class="stat">suspend <b id="s-suspend">0</b> chars</span>
+    <span class="stat">interactions <b id="s-interactions">0</b></span>
+    <span class="stat">session <b id="s-session">closed</b></span>
+    <span class="spacer"></span>
+    <button id="relaunch" type="button">Relaunch course</button>
+    <button id="reset" type="button">Reset learner</button>
+  </header>
+  <main>
+    <iframe id="sco" title="Course"></iframe>
+    <aside><table><tbody id="log"></tbody></table></aside>
+  </main>
+  <script>
+  (function () {
+    "use strict";
+
+    var is2004 = /[?&]standard=2004(?:&|$)/.test(location.search) ||
+      /(^|\/)scorm2004(\/|$)/.test(location.pathname);
+    if (is2004) document.body.classList.add("mode-2004");
+
+    var KEY = (is2004 ? "coursecraft-mock-lms:scorm2004:" : "coursecraft-mock-lms:") +
+      location.pathname.replace(/index\.html$/, "");
+
+    var DEFAULTS12 = {
+      "cmi.core.student_id": "learner-1",
+      "cmi.core.student_name": "Learner, Test",
+      "cmi.core.lesson_status": "not attempted",
+      "cmi.core.lesson_location": "",
+      "cmi.core.entry": "ab-initio",
+      "cmi.core.exit": "",
+      "cmi.core.score.raw": "",
+      "cmi.core.score.min": "",
+      "cmi.core.score.max": "",
+      "cmi.core.total_time": "0000:00:00.00",
+      "cmi.suspend_data": "",
+      "cmi.launch_data": "",
+      "cmi.interactions._count": "0"
+    };
+    var DEFAULTS2004 = {
+      "cmi.learner_id": "learner-1",
+      "cmi.learner_name": "Learner, Test",
+      "cmi.completion_status": "unknown",
+      "cmi.success_status": "unknown",
+      "cmi.location": "",
+      "cmi.entry": "ab-initio",
+      "cmi.exit": "",
+      "cmi.score.raw": "",
+      "cmi.score.min": "",
+      "cmi.score.max": "",
+      "cmi.score.scaled": "",
+      "cmi.total_time": "PT0S",
+      "cmi.session_time": "",
+      "cmi.suspend_data": "",
+      "cmi.launch_data": "",
+      "cmi.interactions._count": "0"
+    };
+    var DEFAULTS = is2004 ? DEFAULTS2004 : DEFAULTS12;
+
+    var WRITE_ONLY = { "cmi.core.exit": 1, "cmi.core.session_time": 1, "cmi.exit": 1,
+      "cmi.session_time": 1 };
+    var READ_ONLY = { "cmi.core.student_id": 1, "cmi.core.student_name": 1, "cmi.core.entry": 1,
+      "cmi.core.total_time": 1, "cmi.launch_data": 1, "cmi.learner_id": 1,
+      "cmi.learner_name": 1, "cmi.entry": 1, "cmi.total_time": 1 };
+    var ERRORS = { "0": "No error", "101": "General exception", "201": "Invalid argument error",
+      "301": "Not initialized", "401": "Not implemented error", "403": "Element is read only",
+      "404": "Element is write only", "405": "Incorrect data type",
+      "406": "Data model element value out of range",
+      "408": "Data model dependency not established" };
+
+    function load() {
+      try {
+        var s = JSON.parse(localStorage.getItem(KEY) || "null");
+        if (s) {
+          if (!("cmi.interactions._count" in s)) s["cmi.interactions._count"] = "0";
+          return s;
+        }
+      } catch (e) {}
+      return JSON.parse(JSON.stringify(DEFAULTS));
+    }
+    function persist() {
+      try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {}
+    }
+
+    var store = load();
+    var state = "idle"; // idle -> running -> finished
+    var lastError = "0";
+    var calls = [];
+
+    var logEl = document.getElementById("log");
+    function log(name, args, result) {
+      var entry = { n: calls.length + 1, call: name, args: args, result: result, error: lastError };
+      calls.push(entry);
+      console.log("[mock-lms] " + name + "(" + args.map(JSON.stringify).join(", ") + ") -> " + JSON.stringify(result));
+      var tr = document.createElement("tr");
+      if (lastError !== "0") tr.className = "err";
+      var td1 = document.createElement("td"); td1.className = "n"; td1.textContent = entry.n;
+      var td2 = document.createElement("td");
+      td2.textContent = name + "(" + args.map(JSON.stringify).join(", ") + ") → " + JSON.stringify(result);
+      tr.appendChild(td1); tr.appendChild(td2); logEl.appendChild(tr);
+      tr.scrollIntoView({ block: "nearest" });
+      render();
+    }
+    function setStat(id, value, className) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = value;
+      el.className = className || "";
+    }
+    function render() {
+      if (is2004) {
+        var completion = store["cmi.completion_status"] || "-";
+        var success = store["cmi.success_status"] || "-";
+        var scaled = store["cmi.score.scaled"];
+        setStat("s-completion", completion, completion);
+        setStat("s-success", success, success);
+        setStat("s-scaled", scaled === "" || scaled === undefined ? "-" : scaled);
+        document.getElementById("s-location").textContent = store["cmi.location"] || "-";
+      } else {
+        var status = store["cmi.core.lesson_status"] || "-";
+        var raw = store["cmi.core.score.raw"];
+        setStat("s-status", status, status);
+        document.getElementById("s-score").textContent =
+          raw === "" || raw === undefined ? "-" : raw + " / " + (store["cmi.core.score.max"] || "?");
+        document.getElementById("s-location").textContent = store["cmi.core.lesson_location"] || "-";
+      }
+      document.getElementById("s-suspend").textContent = (store["cmi.suspend_data"] || "").length;
+      document.getElementById("s-interactions").textContent = store["cmi.interactions._count"] || "0";
+      document.getElementById("s-session").textContent = state === "running" ? "open" : state;
+    }
+    function fail(code) { lastError = code; return "false"; }
+    function ok() { lastError = "0"; return "true"; }
+
+    function plainDecimal(value) {
+      if (!/^-?\d+(\.\d+)?$/.test(value)) return null;
+      var n = Number(value);
+      return isFinite(n) ? n : null;
+    }
+    function validTime(value) {
+      return value !== "PT" &&
+        /^PT(\d+H)?(\d+M)?(\d+(\.\d{1,2})?S)?$/.test(value);
+    }
+    function validScore(value) {
+      var n = plainDecimal(value);
+      return n !== null && n >= 0 && n <= 100;
+    }
+    function validScaled(value) {
+      var n = plainDecimal(value);
+      return n !== null && n >= -1 && n <= 1;
+    }
+    function interactionField(key) {
+      var m = /^cmi\.interactions\.(\d+)\.(.+)$/.exec(key);
+      return m ? { n: m[1], field: m[2] } : null;
+    }
+    function validResult12(value) {
+      return /^(correct|wrong|unanticipated|neutral)$/.test(value) ||
+        plainDecimal(value) !== null;
+    }
+    function validResult2004(value) {
+      return /^(correct|incorrect|unanticipated|neutral)$/.test(value) ||
+        plainDecimal(value) !== null;
+    }
+    function recordInteractionId(key) {
+      var info = interactionField(key);
+      if (!info || info.field !== "id") return;
+      var n = parseInt(info.n, 10);
+      var count = parseInt(store["cmi.interactions._count"] || "0", 10);
+      if (!isFinite(count) || count < 0) count = 0;
+      if (isFinite(n) && n >= count) store["cmi.interactions._count"] = String(n + 1);
+    }
+    function valid2004(key, value) {
+      if (interactionField(key)) return true;
+      switch (key) {
+        case "cmi.completion_status":
+          return /^(completed|incomplete|not attempted|unknown)$/.test(value);
+        case "cmi.success_status":
+          return /^(passed|failed|unknown)$/.test(value);
+        case "cmi.exit":
+          return /^(|timeout|suspend|logout|normal)$/.test(value);
+        case "cmi.session_time":
+          return validTime(value);
+        case "cmi.suspend_data":
+          return value.length <= 64000;
+        case "cmi.location":
+          return value.length <= 1000;
+        case "cmi.score.scaled":
+          return validScaled(value);
+        case "cmi.score.min":
+        case "cmi.score.max":
+        case "cmi.score.raw":
+          return validScore(value);
+        default:
+          return false;
+      }
+    }
+
+    var api12 = {
+      LMSInitialize: function (arg) {
+        var r;
+        if (state === "running") r = fail("101");
+        else {
+          store = load();
+          store["cmi.core.entry"] = (store["cmi.core.exit"] === "suspend" && store["cmi.suspend_data"]) ? "resume" : "ab-initio";
+          store["cmi.core.exit"] = "";
+          state = "running"; r = ok();
+        }
+        log("LMSInitialize", [arg], r); return r;
+      },
+      LMSFinish: function (arg) {
+        var r = state !== "running" ? fail("301") : (state = "finished", persist(), ok());
+        log("LMSFinish", [arg], r); return r;
+      },
+      LMSGetValue: function (key) {
+        var r;
+        if (state !== "running") { fail("301"); r = ""; }
+        else if (WRITE_ONLY[key]) { fail("404"); r = ""; }
+        else if (!(key in store)) { fail("401"); r = ""; }
+        else { ok(); r = String(store[key]); }
+        log("LMSGetValue", [key], r); return r;
+      },
+      LMSSetValue: function (key, value) {
+        var r;
+        var text = String(value);
+        var info = interactionField(key);
+        if (state !== "running") r = fail("301");
+        else if (READ_ONLY[key]) r = fail("403");
+        else if (key === "cmi.suspend_data" && text.length > 4096) r = fail("405");
+        else if (info && info.field === "result" && !validResult12(text)) r = fail("406");
+        else { store[key] = text; recordInteractionId(key); r = ok(); }
+        log("LMSSetValue", [key, value], r); return r;
+      },
+      LMSCommit: function (arg) {
+        var r = state !== "running" ? fail("301") : (persist(), ok());
+        log("LMSCommit", [arg], r); return r;
+      },
+      LMSGetLastError: function () { return lastError; },
+      LMSGetErrorString: function (code) { return ERRORS[String(code)] || "Unknown error"; },
+      LMSGetDiagnostic: function (code) { return ERRORS[String(code)] || ""; }
+    };
+
+    var api2004 = {
+      Initialize: function (arg) {
+        var r;
+        if (state === "running") r = fail("101");
+        else {
+          store = load();
+          store["cmi.entry"] = (store["cmi.exit"] === "suspend" && store["cmi.suspend_data"]) ? "resume" : "ab-initio";
+          store["cmi.exit"] = "";
+          state = "running"; r = ok();
+        }
+        log("Initialize", [arg], r); return r;
+      },
+      Terminate: function (arg) {
+        var r = state !== "running" ? fail("301") : (state = "finished", persist(), ok());
+        log("Terminate", [arg], r); return r;
+      },
+      GetValue: function (key) {
+        var r;
+        if (state !== "running") { fail("301"); r = ""; }
+        else if (WRITE_ONLY[key]) { fail("404"); r = ""; }
+        else if (!(key in store)) { fail("401"); r = ""; }
+        else { ok(); r = String(store[key]); }
+        log("GetValue", [key], r); return r;
+      },
+      SetValue: function (key, value) {
+        var r;
+        var text = String(value);
+        var info = interactionField(key);
+        var interactionError = null;
+        if (info) {
+          var idKey = "cmi.interactions." + info.n + ".id";
+          var typeKey = "cmi.interactions." + info.n + ".type";
+          var needsType = info.field.indexOf("correct_responses.") === 0 ||
+            info.field === "learner_response";
+          if (info.field !== "id" && !(idKey in store)) interactionError = "408";
+          else if (needsType && !(typeKey in store)) interactionError = "408";
+          else if (info.field === "result" && !validResult2004(text)) interactionError = "406";
+          else if (needsType && store[typeKey] === "true-false" &&
+            !/^(true|false)$/.test(text)) interactionError = "406";
+        }
+        if (state !== "running") r = fail("301");
+        else if (READ_ONLY[key]) r = fail("403");
+        else if (interactionError) r = fail(interactionError);
+        else if (!valid2004(key, text)) r = fail("406");
+        else { store[key] = text; recordInteractionId(key); r = ok(); }
+        log("SetValue", [key, value], r); return r;
+      },
+      Commit: function (arg) {
+        var r = state !== "running" ? fail("301") : (persist(), ok());
+        log("Commit", [arg], r); return r;
+      },
+      GetLastError: function () { return lastError; },
+      GetErrorString: function (code) { return ERRORS[String(code)] || "Unknown error"; },
+      GetDiagnostic: function (code) { return ERRORS[String(code)] || ""; }
+    };
+
+    // Each mode exposes only its own API object.
+    if (is2004) window.API_1484_11 = api2004;
+    else window.API = api12;
+
+    var frame = document.getElementById("sco");
+    function launch() { state = "idle"; frame.src = "package/index.html?launch=" + Date.now(); render(); }
+
+    document.getElementById("relaunch").addEventListener("click", function () {
+      // Unloading the iframe fires pagehide in the course, which finishes the session.
+      frame.src = "about:blank";
+      setTimeout(launch, 300);
+    });
+    document.getElementById("reset").addEventListener("click", function () {
+      // Unload first: the course's pagehide finish would otherwise re-save the old data.
+      frame.src = "about:blank";
+      setTimeout(function () {
+        try { localStorage.removeItem(KEY); } catch (e) {}
+        store = load(); logEl.textContent = ""; calls.length = 0;
+        launch();
+      }, 300);
+    });
+
+    window.mockLms = { calls: calls, store: function () { return store; }, saved: load,
+      state: function () { return state; }, is2004: is2004 };
+    launch();
+  })();
+  </script>
+</body>
+</html>

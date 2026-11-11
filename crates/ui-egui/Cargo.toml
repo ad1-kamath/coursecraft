@@ -1,0 +1,22 @@
+[package]
+name = "coursecraft-ui-egui"
+description = "CourseCraft editor UI (L6): menus, slides, canvas, panels and dialogs on egui; every change goes through engine commands."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+coursecraft-course.workspace = true
+coursecraft-logic.workspace = true
+coursecraft-media.workspace = true
+coursecraft-engine.workspace = true
+coursecraft-render.workspace = true
+coursecraft-ai.workspace = true
+coursecraft-format.workspace = true
+coursecraft-playback.workspace = true
+egui.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,78 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "apps/*", "xtask"]
+default-members = ["crates/*", "apps/coursecraft-cli", "apps/coursecraft-mcp"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+rust-version = "1.99"
+
+[workspace.dependencies]
+# internal
+coursecraft-scorm = { path = "crates/scorm" }
+coursecraft-course = { path = "crates/course" }
+coursecraft-logic = { path = "crates/logic" }
+coursecraft-engine = { path = "crates/engine" }
+coursecraft-render = { path = "crates/render" }
+coursecraft-ai = { path = "crates/ai" }
+coursecraft-format = { path = "crates/format" }
+coursecraft-pptx = { path = "crates/pptx" }
+coursecraft-control = { path = "crates/control" }
+coursecraft-lms = { path = "crates/lms" }
+coursecraft-lti = { path = "crates/lti" }
+coursecraft-publish = { path = "crates/publish" }
+coursecraft-export = { path = "crates/export" }
+coursecraft-ui-egui = { path = "crates/ui-egui" }
+coursecraft-cli = { path = "apps/coursecraft-cli" }
+coursecraft-mcp = { path = "apps/coursecraft-mcp" }
+coursecraft-media = { path = "crates/media" }
+coursecraft-playback = { path = "crates/playback" }
+coursecraft-video-native = { path = "crates/video-native" }
+coursecraft-xapi = { path = "crates/xapi" }
+
+# external
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+ring = "0.17"
+base64 = "0.23"
+clap = { version = "4", features = ["derive"] }
+egui = { version = "0.37", features = ["default_fonts"] }
+eframe = { version = "0.37", default-features = false, features = ["default_fonts", "wgpu", "accesskit"] }
+log = "0.4"
+ehttp = "0.7"
+httparse = "1"
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+wasm-bindgen-futures = "0.4"
+web-sys = "0.3"
+js-sys = "0.3"
+rfd = "0.17"
+quick-xml = "0.41"
+zip = { version = "9", default-features = false, features = ["deflate"] }
+rodio = "0.21"
+cpal = "0.16"
+skrifa = "0.44"
+velato = { version = "0.12", default-features = false }
+kurbo = "0.13"
+peniko = "0.6"
+resvg = { version = "0.49", default-features = false }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+cognitive_complexity = "deny"
+too_many_arguments = "deny"
+wildcard_imports = "deny"
+dbg_macro = "warn"
+todo = "warn"
+
+[profile.dev.package."*"]
+opt-level = 2
+debug = false
+
+[profile.release]
+lto = "thin"

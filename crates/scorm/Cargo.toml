@@ -1,0 +1,13 @@
+[package]
+name = "coursecraft-scorm"
+description = "SCORM 1.2 manifest generation and run-time vocabulary. Standalone: no workspace dependencies."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+
+[lints]
+workspace = true

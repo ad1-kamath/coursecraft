@@ -1,0 +1,68 @@
+name: Release
+
+# Runs when a version tag is pushed. It makes a draft release, so nothing is
+# public until someone reads it and presses Publish.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14, name: macos }
+          - { os: windows-2022, name: windows }
+          - { os: ubuntu-24.04, name: linux }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux libraries
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libxkbcommon-dev libwayland-dev libasound2-dev
+      - uses: dtolnay/rust-toolchain@1.99
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Install trunk
+        run: cargo install trunk --locked
+      # The player has to exist before the desktop app builds, so it ends up inside it.
+      - run: cargo xtask build-player
+      - run: cargo build --release -p coursecraft
+      - name: Package for macOS
+        if: matrix.name == 'macos'
+        run: scripts/package-macos.sh "${GITHUB_REF_NAME#v}" target/release/coursecraft dist
+      - name: Package for Windows
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item target/release/coursecraft.exe "dist/CourseCraft-$($env:GITHUB_REF_NAME).exe"
+      - name: Package for Linux
+        if: matrix.name == 'linux'
+        run: |
+          mkdir -p dist
+          tar -czf "dist/CourseCraft-${GITHUB_REF_NAME}-linux-x86_64.tar.gz" -C target/release coursecraft -C "$GITHUB_WORKSPACE" LICENSE-MIT LICENSE-APACHE ATTRIBUTION.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: dist/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: dist/*

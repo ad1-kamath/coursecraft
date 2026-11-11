@@ -1,0 +1,44 @@
+[package]
+name = "coursecraft"
+description = "CourseCraft editor: the egui editor as a desktop app and a wasm web page."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+build = "build.rs"
+
+[[bin]]
+name = "coursecraft"
+path = "src/main.rs"
+
+[dependencies]
+coursecraft-course.workspace = true
+coursecraft-engine.workspace = true
+coursecraft-ui-egui.workspace = true
+coursecraft-ai.workspace = true
+coursecraft-format.workspace = true
+coursecraft-pptx.workspace = true
+eframe.workspace = true
+egui.workspace = true
+ehttp.workspace = true
+rfd.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+coursecraft-cli.workspace = true
+coursecraft-control.workspace = true
+coursecraft-mcp.workspace = true
+coursecraft-publish.workspace = true
+coursecraft-export.workspace = true
+coursecraft-scorm.workspace = true
+coursecraft-xapi.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen-futures.workspace = true
+web-sys = { workspace = true, features = ["Window", "Document", "Element", "HtmlCanvasElement", "console", "Location"] }
+
+[lints]
+workspace = true

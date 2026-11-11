@@ -1,0 +1,21 @@
+[package]
+name = "coursecraft-publish"
+description = "CourseCraft publishing (L4): course + player + media -> SCORM 1.2 package (file set and zip)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+coursecraft-course.workspace = true
+coursecraft-format.workspace = true
+coursecraft-scorm.workspace = true
+coursecraft-xapi.workspace = true
+thiserror.workspace = true
+zip.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,35 @@
+[package]
+name = "coursecraft-cli"
+description = "Headless CourseCraft: validate, simulate, run commands, emit SCORM manifests."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "coursecraft_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "coursecraft-cli"
+path = "src/main.rs"
+
+[dependencies]
+coursecraft-course.workspace = true
+coursecraft-logic.workspace = true
+coursecraft-engine.workspace = true
+coursecraft-scorm.workspace = true
+coursecraft-xapi.workspace = true
+coursecraft-publish.workspace = true
+coursecraft-export.workspace = true
+coursecraft-format.workspace = true
+coursecraft-pptx.workspace = true
+coursecraft-render.workspace = true
+coursecraft-ui-egui.workspace = true
+coursecraft-control.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

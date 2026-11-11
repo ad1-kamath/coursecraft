@@ -1,0 +1,5 @@
+[
+  { "command": "slide.add", "params": { "title": "Bonus slide" } },
+  { "command": "object.add", "params": { "slide": "slide1", "kind": { "type": "text", "text": "Made by an agent" }, "frame": { "x": 80, "y": 80, "w": 600, "h": 60 } } },
+  { "command": "course.info" }
+]

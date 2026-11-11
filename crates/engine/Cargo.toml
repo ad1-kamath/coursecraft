@@ -1,0 +1,17 @@
+[package]
+name = "coursecraft-engine"
+description = "CourseCraft session and command registry. Every editing action is a command with an id; UI, CLI and MCP all dispatch through here."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+coursecraft-course.workspace = true
+coursecraft-format.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

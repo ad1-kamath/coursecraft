@@ -1,0 +1,12 @@
+[
+  { "input": "start" },
+  { "input": "tick", "ms": 1000 },
+  { "input": "click", "object": "btn-start" },
+  { "input": "click", "object": "tab1" },
+  { "input": "click", "object": "tab2" },
+  { "input": "click", "object": "tab3" },
+  { "input": "click", "object": "btn-next" },
+  { "input": "select_choice", "choice": "b" },
+  { "input": "click", "object": "btn-submit" },
+  { "input": "click", "object": "btn-continue-ok" }
+]

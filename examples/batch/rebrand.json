@@ -1,0 +1,4 @@
+[
+  { "command": "course.recolor", "params": { "from": "#2F6FEB", "to": "#0B7A75" } },
+  { "command": "course.set_theme", "params": { "font": "Inter" } }
+]

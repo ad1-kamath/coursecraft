@@ -1,0 +1,20 @@
+[package]
+name = "coursecraft-pptx"
+description = "CourseCraft PowerPoint import (L3): .pptx slides to a Course plus media, read safely."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+coursecraft-course.workspace = true
+coursecraft-media.workspace = true
+quick-xml.workspace = true
+thiserror.workspace = true
+zip.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

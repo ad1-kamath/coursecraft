@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<!--
+  CourseCraft mock LRS (test tooling, never shipped).
+
+  Launches a published cmi5 or xAPI package in an iframe, serves the LRS side
+  under /xapi/, and shows the statements and validator problems the course
+  produced. This page is served by `cargo xtask mock-lrs` from
+  target/mock-lrs/index.html. Inspect the last log from devtools via
+  window.mockLrs.log().
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mock LRS</title>
+  <style>
+    :root {
+      --bg: #0d1117; --panel: #161b22; --text: #e6edf3; --muted: #8d96a0;
+      --border: #30363d; --accent: #4493f8; --ok: #3fb950; --bad: #f85149;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text);
+      font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
+      padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+    header h1 { font-size: 14px; margin: 0 8px 0 0; }
+    label { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); }
+    select, button { font: inherit; padding: 4px 8px; border-radius: 6px; cursor: pointer;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+    button:hover, select:hover { border-color: var(--accent); }
+    .stat { color: var(--muted); }
+    .stat b { color: var(--text); font-variant-numeric: tabular-nums; }
+    .stat b.bad { color: var(--bad); }
+    .spacer { flex: 1; }
+    main { display: grid; grid-template-columns: minmax(0, 1fr) 440px; height: calc(100vh - 54px); }
+    iframe { width: 100%; height: 100%; border: 0; background: #202124; }
+    aside { overflow: auto; border-left: 1px solid var(--border); background: var(--panel); }
+    table { width: 100%; border-collapse: collapse; font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    td { padding: 3px 8px; border-bottom: 1px solid var(--border); vertical-align: top; word-break: break-all; }
+    td.n { color: var(--muted); width: 1%; white-space: nowrap; }
+    tr.err td { color: var(--bad); }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; grid-template-rows: 60vh auto; height: auto; }
+      aside { border-left: 0; border-top: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Mock LRS</h1>
+    <label>course
+      <select id="course">
+        <option value="hello">hello</option>
+        <option value="showcase">showcase</option>
+      </select>
+    </label>
+    <label>flavor
+      <select id="flavor">
+        <option value="cmi5">cmi5</option>
+        <option value="xapi">xapi</option>
+      </select>
+    </label>
+    <label>mode
+      <select id="mode">
+        <option value="Normal">Normal</option>
+        <option value="Browse">Browse</option>
+        <option value="Review">Review</option>
+      </select>
+    </label>
+    <label><input id="mastery" type="checkbox"> mastery 0.8</label>
+    <label><input id="wantReturn" type="checkbox"> return URL</label>
+    <span class="stat">statements <b id="s-statements">0</b></span>
+    <span class="stat">problems <b id="s-problems" class="bad">0</b></span>
+    <span class="spacer"></span>
+    <button id="launch" type="button">Launch</button>
+    <button id="relaunch" type="button">Relaunch</button>
+    <button id="close" type="button">Close course</button>
+    <button id="fail" type="button">Fail next three</button>
+    <button id="reset" type="button">Reset</button>
+  </header>
+  <main>
+    <iframe id="sco" title="Course"></iframe>
+    <aside><table><tbody id="log"></tbody></table></aside>
+  </main>
+  <script>
+  (function () {
+    "use strict";
+
+    var latestLog = { statements: [], problems: [], stateKeys: [] };
+    var frame = document.getElementById("sco");
+    var logEl = document.getElementById("log");
+
+    function controls() {
+      return {
+        course: document.getElementById("course").value,
+        flavor: document.getElementById("flavor").value,
+        mode: document.getElementById("mode").value,
+        mastery: document.getElementById("mastery").checked,
+        wantReturn: document.getElementById("wantReturn").checked
+      };
+    }
+
+    function launch() {
+      var c = controls();
+      var query = "flavor=" + encodeURIComponent(c.flavor) +
+        "&course=" + encodeURIComponent(c.course) +
+        "&mode=" + encodeURIComponent(c.mode) +
+        (c.mastery ? "&mastery=0.8" : "") +
+        (c.wantReturn ? "&return=1" : "");
+      fetch("/mock/launch?" + query, { method: "POST" })
+        .then(function (response) { return response.json(); })
+        .then(function (body) { frame.src = body.url; })
+        .catch(function (err) { console.error("[mock-lrs] launch failed", err); });
+    }
+
+    function closeCourse() {
+      frame.src = "about:blank";
+    }
+
+    function relaunch() {
+      // Unloading the iframe fires pagehide in the course, which ends the session.
+      closeCourse();
+      setTimeout(launch, 300);
+    }
+
+    function failNext() {
+      fetch("/mock/fail?count=3&status=500", { method: "POST" })
+        .catch(function (err) { console.error("[mock-lrs] fail failed", err); });
+    }
+
+    function reset() {
+      closeCourse();
+      setTimeout(function () {
+        fetch("/mock/reset", { method: "POST" })
+          .then(function () { render({ statements: [], problems: [], stateKeys: [] }); })
+          .catch(function (err) { console.error("[mock-lrs] reset failed", err); });
+      }, 300);
+    }
+
+    function statementLine(statement) {
+      var verb = statement.verb && statement.verb.id ? statement.verb.id.split("/").pop() : "?";
+      var object = statement.object && statement.object.id ? statement.object.id : "?";
+      return verb + " → " + object;
+    }
+
+    function render(log) {
+      latestLog = log;
+      var statements = log.statements || [];
+      var problems = log.problems || [];
+      document.getElementById("s-statements").textContent = String(statements.length);
+      document.getElementById("s-problems").textContent = String(problems.length);
+      logEl.textContent = "";
+      var rows = [];
+      statements.forEach(function (statement) {
+        rows.push({ text: statementLine(statement), problem: false });
+      });
+      problems.forEach(function (problem) {
+        rows.push({ text: problem, problem: true });
+      });
+      rows.forEach(function (row, index) {
+        var tr = document.createElement("tr");
+        if (row.problem) tr.className = "err";
+        var td1 = document.createElement("td");
+        td1.className = "n";
+        td1.textContent = String(index + 1);
+        var td2 = document.createElement("td");
+        td2.textContent = row.text;
+        tr.appendChild(td1);
+        tr.appendChild(td2);
+        logEl.appendChild(tr);
+      });
+    }
+
+    function poll() {
+      fetch("/mock/log")
+        .then(function (response) { return response.json(); })
+        .then(render)
+        .catch(function (err) { console.error("[mock-lrs] log failed", err); });
+    }
+
+    document.getElementById("launch").addEventListener("click", launch);
+    document.getElementById("relaunch").addEventListener("click", relaunch);
+    document.getElementById("close").addEventListener("click", closeCourse);
+    document.getElementById("fail").addEventListener("click", failNext);
+    document.getElementById("reset").addEventListener("click", reset);
+
+    window.mockLrs = { log: function () { return latestLog; } };
+    setInterval(poll, 1000);
+    poll();
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,541 @@
+[
+  {
+    "command": "course.update",
+    "params": {
+      "id": "hello-course",
+      "title": "Workplace Safety Basics"
+    }
+  },
+  {
+    "command": "course.set_quiz",
+    "params": {
+      "passing_percent": 80
+    }
+  },
+  {
+    "command": "variable.add",
+    "params": {
+      "name": "tabs_seen",
+      "value": 0
+    }
+  },
+  {
+    "command": "scene.add",
+    "params": {
+      "id": "sc-main",
+      "title": "Main"
+    }
+  },
+  {
+    "command": "slide.add",
+    "params": {
+      "scene": "sc-main",
+      "id": "s-intro",
+      "title": "Welcome"
+    }
+  },
+  {
+    "command": "slide.update",
+    "params": {
+      "slide": "s-intro",
+      "duration_ms": 4000
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-intro",
+      "id": "title",
+      "kind": {
+        "type": "text",
+        "text": "Workplace Safety Basics",
+        "style": { "size": 48.0, "bold": true }
+      },
+      "frame": { "x": 80.0, "y": 120.0, "w": 1120.0, "h": 80.0 }
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-intro",
+      "id": "btn-start",
+      "kind": { "type": "button", "label": "Start" },
+      "frame": { "x": 80.0, "y": 520.0, "w": 200.0, "h": 60.0 },
+      "timing": { "start_ms": 1000 }
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-intro",
+      "id": "btn-about",
+      "kind": { "type": "button", "label": "About this course", "fill": "#5A5A5A" },
+      "frame": { "x": 300.0, "y": 520.0, "w": 260.0, "h": 60.0 }
+    }
+  },
+  {
+    "command": "layer.add",
+    "params": {
+      "slide": "s-intro",
+      "id": "about",
+      "name": "About"
+    }
+  },
+  {
+    "command": "layer.update",
+    "params": {
+      "slide": "s-intro",
+      "layer": "about",
+      "duration_ms": 3000,
+      "prevent_base_clicks": true
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-intro",
+      "layer": "about",
+      "id": "about-panel",
+      "kind": { "type": "shape", "shape": "rounded_rectangle", "fill": "#FFFFFFF0" },
+      "frame": { "x": 240.0, "y": 140.0, "w": 800.0, "h": 440.0 }
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-intro",
+      "layer": "about",
+      "id": "about-text",
+      "kind": { "type": "text", "text": "Ten minutes. One quiz. 80% to pass." },
+      "frame": { "x": 280.0, "y": 200.0, "w": 720.0, "h": 200.0 }
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-intro",
+      "layer": "about",
+      "id": "btn-close",
+      "kind": { "type": "button", "label": "Close" },
+      "frame": { "x": 820.0, "y": 500.0, "w": 180.0, "h": 56.0 }
+    }
+  },
+  {
+    "command": "trigger.add",
+    "params": {
+      "slide": "s-intro",
+      "layer": "about",
+      "trigger": {
+        "action": { "action": "hide_layer" },
+        "when": { "event": "click", "object": "btn-close" }
+      }
+    }
+  },
+  {
+    "command": "trigger.add",
+    "params": {
+      "slide": "s-intro",
+      "trigger": {
+        "action": { "action": "jump_to_slide", "target": "next" },
+        "when": { "event": "click", "object": "btn-start" }
+      }
+    }
+  },
+  {
+    "command": "trigger.add",
+    "params": {
+      "slide": "s-intro",
+      "trigger": {
+        "action": { "action": "show_layer", "layer": "about" },
+        "when": { "event": "click", "object": "btn-about" }
+      }
+    }
+  },
+  {
+    "command": "slide.add",
+    "params": {
+      "scene": "sc-main",
+      "id": "s-tabs",
+      "title": "Three hazards"
+    }
+  },
+  {
+    "command": "slide.update",
+    "params": {
+      "slide": "s-tabs",
+      "duration_ms": 3000
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-tabs",
+      "id": "tab1",
+      "kind": { "type": "button", "label": "Slips" },
+      "frame": { "x": 80.0, "y": 100.0, "w": 220.0, "h": 56.0 }
+    }
+  },
+  {
+    "command": "object.add_state",
+    "params": {
+      "slide": "s-tabs",
+      "object": "tab1",
+      "state": { "name": "visited", "fill": "#2E8B57" }
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-tabs",
+      "id": "tab2",
+      "kind": { "type": "button", "label": "Fire" },
+      "frame": { "x": 320.0, "y": 100.0, "w": 220.0, "h": 56.0 }
+    }
+  },
+  {
+    "command": "object.add_state",
+    "params": {
+      "slide": "s-tabs",
+      "object": "tab2",
+      "state": { "name": "visited", "fill": "#2E8B57" }
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-tabs",
+      "id": "tab3",
+      "kind": { "type": "button", "label": "Electrical" },
+      "frame": { "x": 560.0, "y": 100.0, "w": 220.0, "h": 56.0 }
+    }
+  },
+  {
+    "command": "object.add_state",
+    "params": {
+      "slide": "s-tabs",
+      "object": "tab3",
+      "state": { "name": "visited", "fill": "#2E8B57" }
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-tabs",
+      "id": "btn-next",
+      "kind": { "type": "button", "label": "Next" },
+      "frame": { "x": 1000.0, "y": 600.0, "w": 200.0, "h": 60.0 }
+    }
+  },
+  {
+    "command": "object.add_state",
+    "params": {
+      "slide": "s-tabs",
+      "object": "btn-next",
+      "state": { "name": "disabled", "fill": "#B0B0B0" }
+    }
+  },
+  {
+    "command": "object.update",
+    "params": {
+      "slide": "s-tabs",
+      "object": "btn-next",
+      "initial_state": "disabled"
+    }
+  },
+  {
+    "command": "layer.add",
+    "params": {
+      "slide": "s-tabs",
+      "id": "l1",
+      "name": "Slips"
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-tabs",
+      "layer": "l1",
+      "id": "l1-text",
+      "kind": { "type": "text", "text": "Wipe spills right away and put up a sign." },
+      "frame": { "x": 80.0, "y": 200.0, "w": 1000.0, "h": 300.0 }
+    }
+  },
+  {
+    "command": "layer.add",
+    "params": {
+      "slide": "s-tabs",
+      "id": "l2",
+      "name": "Fire"
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-tabs",
+      "layer": "l2",
+      "id": "l2-text",
+      "kind": { "type": "text", "text": "Know your two nearest exits." },
+      "frame": { "x": 80.0, "y": 200.0, "w": 1000.0, "h": 300.0 }
+    }
+  },
+  {
+    "command": "layer.add",
+    "params": {
+      "slide": "s-tabs",
+      "id": "l3",
+      "name": "Electrical"
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-tabs",
+      "layer": "l3",
+      "id": "l3-text",
+      "kind": { "type": "text", "text": "Never overload a socket." },
+      "frame": { "x": 80.0, "y": 200.0, "w": 1000.0, "h": 300.0 }
+    }
+  },
+  {
+    "command": "trigger.add",
+    "params": {
+      "slide": "s-tabs",
+      "trigger": {
+        "action": { "action": "set_variable", "variable": "tabs_seen", "op": "add", "value": 1 },
+        "when": { "event": "click", "object": "tab1" },
+        "condition": { "object_state": { "object": "tab1", "state": "visited", "is": false } }
+      }
+    }
+  },
+  {
+    "command": "trigger.add",
+    "params": {
+      "slide": "s-tabs",
+      "trigger": {
+        "action": { "action": "set_variable", "variable": "tabs_seen", "op": "add", "value": 1 },
+        "when": { "event": "click", "object": "tab2" },
+        "condition": { "object_state": { "object": "tab2", "state": "visited", "is": false } }
+      }
+    }
+  },
+  {
+    "command": "trigger.add",
+    "params": {
+      "slide": "s-tabs",
+      "trigger": {
+        "action": { "action": "set_variable", "variable": "tabs_seen", "op": "add", "value": 1 },
+        "when": { "event": "click", "object": "tab3" },
+        "condition": { "object_state": { "object": "tab3", "state": "visited", "is": false } }
+      }
+    }
+  },
+  {
+    "command": "trigger.add",
+    "params": {
+      "slide": "s-tabs",
+      "trigger": {
+        "action": { "action": "show_layer", "layer": "l1" },
+        "when": { "event": "click", "object": "tab1" }
+      }
+    }
+  },
+  {
+    "command": "trigger.add",
+    "params": {
+      "slide": "s-tabs",
+      "trigger": {
+        "action": { "action": "show_layer", "layer": "l2" },
+        "when": { "event": "click", "object": "tab2" }
+      }
+    }
+  },
+  {
+    "command": "trigger.add",
+    "params": {
+      "slide": "s-tabs",
+      "trigger": {
+        "action": { "action": "show_layer", "layer": "l3" },
+        "when": { "event": "click", "object": "tab3" }
+      }
+    }
+  },
+  {
+    "command": "trigger.add",
+    "params": {
+      "slide": "s-tabs",
+      "trigger": {
+        "action": { "action": "change_state", "object": "btn-next", "state": "normal" },
+        "when": { "event": "variable_changes", "variable": "tabs_seen" },
+        "condition": { "compare": { "variable": "tabs_seen", "op": "ge", "value": 3 } }
+      }
+    }
+  },
+  {
+    "command": "trigger.add",
+    "params": {
+      "slide": "s-tabs",
+      "trigger": {
+        "action": { "action": "jump_to_slide", "target": "next" },
+        "when": { "event": "click", "object": "btn-next" }
+      }
+    }
+  },
+  {
+    "command": "slide.add",
+    "params": {
+      "scene": "sc-main",
+      "id": "s-quiz",
+      "title": "Check your knowledge"
+    }
+  },
+  {
+    "command": "slide.update",
+    "params": {
+      "slide": "s-quiz",
+      "duration_ms": 2000
+    }
+  },
+  {
+    "command": "layer.add",
+    "params": {
+      "slide": "s-quiz",
+      "id": "correct",
+      "name": "Correct"
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-quiz",
+      "layer": "correct",
+      "id": "btn-continue-ok",
+      "kind": { "type": "button", "label": "Continue" },
+      "frame": { "x": 540.0, "y": 420.0, "w": 200.0, "h": 60.0 }
+    }
+  },
+  {
+    "command": "trigger.add",
+    "params": {
+      "slide": "s-quiz",
+      "layer": "correct",
+      "trigger": {
+        "action": { "action": "jump_to_slide", "target": "next" },
+        "when": { "event": "click", "object": "btn-continue-ok" }
+      }
+    }
+  },
+  {
+    "command": "layer.add",
+    "params": {
+      "slide": "s-quiz",
+      "id": "incorrect",
+      "name": "Incorrect"
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-quiz",
+      "layer": "incorrect",
+      "id": "btn-try-again",
+      "kind": { "type": "button", "label": "Try again" },
+      "frame": { "x": 540.0, "y": 420.0, "w": 200.0, "h": 60.0 }
+    }
+  },
+  {
+    "command": "trigger.add",
+    "params": {
+      "slide": "s-quiz",
+      "layer": "incorrect",
+      "trigger": {
+        "action": { "action": "hide_layer" },
+        "when": { "event": "click", "object": "btn-try-again" }
+      }
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-quiz",
+      "id": "btn-submit",
+      "kind": { "type": "button", "label": "Submit" },
+      "frame": { "x": 1000.0, "y": 600.0, "w": 200.0, "h": 60.0 }
+    }
+  },
+  {
+    "command": "question.set",
+    "params": {
+      "slide": "s-quiz",
+      "question": {
+        "kind": "multiple_choice",
+        "prompt": "You see a spill in the corridor. What do you do first?",
+        "choices": [
+          { "id": "a", "text": "Walk around it" },
+          { "id": "b", "text": "Clean it or mark it, then report it", "correct": true },
+          { "id": "c", "text": "Email facilities tomorrow" }
+        ],
+        "points": 10,
+        "attempts": 2,
+        "correct_layer": "correct",
+        "incorrect_layer": "incorrect"
+      }
+    }
+  },
+  {
+    "command": "trigger.update",
+    "params": {
+      "slide": "s-quiz",
+      "index": 0,
+      "trigger": {
+        "action": { "action": "submit_question" },
+        "when": { "event": "click", "object": "btn-submit" }
+      }
+    }
+  },
+  {
+    "command": "slide.add",
+    "params": {
+      "scene": "sc-main",
+      "id": "s-results",
+      "title": "Results"
+    }
+  },
+  {
+    "command": "slide.update",
+    "params": {
+      "slide": "s-results",
+      "duration_ms": 1000
+    }
+  },
+  {
+    "command": "object.add",
+    "params": {
+      "slide": "s-results",
+      "id": "results-text",
+      "kind": { "type": "text", "text": "Thanks for completing the course." },
+      "frame": { "x": 80.0, "y": 200.0, "w": 1120.0, "h": 200.0 }
+    }
+  },
+  {
+    "command": "trigger.add",
+    "params": {
+      "slide": "s-results",
+      "trigger": {
+        "action": { "action": "submit_results" },
+        "when": { "event": "timeline_starts" }
+      }
+    }
+  },
+  {
+    "command": "slide.delete",
+    "params": {
+      "slide": "slide1"
+    }
+  },
+  {
+    "command": "scene.delete",
+    "params": {
+      "scene": "scene1"
+    }
+  }
+]

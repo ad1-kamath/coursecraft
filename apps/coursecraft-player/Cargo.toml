@@ -1,0 +1,34 @@
+[package]
+name = "coursecraft-player"
+description = "CourseCraft player: the runtime and slide compositor as a desktop app and a wasm web page."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "coursecraft-player"
+path = "src/main.rs"
+
+[dependencies]
+coursecraft-course.workspace = true
+coursecraft-format.workspace = true
+coursecraft-logic.workspace = true
+coursecraft-playback.workspace = true
+coursecraft-render.workspace = true
+eframe.workspace = true
+egui.workspace = true
+log.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+coursecraft-lms.workspace = true
+coursecraft-xapi.workspace = true
+ehttp.workspace = true
+js-sys.workspace = true
+wasm-bindgen-futures.workspace = true
+web-sys = { workspace = true, features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlInputElement", "HtmlSelectElement", "HtmlOptionElement", "HtmlButtonElement", "HtmlImageElement", "Node", "NodeList", "Event", "FocusEvent", "KeyboardEvent", "CssStyleDeclaration", "HtmlCollection", "console", "Performance", "EventTarget", "PageTransitionEvent", "MediaQueryList", "Location"] }
+
+[lints]
+workspace = true

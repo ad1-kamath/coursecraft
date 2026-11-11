@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "id": "hello-course",
+  "title": "Workplace Safety Basics",
+  "slide_size": { "w": 1280, "h": 720 },
+  "variables": [
+    { "name": "tabs_seen", "value": 0 }
+  ],
+  "quiz": { "passing_percent": 80 },
+  "scenes": [
+    {
+      "id": "sc-main",
+      "title": "Main",
+      "slides": [
+        {
+          "id": "s-intro",
+          "title": "Welcome",
+          "duration_ms": 4000,
+          "objects": [
+            { "id": "title", "kind": { "type": "text", "text": "Workplace Safety Basics", "style": { "size": 48, "bold": true } }, "frame": { "x": 80, "y": 120, "w": 1120, "h": 80 } },
+            { "id": "btn-start", "kind": { "type": "button", "label": "Start" }, "frame": { "x": 80, "y": 520, "w": 200, "h": 60 }, "timing": { "start_ms": 1000 } },
+            { "id": "btn-about", "kind": { "type": "button", "label": "About this course", "fill": "#5A5A5A" }, "frame": { "x": 300, "y": 520, "w": 260, "h": 60 } }
+          ],
+          "layers": [
+            {
+              "id": "about",
+              "name": "About",
+              "duration_ms": 3000,
+              "prevent_base_clicks": true,
+              "objects": [
+                { "id": "about-panel", "kind": { "type": "shape", "shape": "rounded_rectangle", "fill": "#FFFFFFF0" }, "frame": { "x": 240, "y": 140, "w": 800, "h": 440 } },
+                { "id": "about-text", "kind": { "type": "text", "text": "Ten minutes. One quiz. 80% to pass." }, "frame": { "x": 280, "y": 200, "w": 720, "h": 200 } },
+                { "id": "btn-close", "kind": { "type": "button", "label": "Close" }, "frame": { "x": 820, "y": 500, "w": 180, "h": 56 } }
+              ],
+              "triggers": [
+                { "action": { "action": "hide_layer" }, "when": { "event": "click", "object": "btn-close" } }
+              ]
+            }
+          ],
+          "triggers": [
+            { "action": { "action": "jump_to_slide", "target": "next" }, "when": { "event": "click", "object": "btn-start" } },
+            { "action": { "action": "show_layer", "layer": "about" }, "when": { "event": "click", "object": "btn-about" } }
+          ]
+        },
+        {
+          "id": "s-tabs",
+          "title": "Three hazards",
+          "duration_ms": 3000,
+          "objects": [
+            { "id": "tab1", "kind": { "type": "button", "label": "Slips" }, "frame": { "x": 80, "y": 100, "w": 220, "h": 56 }, "states": [ { "name": "visited", "fill": "#2E8B57" } ] },
+            { "id": "tab2", "kind": { "type": "button", "label": "Fire" }, "frame": { "x": 320, "y": 100, "w": 220, "h": 56 }, "states": [ { "name": "visited", "fill": "#2E8B57" } ] },
+            { "id": "tab3", "kind": { "type": "button", "label": "Electrical" }, "frame": { "x": 560, "y": 100, "w": 220, "h": 56 }, "states": [ { "name": "visited", "fill": "#2E8B57" } ] },
+            { "id": "btn-next", "kind": { "type": "button", "label": "Next" }, "frame": { "x": 1000, "y": 600, "w": 200, "h": 60 }, "states": [ { "name": "disabled", "fill": "#B0B0B0" } ], "initial_state": "disabled" }
+          ],
+          "layers": [
+            { "id": "l1", "name": "Slips", "objects": [ { "id": "l1-text", "kind": { "type": "text", "text": "Wipe spills right away and put up a sign." }, "frame": { "x": 80, "y": 200, "w": 1000, "h": 300 } } ] },
+            { "id": "l2", "name": "Fire", "objects": [ { "id": "l2-text", "kind": { "type": "text", "text": "Know your two nearest exits." }, "frame": { "x": 80, "y": 200, "w": 1000, "h": 300 } } ] },
+            { "id": "l3", "name": "Electrical", "objects": [ { "id": "l3-text", "kind": { "type": "text", "text": "Never overload a socket." }, "frame": { "x": 80, "y": 200, "w": 1000, "h": 300 } } ] }
+          ],
+          "triggers": [
+            { "action": { "action": "set_variable", "variable": "tabs_seen", "op": "add", "value": 1 }, "when": { "event": "click", "object": "tab1" }, "condition": { "object_state": { "object": "tab1", "state": "visited", "is": false } } },
+            { "action": { "action": "set_variable", "variable": "tabs_seen", "op": "add", "value": 1 }, "when": { "event": "click", "object": "tab2" }, "condition": { "object_state": { "object": "tab2", "state": "visited", "is": false } } },
+            { "action": { "action": "set_variable", "variable": "tabs_seen", "op": "add", "value": 1 }, "when": { "event": "click", "object": "tab3" }, "condition": { "object_state": { "object": "tab3", "state": "visited", "is": false } } },
+            { "action": { "action": "show_layer", "layer": "l1" }, "when": { "event": "click", "object": "tab1" } },
+            { "action": { "action": "show_layer", "layer": "l2" }, "when": { "event": "click", "object": "tab2" } },
+            { "action": { "action": "show_layer", "layer": "l3" }, "when": { "event": "click", "object": "tab3" } },
+            { "action": { "action": "change_state", "object": "btn-next", "state": "normal" }, "when": { "event": "variable_changes", "variable": "tabs_seen" }, "condition": { "compare": { "variable": "tabs_seen", "op": "ge", "value": 3 } } },
+            { "action": { "action": "jump_to_slide", "target": "next" }, "when": { "event": "click", "object": "btn-next" } }
+          ]
+        },
+        {
+          "id": "s-quiz",
+          "title": "Check your knowledge",
+          "duration_ms": 2000,
+          "objects": [
+            { "id": "btn-submit", "kind": { "type": "button", "label": "Submit" }, "frame": { "x": 1000, "y": 600, "w": 200, "h": 60 } }
+          ],
+          "question": {
+            "kind": "multiple_choice",
+            "prompt": "You see a spill in the corridor. What do you do first?",
+            "choices": [
+              { "id": "a", "text": "Walk around it" },
+              { "id": "b", "text": "Clean it or mark it, then report it", "correct": true },
+              { "id": "c", "text": "Email facilities tomorrow" }
+            ],
+            "points": 10,
+            "attempts": 2,
+            "correct_layer": "correct",
+            "incorrect_layer": "incorrect"
+          },
+          "layers": [
+            {
+              "id": "correct",
+              "name": "Correct",
+              "objects": [ { "id": "btn-continue-ok", "kind": { "type": "button", "label": "Continue" }, "frame": { "x": 540, "y": 420, "w": 200, "h": 60 } } ],
+              "triggers": [ { "action": { "action": "jump_to_slide", "target": "next" }, "when": { "event": "click", "object": "btn-continue-ok" } } ]
+            },
+            {
+              "id": "incorrect",
+              "name": "Incorrect",
+              "objects": [ { "id": "btn-try-again", "kind": { "type": "button", "label": "Try again" }, "frame": { "x": 540, "y": 420, "w": 200, "h": 60 } } ],
+              "triggers": [ { "action": { "action": "hide_layer" }, "when": { "event": "click", "object": "btn-try-again" } } ]
+            }
+          ],
+          "triggers": [
+            { "action": { "action": "submit_question" }, "when": { "event": "click", "object": "btn-submit" } }
+          ]
+        },
+        {
+          "id": "s-results",
+          "title": "Results",
+          "duration_ms": 1000,
+          "objects": [
+            { "id": "results-text", "kind": { "type": "text", "text": "Thanks for completing the course." }, "frame": { "x": 80, "y": 200, "w": 1120, "h": 200 } }
+          ],
+          "triggers": [
+            { "action": { "action": "submit_results" }, "when": { "event": "timeline_starts" } }
+          ]
+        }
+      ]
+    }
+  ]
+}

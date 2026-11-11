@@ -1,0 +1,17 @@
+[package]
+name = "coursecraft-lms"
+description = "CourseCraft LMS bridge logic (L4): turns runtime effects into SCORM 1.2 cmi writes and handles start, resume and finish, over a CmiApi trait."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+coursecraft-course.workspace = true
+coursecraft-logic.workspace = true
+coursecraft-scorm.workspace = true
+coursecraft-xapi.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

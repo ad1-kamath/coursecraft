@@ -1,0 +1,2664 @@
+{
+  "schema_version": 1,
+  "id": "showcase",
+  "title": "CourseCraft Showcase",
+  "slide_size": {
+    "w": 1280,
+    "h": 720
+  },
+  "theme": {
+    "accent": "#2563EB",
+    "background": "#F8FAFC",
+    "text": "#0F172A",
+    "font": "Inter",
+    "player": {
+      "bar": "#0F172A",
+      "bar_text": "#F8FAFC"
+    }
+  },
+  "variables": [
+    {
+      "name": "tabs_visited",
+      "value": 0
+    }
+  ],
+  "quiz": {
+    "passing_percent": 80
+  },
+  "scenes": [
+    {
+      "id": "sc-tour",
+      "title": "Feature Tour",
+      "slides": [
+        {
+          "id": "s-welcome",
+          "title": "Welcome",
+          "duration_ms": 5000,
+          "background": "#EFF6FF",
+          "objects": [
+            {
+              "id": "obj-welcome-title",
+              "name": "Welcome Title",
+              "kind": {
+                "type": "text",
+                "text": "CourseCraft Showcase",
+                "style": {
+                  "size": 40,
+                  "bold": true,
+                  "color": "#0F172A"
+                }
+              },
+              "frame": {
+                "x": 80,
+                "y": 60,
+                "w": 1120,
+                "h": 60
+              }
+            },
+            {
+              "id": "obj-welcome-banner",
+              "name": "Banner Graphic",
+              "kind": {
+                "type": "image",
+                "src": "banner.png",
+                "alt": "CourseCraft showcase banner"
+              },
+              "frame": {
+                "x": 80,
+                "y": 150,
+                "w": 480,
+                "h": 270
+              }
+            },
+            {
+              "id": "obj-welcome-sub",
+              "name": "Welcome Subtitle",
+              "kind": {
+                "type": "text",
+                "text": "An open-source, native eLearning authoring tool written in Rust only. Tour our media, states, animations, and interactive questions.",
+                "style": {
+                  "size": 24,
+                  "color": "#334155"
+                }
+              },
+              "frame": {
+                "x": 600,
+                "y": 180,
+                "w": 600,
+                "h": 120
+              },
+              "entrance": {
+                "effect": {
+                  "type": "fade"
+                },
+                "duration_ms": 600,
+                "easing": "ease_out"
+              }
+            },
+            {
+              "id": "btn-welcome-start",
+              "name": "Start Tour Button",
+              "kind": {
+                "type": "button",
+                "label": "Start Tour",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 600,
+                "y": 340,
+                "w": 200,
+                "h": 56
+              }
+            }
+          ],
+          "triggers": [
+            {
+              "action": {
+                "action": "jump_to_slide",
+                "target": "next"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-welcome-start"
+              }
+            }
+          ]
+        },
+        {
+          "id": "s-media",
+          "title": "Media Showcase",
+          "duration_ms": 5000,
+          "transition": {
+            "type": "fade",
+            "duration_ms": 500
+          },
+          "objects": [
+            {
+              "id": "obj-media-title",
+              "name": "Media Title",
+              "kind": {
+                "type": "text",
+                "text": "Video and Audio Support",
+                "style": {
+                  "size": 40,
+                  "bold": true,
+                  "color": "#0F172A"
+                }
+              },
+              "frame": {
+                "x": 80,
+                "y": 60,
+                "w": 1120,
+                "h": 60
+              }
+            },
+            {
+              "id": "obj-media-video",
+              "name": "Intro Video",
+              "kind": {
+                "type": "video",
+                "src": "intro.mp4",
+                "autoplay": false,
+                "captions": "intro.vtt"
+              },
+              "frame": {
+                "x": 80,
+                "y": 150,
+                "w": 480,
+                "h": 270
+              }
+            },
+            {
+              "id": "obj-media-audio",
+              "name": "Chime Audio",
+              "kind": {
+                "type": "audio",
+                "src": "chime.wav",
+                "autoplay": false,
+                "captions": "chime.vtt"
+              },
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 0,
+                "h": 0
+              }
+            },
+            {
+              "id": "btn-play-video",
+              "name": "Play Video Button",
+              "kind": {
+                "type": "button",
+                "label": "Play Video",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 80,
+                "y": 450,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "btn-play-audio",
+              "name": "Play Sound Button",
+              "kind": {
+                "type": "button",
+                "label": "Play Sound",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 300,
+                "y": 450,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "obj-media-status",
+              "name": "Media Status Display",
+              "kind": {
+                "type": "text",
+                "text": "Status: Video not finished",
+                "style": {
+                  "size": 24,
+                  "color": "#64748B"
+                }
+              },
+              "frame": {
+                "x": 600,
+                "y": 200,
+                "w": 500,
+                "h": 50
+              },
+              "states": [
+                {
+                  "name": "finished",
+                  "text": "Status: Video finished!"
+                }
+              ]
+            },
+            {
+              "id": "btn-back-media",
+              "name": "Back Button",
+              "kind": {
+                "type": "button",
+                "label": "Back",
+                "fill": "#64748B"
+              },
+              "frame": {
+                "x": 80,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "btn-next-media",
+              "name": "Next Button",
+              "kind": {
+                "type": "button",
+                "label": "Next",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 1000,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            }
+          ],
+          "layers": [
+            {
+              "id": "layer-video-finished",
+              "name": "Video Finished Notice",
+              "objects": [
+                {
+                  "id": "obj-finished-msg",
+                  "name": "Completion Notice",
+                  "kind": {
+                    "type": "text",
+                    "text": "Video playback complete!",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#16A34A"
+                    }
+                  },
+                  "frame": {
+                    "x": 600,
+                    "y": 270,
+                    "w": 500,
+                    "h": 50
+                  }
+                }
+              ]
+            }
+          ],
+          "triggers": [
+            {
+              "action": {
+                "action": "play_media",
+                "object": "obj-media-video"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-play-video"
+              }
+            },
+            {
+              "action": {
+                "action": "play_media",
+                "object": "obj-media-audio"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-play-audio"
+              }
+            },
+            {
+              "action": {
+                "action": "change_state",
+                "object": "obj-media-status",
+                "state": "finished"
+              },
+              "when": {
+                "event": "media_ends",
+                "object": "obj-media-video"
+              }
+            },
+            {
+              "action": {
+                "action": "show_layer",
+                "layer": "layer-video-finished"
+              },
+              "when": {
+                "event": "media_ends",
+                "object": "obj-media-video"
+              }
+            },
+            {
+              "action": {
+                "action": "jump_to_slide",
+                "target": "previous"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-back-media"
+              }
+            },
+            {
+              "action": {
+                "action": "jump_to_slide",
+                "target": "next"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-next-media"
+              }
+            }
+          ]
+        },
+        {
+          "id": "s-layers",
+          "title": "Layers, States and Motion",
+          "duration_ms": 5000,
+          "transition": {
+            "type": "push",
+            "from": "right",
+            "duration_ms": 500
+          },
+          "objects": [
+            {
+              "id": "obj-layers-title",
+              "name": "Layers Slide Title",
+              "kind": {
+                "type": "text",
+                "text": "Layers, States and Motion",
+                "style": {
+                  "size": 40,
+                  "bold": true,
+                  "color": "#0F172A"
+                }
+              },
+              "frame": {
+                "x": 80,
+                "y": 60,
+                "w": 1120,
+                "h": 60
+              }
+            },
+            {
+              "id": "tab-arch",
+              "name": "Architecture Tab",
+              "kind": {
+                "type": "button",
+                "label": "Architecture",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 80,
+                "y": 140,
+                "w": 200,
+                "h": 56
+              },
+              "states": [
+                {
+                  "name": "visited",
+                  "fill": "#15803D"
+                }
+              ]
+            },
+            {
+              "id": "tab-engine",
+              "name": "Engine Tab",
+              "kind": {
+                "type": "button",
+                "label": "Engine",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 300,
+                "y": 140,
+                "w": 200,
+                "h": 56
+              },
+              "states": [
+                {
+                  "name": "visited",
+                  "fill": "#15803D"
+                }
+              ]
+            },
+            {
+              "id": "tab-scorm",
+              "name": "SCORM Tab",
+              "kind": {
+                "type": "button",
+                "label": "SCORM",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 520,
+                "y": 140,
+                "w": 200,
+                "h": 56
+              },
+              "states": [
+                {
+                  "name": "visited",
+                  "fill": "#15803D"
+                }
+              ]
+            },
+            {
+              "id": "obj-tab-counter",
+              "name": "Tabs Visited Counter",
+              "kind": {
+                "type": "text",
+                "text": "Tabs visited: %tabs_visited% of 3",
+                "style": {
+                  "size": 24,
+                  "bold": true,
+                  "color": "#0F172A"
+                }
+              },
+              "frame": {
+                "x": 760,
+                "y": 150,
+                "w": 440,
+                "h": 40
+              }
+            },
+            {
+              "id": "obj-motion-box",
+              "name": "Animated Badge",
+              "kind": {
+                "type": "shape",
+                "shape": "rounded_rectangle",
+                "fill": "#3B82F6"
+              },
+              "frame": {
+                "x": 80,
+                "y": 480,
+                "w": 200,
+                "h": 56
+              },
+              "motion_paths": [
+                {
+                  "id": "slide_right",
+                  "points": [
+                    {
+                      "x": 0.0,
+                      "y": 0.0
+                    },
+                    {
+                      "x": 300.0,
+                      "y": 0.0
+                    }
+                  ],
+                  "duration_ms": 1000,
+                  "easing": "ease_in_out",
+                  "relative": true
+                }
+              ]
+            },
+            {
+              "id": "btn-animate",
+              "name": "Run Motion Path Button",
+              "kind": {
+                "type": "button",
+                "label": "Move Badge",
+                "fill": "#475569"
+              },
+              "frame": {
+                "x": 1000,
+                "y": 480,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "btn-back-layers",
+              "name": "Back Button",
+              "kind": {
+                "type": "button",
+                "label": "Back",
+                "fill": "#64748B"
+              },
+              "frame": {
+                "x": 80,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "btn-next-layers",
+              "name": "Next Button",
+              "kind": {
+                "type": "button",
+                "label": "Next",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 1000,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            }
+          ],
+          "layers": [
+            {
+              "id": "layer-arch",
+              "name": "Architecture Layer",
+              "objects": [
+                {
+                  "id": "text-arch",
+                  "name": "Architecture Details",
+                  "kind": {
+                    "type": "text",
+                    "text": "Layered architecture (L0-L6) with enforced dependency boundaries and zero panics.",
+                    "style": {
+                      "size": 24,
+                      "color": "#1E293B"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 240,
+                    "w": 1000,
+                    "h": 180
+                  }
+                }
+              ]
+            },
+            {
+              "id": "layer-engine",
+              "name": "Engine Layer",
+              "objects": [
+                {
+                  "id": "text-engine",
+                  "name": "Engine Details",
+                  "kind": {
+                    "type": "text",
+                    "text": "Every mutation is an engine command with undo history; logic is a pure runtime state machine.",
+                    "style": {
+                      "size": 24,
+                      "color": "#1E293B"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 240,
+                    "w": 1000,
+                    "h": 180
+                  }
+                }
+              ]
+            },
+            {
+              "id": "layer-scorm",
+              "name": "SCORM Layer",
+              "objects": [
+                {
+                  "id": "text-scorm",
+                  "name": "SCORM Details",
+                  "kind": {
+                    "type": "text",
+                    "text": "Standards compliance: SCORM 1.2 packaging, CMI data model, and resume support.",
+                    "style": {
+                      "size": 24,
+                      "color": "#1E293B"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 240,
+                    "w": 1000,
+                    "h": 180
+                  }
+                }
+              ]
+            }
+          ],
+          "triggers": [
+            {
+              "action": {
+                "action": "set_variable",
+                "variable": "tabs_visited",
+                "op": "add",
+                "value": 1
+              },
+              "when": {
+                "event": "click",
+                "object": "tab-arch"
+              },
+              "condition": {
+                "object_state": {
+                  "object": "tab-arch",
+                  "state": "visited",
+                  "is": false
+                }
+              }
+            },
+            {
+              "action": {
+                "action": "show_layer",
+                "layer": "layer-arch"
+              },
+              "when": {
+                "event": "click",
+                "object": "tab-arch"
+              }
+            },
+            {
+              "action": {
+                "action": "set_variable",
+                "variable": "tabs_visited",
+                "op": "add",
+                "value": 1
+              },
+              "when": {
+                "event": "click",
+                "object": "tab-engine"
+              },
+              "condition": {
+                "object_state": {
+                  "object": "tab-engine",
+                  "state": "visited",
+                  "is": false
+                }
+              }
+            },
+            {
+              "action": {
+                "action": "show_layer",
+                "layer": "layer-engine"
+              },
+              "when": {
+                "event": "click",
+                "object": "tab-engine"
+              }
+            },
+            {
+              "action": {
+                "action": "set_variable",
+                "variable": "tabs_visited",
+                "op": "add",
+                "value": 1
+              },
+              "when": {
+                "event": "click",
+                "object": "tab-scorm"
+              },
+              "condition": {
+                "object_state": {
+                  "object": "tab-scorm",
+                  "state": "visited",
+                  "is": false
+                }
+              }
+            },
+            {
+              "action": {
+                "action": "show_layer",
+                "layer": "layer-scorm"
+              },
+              "when": {
+                "event": "click",
+                "object": "tab-scorm"
+              }
+            },
+            {
+              "action": {
+                "action": "move_on_path",
+                "object": "obj-motion-box",
+                "path": "slide_right"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-animate"
+              }
+            },
+            {
+              "action": {
+                "action": "jump_to_slide",
+                "target": "previous"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-back-layers"
+              }
+            },
+            {
+              "action": {
+                "action": "jump_to_slide",
+                "target": "next"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-next-layers"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sc-quiz",
+      "title": "Assessment",
+      "slides": [
+        {
+          "id": "s-q-mc",
+          "title": "Multiple Choice",
+          "duration_ms": 5000,
+          "objects": [
+            {
+              "id": "btn-back-mc",
+              "name": "Back Button",
+              "kind": {
+                "type": "button",
+                "label": "Back",
+                "fill": "#64748B"
+              },
+              "frame": {
+                "x": 80,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "btn-submit-mc",
+              "name": "Submit Button",
+              "kind": {
+                "type": "button",
+                "label": "Submit",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 1000,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            }
+          ],
+          "question": {
+            "kind": "multiple_choice",
+            "prompt": "What is the primary design rule for CourseCraft code?",
+            "choices": [
+              {
+                "id": "mc-a",
+                "text": "Allow panics in production builds"
+              },
+              {
+                "id": "mc-b",
+                "text": "Never crash: no unwrap/panic in non-test code",
+                "correct": true
+              },
+              {
+                "id": "mc-c",
+                "text": "Rely entirely on browser JavaScript"
+              }
+            ],
+            "points": 10,
+            "attempts": 1,
+            "correct_layer": "correct",
+            "incorrect_layer": "incorrect"
+          },
+          "layers": [
+            {
+              "id": "correct",
+              "name": "Correct Layer",
+              "objects": [
+                {
+                  "id": "msg-mc-ok",
+                  "name": "Correct Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Correct! CourseCraft strictly forbids panics and crashes.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#16A34A"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 480,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-ok-mc",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#15803D"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-ok-mc"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "incorrect",
+              "name": "Incorrect Layer",
+              "objects": [
+                {
+                  "id": "msg-mc-fail",
+                  "name": "Incorrect Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Incorrect. CourseCraft's golden rule is to never crash.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#DC2626"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 480,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-fail-mc",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#DC2626"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-fail-mc"
+                  }
+                }
+              ]
+            }
+          ],
+          "triggers": [
+            {
+              "action": {
+                "action": "submit_question"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-submit-mc"
+              }
+            },
+            {
+              "action": {
+                "action": "jump_to_slide",
+                "target": "previous"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-back-mc"
+              }
+            }
+          ]
+        },
+        {
+          "id": "s-q-mr",
+          "title": "Multiple Response",
+          "duration_ms": 5000,
+          "objects": [
+            {
+              "id": "btn-back-mr",
+              "name": "Back Button",
+              "kind": {
+                "type": "button",
+                "label": "Back",
+                "fill": "#64748B"
+              },
+              "frame": {
+                "x": 80,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "btn-submit-mr",
+              "name": "Submit Button",
+              "kind": {
+                "type": "button",
+                "label": "Submit",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 1000,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            }
+          ],
+          "question": {
+            "kind": "multiple_response",
+            "prompt": "Which of the following are supported media formats in CourseCraft?",
+            "choices": [
+              {
+                "id": "mr-png",
+                "text": "PNG images",
+                "correct": true
+              },
+              {
+                "id": "mr-mp4",
+                "text": "MP4 video",
+                "correct": true
+              },
+              {
+                "id": "mr-wav",
+                "text": "WAV audio",
+                "correct": true
+              },
+              {
+                "id": "mr-exe",
+                "text": "EXE binary executables",
+                "correct": false
+              }
+            ],
+            "points": 10,
+            "attempts": 1,
+            "correct_layer": "correct",
+            "incorrect_layer": "incorrect"
+          },
+          "layers": [
+            {
+              "id": "correct",
+              "name": "Correct Layer",
+              "objects": [
+                {
+                  "id": "msg-mr-ok",
+                  "name": "Correct Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Correct! PNG, MP4, and WAV are all supported formats.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#16A34A"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 480,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-ok-mr",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#15803D"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-ok-mr"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "incorrect",
+              "name": "Incorrect Layer",
+              "objects": [
+                {
+                  "id": "msg-mr-fail",
+                  "name": "Incorrect Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Incorrect. CourseCraft supports PNG, MP4, and WAV, but not EXE.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#DC2626"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 480,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-fail-mr",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#DC2626"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-fail-mr"
+                  }
+                }
+              ]
+            }
+          ],
+          "triggers": [
+            {
+              "action": {
+                "action": "submit_question"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-submit-mr"
+              }
+            },
+            {
+              "action": {
+                "action": "jump_to_slide",
+                "target": "previous"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-back-mr"
+              }
+            }
+          ]
+        },
+        {
+          "id": "s-q-tf",
+          "title": "True or False",
+          "duration_ms": 5000,
+          "objects": [
+            {
+              "id": "btn-back-tf",
+              "name": "Back Button",
+              "kind": {
+                "type": "button",
+                "label": "Back",
+                "fill": "#64748B"
+              },
+              "frame": {
+                "x": 80,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "btn-submit-tf",
+              "name": "Submit Button",
+              "kind": {
+                "type": "button",
+                "label": "Submit",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 1000,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            }
+          ],
+          "question": {
+            "kind": "true_false",
+            "prompt": "All editing operations in CourseCraft must go through engine commands.",
+            "choices": [
+              {
+                "id": "true",
+                "text": "True",
+                "correct": true
+              },
+              {
+                "id": "false",
+                "text": "False",
+                "correct": false
+              }
+            ],
+            "points": 10,
+            "attempts": 1,
+            "correct_layer": "correct",
+            "incorrect_layer": "incorrect"
+          },
+          "layers": [
+            {
+              "id": "correct",
+              "name": "Correct Layer",
+              "objects": [
+                {
+                  "id": "msg-tf-ok",
+                  "name": "Correct Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Correct! Everything is a command in coursecraft-engine.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#16A34A"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 480,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-ok-tf",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#15803D"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-ok-tf"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "incorrect",
+              "name": "Incorrect Layer",
+              "objects": [
+                {
+                  "id": "msg-tf-fail",
+                  "name": "Incorrect Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Incorrect. Editing operations must always be engine commands.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#DC2626"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 480,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-fail-tf",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#DC2626"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-fail-tf"
+                  }
+                }
+              ]
+            }
+          ],
+          "triggers": [
+            {
+              "action": {
+                "action": "submit_question"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-submit-tf"
+              }
+            },
+            {
+              "action": {
+                "action": "jump_to_slide",
+                "target": "previous"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-back-tf"
+              }
+            }
+          ]
+        },
+        {
+          "id": "s-q-fi",
+          "title": "Fill in the Blank",
+          "duration_ms": 5000,
+          "objects": [
+            {
+              "id": "btn-back-fi",
+              "name": "Back Button",
+              "kind": {
+                "type": "button",
+                "label": "Back",
+                "fill": "#64748B"
+              },
+              "frame": {
+                "x": 80,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "btn-submit-fi",
+              "name": "Submit Button",
+              "kind": {
+                "type": "button",
+                "label": "Submit",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 1000,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            }
+          ],
+          "question": {
+            "kind": "fill_in",
+            "prompt": "What programming language is CourseCraft written in?",
+            "choices": [],
+            "accepted": [
+              "Rust",
+              "Rust only"
+            ],
+            "case_sensitive": false,
+            "points": 10,
+            "attempts": 1,
+            "correct_layer": "correct",
+            "incorrect_layer": "incorrect"
+          },
+          "layers": [
+            {
+              "id": "correct",
+              "name": "Correct Layer",
+              "objects": [
+                {
+                  "id": "msg-fi-ok",
+                  "name": "Correct Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Correct! CourseCraft is written in 100% Rust.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#16A34A"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 480,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-ok-fi",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#15803D"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-ok-fi"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "incorrect",
+              "name": "Incorrect Layer",
+              "objects": [
+                {
+                  "id": "msg-fi-fail",
+                  "name": "Incorrect Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Incorrect. The accepted answer is Rust.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#DC2626"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 480,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-fail-fi",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#DC2626"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-fail-fi"
+                  }
+                }
+              ]
+            }
+          ],
+          "triggers": [
+            {
+              "action": {
+                "action": "submit_question"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-submit-fi"
+              }
+            },
+            {
+              "action": {
+                "action": "jump_to_slide",
+                "target": "previous"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-back-fi"
+              }
+            }
+          ]
+        },
+        {
+          "id": "s-q-seq",
+          "title": "Sequence",
+          "duration_ms": 5000,
+          "objects": [
+            {
+              "id": "btn-back-seq",
+              "name": "Back Button",
+              "kind": {
+                "type": "button",
+                "label": "Back",
+                "fill": "#64748B"
+              },
+              "frame": {
+                "x": 80,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "btn-submit-seq",
+              "name": "Submit Button",
+              "kind": {
+                "type": "button",
+                "label": "Submit",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 1000,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            }
+          ],
+          "question": {
+            "kind": "sequence",
+            "prompt": "Order these development steps according to CourseCraft standards:",
+            "choices": [
+              {
+                "id": "seq-spec",
+                "text": "Update spec in triggers.md"
+              },
+              {
+                "id": "seq-logic",
+                "text": "Implement in pure logic runtime"
+              },
+              {
+                "id": "seq-verify",
+                "text": "Verify with cargo xtask ci"
+              }
+            ],
+            "points": 10,
+            "attempts": 1,
+            "correct_layer": "correct",
+            "incorrect_layer": "incorrect"
+          },
+          "layers": [
+            {
+              "id": "correct",
+              "name": "Correct Layer",
+              "objects": [
+                {
+                  "id": "msg-seq-ok",
+                  "name": "Correct Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Correct! Golden rule: Spec first, runtime second, CI verify.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#16A34A"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 480,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-ok-seq",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#15803D"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-ok-seq"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "incorrect",
+              "name": "Incorrect Layer",
+              "objects": [
+                {
+                  "id": "msg-seq-fail",
+                  "name": "Incorrect Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Incorrect. The order is spec first, then logic, then ci.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#DC2626"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 480,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-fail-seq",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#DC2626"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-fail-seq"
+                  }
+                }
+              ]
+            }
+          ],
+          "triggers": [
+            {
+              "action": {
+                "action": "submit_question"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-submit-seq"
+              }
+            },
+            {
+              "action": {
+                "action": "jump_to_slide",
+                "target": "previous"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-back-seq"
+              }
+            }
+          ]
+        },
+        {
+          "id": "s-q-mat",
+          "title": "Matching",
+          "duration_ms": 5000,
+          "objects": [
+            {
+              "id": "btn-back-mat",
+              "name": "Back Button",
+              "kind": {
+                "type": "button",
+                "label": "Back",
+                "fill": "#64748B"
+              },
+              "frame": {
+                "x": 80,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "btn-submit-mat",
+              "name": "Submit Button",
+              "kind": {
+                "type": "button",
+                "label": "Submit",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 1000,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            }
+          ],
+          "question": {
+            "kind": "matching",
+            "prompt": "Match each crate to its layer responsibility:",
+            "choices": [],
+            "pairs": [
+              {
+                "id": "p-scorm",
+                "left": "coursecraft-scorm (L0)",
+                "right": "SCORM 1.2 data model and manifest"
+              },
+              {
+                "id": "p-logic",
+                "left": "coursecraft-logic (L2)",
+                "right": "Pure runtime state machine"
+              },
+              {
+                "id": "p-publish",
+                "left": "coursecraft-publish (L4)",
+                "right": "Packages player and media"
+              }
+            ],
+            "points": 10,
+            "attempts": 1,
+            "correct_layer": "correct",
+            "incorrect_layer": "incorrect"
+          },
+          "layers": [
+            {
+              "id": "correct",
+              "name": "Correct Layer",
+              "objects": [
+                {
+                  "id": "msg-mat-ok",
+                  "name": "Correct Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Correct! You understand the CourseCraft crate layering.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#16A34A"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 480,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-ok-mat",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#15803D"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-ok-mat"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "incorrect",
+              "name": "Incorrect Layer",
+              "objects": [
+                {
+                  "id": "msg-mat-fail",
+                  "name": "Incorrect Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Incorrect. Review docs/architecture.md for crate layering.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#DC2626"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 480,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-fail-mat",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#DC2626"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-fail-mat"
+                  }
+                }
+              ]
+            }
+          ],
+          "triggers": [
+            {
+              "action": {
+                "action": "submit_question"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-submit-mat"
+              }
+            },
+            {
+              "action": {
+                "action": "jump_to_slide",
+                "target": "previous"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-back-mat"
+              }
+            }
+          ]
+        },
+        {
+          "id": "s-q-hs",
+          "title": "Hotspot",
+          "duration_ms": 5000,
+          "objects": [
+            {
+              "id": "img-floorplan",
+              "name": "Floorplan Image",
+              "description": "Floorplan the learner clicks to report a hazard.",
+              "kind": {
+                "type": "image",
+                "src": "floorplan.png",
+                "alt": "Floorplan with coloured zones"
+              },
+              "frame": {
+                "x": 80,
+                "y": 150,
+                "w": 480,
+                "h": 320
+              }
+            },
+            {
+              "id": "btn-back-hs",
+              "name": "Back Button",
+              "kind": {
+                "type": "button",
+                "label": "Back",
+                "fill": "#64748B"
+              },
+              "frame": {
+                "x": 80,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "btn-submit-hs",
+              "name": "Submit Button",
+              "kind": {
+                "type": "button",
+                "label": "Submit",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 1000,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            }
+          ],
+          "question": {
+            "kind": "hotspot",
+            "prompt": "Click the red zone on the floorplan to report the hazard.",
+            "choices": [],
+            "hotspot_image": "img-floorplan",
+            "regions": [
+              {
+                "id": "r-red",
+                "shape": "rect",
+                "x": 120.0,
+                "y": 190.0,
+                "w": 160.0,
+                "h": 120.0,
+                "correct": true
+              },
+              {
+                "id": "r-amber",
+                "shape": "rect",
+                "x": 360.0,
+                "y": 190.0,
+                "w": 160.0,
+                "h": 120.0,
+                "correct": false
+              },
+              {
+                "id": "r-green",
+                "shape": "rect",
+                "x": 360.0,
+                "y": 310.0,
+                "w": 160.0,
+                "h": 120.0,
+                "correct": false
+              }
+            ],
+            "points": 10,
+            "attempts": 1,
+            "correct_layer": "correct",
+            "incorrect_layer": "incorrect"
+          },
+          "layers": [
+            {
+              "id": "correct",
+              "name": "Correct Layer",
+              "objects": [
+                {
+                  "id": "msg-hs-ok",
+                  "name": "Correct Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Correct! You identified the red hazard zone.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#16A34A"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 500,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-ok-hs",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#15803D"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-ok-hs"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "incorrect",
+              "name": "Incorrect Layer",
+              "objects": [
+                {
+                  "id": "msg-hs-fail",
+                  "name": "Incorrect Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Incorrect. The red zone is in the top-left of the floorplan.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#DC2626"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 500,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-fail-hs",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#DC2626"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-fail-hs"
+                  }
+                }
+              ]
+            }
+          ],
+          "triggers": [
+            {
+              "action": {
+                "action": "submit_question"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-submit-hs"
+              }
+            },
+            {
+              "action": {
+                "action": "jump_to_slide",
+                "target": "previous"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-back-hs"
+              }
+            }
+          ]
+        },
+        {
+          "id": "s-q-dd",
+          "title": "Drag and Drop",
+          "duration_ms": 5000,
+          "objects": [
+            {
+              "id": "item-scorm",
+              "name": "SCORM Item",
+              "kind": {
+                "type": "button",
+                "label": "coursecraft-scorm",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 80,
+                "y": 170,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "item-logic",
+              "name": "Logic Item",
+              "kind": {
+                "type": "button",
+                "label": "coursecraft-logic",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 80,
+                "y": 290,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "item-engine",
+              "name": "Engine Item",
+              "kind": {
+                "type": "button",
+                "label": "coursecraft-engine",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 80,
+                "y": 410,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "box-l0",
+              "name": "L0 Target Box",
+              "description": "Drop target for the Layer 0 module.",
+              "kind": {
+                "type": "shape",
+                "shape": "rounded_rectangle",
+                "fill": "#E0E7FF"
+              },
+              "frame": {
+                "x": 560,
+                "y": 150,
+                "w": 320,
+                "h": 96
+              }
+            },
+            {
+              "id": "box-l2",
+              "name": "L2 Target Box",
+              "description": "Drop target for the Layer 2 module.",
+              "kind": {
+                "type": "shape",
+                "shape": "rounded_rectangle",
+                "fill": "#E0E7FF"
+              },
+              "frame": {
+                "x": 560,
+                "y": 270,
+                "w": 320,
+                "h": 96
+              }
+            },
+            {
+              "id": "box-l5",
+              "name": "L5 Target Box",
+              "description": "Drop target for the Layer 5 module.",
+              "kind": {
+                "type": "shape",
+                "shape": "rounded_rectangle",
+                "fill": "#E0E7FF"
+              },
+              "frame": {
+                "x": 560,
+                "y": 390,
+                "w": 320,
+                "h": 96
+              }
+            },
+            {
+              "id": "lbl-l0",
+              "name": "L0 Label",
+              "kind": {
+                "type": "text",
+                "text": "Target: Layer 0 (Foundation)",
+                "style": {
+                  "size": 18,
+                  "color": "#1E293B"
+                }
+              },
+              "frame": {
+                "x": 580,
+                "y": 185,
+                "w": 280,
+                "h": 30
+              }
+            },
+            {
+              "id": "lbl-l2",
+              "name": "L2 Label",
+              "kind": {
+                "type": "text",
+                "text": "Target: Layer 2 (Logic / Runtime)",
+                "style": {
+                  "size": 18,
+                  "color": "#1E293B"
+                }
+              },
+              "frame": {
+                "x": 580,
+                "y": 305,
+                "w": 280,
+                "h": 30
+              }
+            },
+            {
+              "id": "lbl-l5",
+              "name": "L5 Label",
+              "kind": {
+                "type": "text",
+                "text": "Target: Layer 5 (Engine Commands)",
+                "style": {
+                  "size": 18,
+                  "color": "#1E293B"
+                }
+              },
+              "frame": {
+                "x": 580,
+                "y": 425,
+                "w": 280,
+                "h": 30
+              }
+            },
+            {
+              "id": "btn-back-dd",
+              "name": "Back Button",
+              "kind": {
+                "type": "button",
+                "label": "Back",
+                "fill": "#64748B"
+              },
+              "frame": {
+                "x": 80,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            },
+            {
+              "id": "btn-submit-dd",
+              "name": "Submit Button",
+              "kind": {
+                "type": "button",
+                "label": "Submit",
+                "fill": "#2563EB"
+              },
+              "frame": {
+                "x": 1000,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            }
+          ],
+          "question": {
+            "kind": "drag_drop",
+            "prompt": "Categorize each component into its architectural layer:",
+            "choices": [],
+            "drag_items": [
+              {
+                "item": "item-scorm",
+                "target": "box-l0"
+              },
+              {
+                "item": "item-logic",
+                "target": "box-l2"
+              },
+              {
+                "item": "item-engine",
+                "target": "box-l5"
+              }
+            ],
+            "drop_targets": [
+              "box-l0",
+              "box-l2",
+              "box-l5"
+            ],
+            "points": 10,
+            "attempts": 1,
+            "correct_layer": "correct",
+            "incorrect_layer": "incorrect"
+          },
+          "layers": [
+            {
+              "id": "correct",
+              "name": "Correct Layer",
+              "objects": [
+                {
+                  "id": "msg-dd-ok",
+                  "name": "Correct Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Correct! Each crate is placed in its proper layer.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#16A34A"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 500,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-ok-dd",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#15803D"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-ok-dd"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "incorrect",
+              "name": "Incorrect Layer",
+              "objects": [
+                {
+                  "id": "msg-dd-fail",
+                  "name": "Incorrect Message",
+                  "kind": {
+                    "type": "text",
+                    "text": "Incorrect. Review the layer numbers for each crate.",
+                    "style": {
+                      "size": 24,
+                      "bold": true,
+                      "color": "#DC2626"
+                    }
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 500,
+                    "w": 800,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "btn-fail-dd",
+                  "name": "Continue Button",
+                  "kind": {
+                    "type": "button",
+                    "label": "Continue",
+                    "fill": "#DC2626"
+                  },
+                  "frame": {
+                    "x": 1000,
+                    "y": 600,
+                    "w": 200,
+                    "h": 56
+                  }
+                }
+              ],
+              "triggers": [
+                {
+                  "action": {
+                    "action": "jump_to_slide",
+                    "target": "next"
+                  },
+                  "when": {
+                    "event": "click",
+                    "object": "btn-fail-dd"
+                  }
+                }
+              ]
+            }
+          ],
+          "triggers": [
+            {
+              "action": {
+                "action": "submit_question"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-submit-dd"
+              }
+            },
+            {
+              "action": {
+                "action": "jump_to_slide",
+                "target": "previous"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-back-dd"
+              }
+            }
+          ]
+        },
+        {
+          "id": "s-results",
+          "title": "Assessment Results",
+          "duration_ms": 5000,
+          "objects": [
+            {
+              "id": "title-results",
+              "name": "Results Slide Title",
+              "kind": {
+                "type": "text",
+                "text": "Assessment Results",
+                "style": {
+                  "size": 40,
+                  "bold": true,
+                  "color": "#0F172A"
+                }
+              },
+              "frame": {
+                "x": 80,
+                "y": 60,
+                "w": 1120,
+                "h": 60
+              }
+            },
+            {
+              "id": "score-results",
+              "name": "Score Summary",
+              "kind": {
+                "type": "text",
+                "text": "Score: %Course.ScorePoints% of 80 points (%Course.ScorePercent%%%)",
+                "style": {
+                  "size": 28,
+                  "bold": true,
+                  "color": "#0F172A"
+                }
+              },
+              "frame": {
+                "x": 80,
+                "y": 150,
+                "w": 1120,
+                "h": 60
+              }
+            },
+            {
+              "id": "btn-back-results",
+              "name": "Back Button",
+              "kind": {
+                "type": "button",
+                "label": "Back",
+                "fill": "#64748B"
+              },
+              "frame": {
+                "x": 80,
+                "y": 600,
+                "w": 200,
+                "h": 56
+              }
+            }
+          ],
+          "layers": [
+            {
+              "id": "layer-passed",
+              "name": "Passed Feedback",
+              "objects": [
+                {
+                  "id": "panel-pass",
+                  "name": "Passed Panel",
+                  "kind": {
+                    "type": "shape",
+                    "shape": "rounded_rectangle",
+                    "fill": "#F0FDF4"
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 230,
+                    "w": 1120,
+                    "h": 180
+                  }
+                },
+                {
+                  "id": "msg-pass",
+                  "name": "Passed Heading",
+                  "kind": {
+                    "type": "text",
+                    "text": "Congratulations, you passed!",
+                    "style": {
+                      "size": 32,
+                      "bold": true,
+                      "color": "#16A34A"
+                    }
+                  },
+                  "frame": {
+                    "x": 120,
+                    "y": 260,
+                    "w": 1040,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "sub-pass",
+                  "name": "Passed Subtext",
+                  "kind": {
+                    "type": "text",
+                    "text": "You demonstrated mastery of CourseCraft concepts and met the 80% passing standard.",
+                    "style": {
+                      "size": 22,
+                      "color": "#166534"
+                    }
+                  },
+                  "frame": {
+                    "x": 120,
+                    "y": 320,
+                    "w": 1040,
+                    "h": 60
+                  }
+                }
+              ]
+            },
+            {
+              "id": "layer-failed",
+              "name": "Failed Feedback",
+              "objects": [
+                {
+                  "id": "panel-fail",
+                  "name": "Failed Panel",
+                  "kind": {
+                    "type": "shape",
+                    "shape": "rounded_rectangle",
+                    "fill": "#FEF2F2"
+                  },
+                  "frame": {
+                    "x": 80,
+                    "y": 230,
+                    "w": 1120,
+                    "h": 180
+                  }
+                },
+                {
+                  "id": "msg-fail",
+                  "name": "Failed Heading",
+                  "kind": {
+                    "type": "text",
+                    "text": "Assessment not passed",
+                    "style": {
+                      "size": 32,
+                      "bold": true,
+                      "color": "#DC2626"
+                    }
+                  },
+                  "frame": {
+                    "x": 120,
+                    "y": 260,
+                    "w": 1040,
+                    "h": 50
+                  }
+                },
+                {
+                  "id": "sub-fail",
+                  "name": "Failed Subtext",
+                  "kind": {
+                    "type": "text",
+                    "text": "You scored below the 80% passing threshold. Please review the tour and try again.",
+                    "style": {
+                      "size": 22,
+                      "color": "#991B1B"
+                    }
+                  },
+                  "frame": {
+                    "x": 120,
+                    "y": 320,
+                    "w": 1040,
+                    "h": 60
+                  }
+                }
+              ]
+            }
+          ],
+          "triggers": [
+            {
+              "action": {
+                "action": "submit_results"
+              },
+              "when": {
+                "event": "timeline_starts"
+              }
+            },
+            {
+              "action": {
+                "action": "show_layer",
+                "layer": "layer-passed"
+              },
+              "when": {
+                "event": "timeline_starts"
+              },
+              "condition": {
+                "compare": {
+                  "variable": "Course.ScorePercent",
+                  "op": "ge",
+                  "value": 80
+                }
+              }
+            },
+            {
+              "action": {
+                "action": "show_layer",
+                "layer": "layer-failed"
+              },
+              "when": {
+                "event": "timeline_starts"
+              },
+              "condition": {
+                "compare": {
+                  "variable": "Course.ScorePercent",
+                  "op": "lt",
+                  "value": 80
+                }
+              }
+            },
+            {
+              "action": {
+                "action": "jump_to_slide",
+                "target": "previous"
+              },
+              "when": {
+                "event": "click",
+                "object": "btn-back-results"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

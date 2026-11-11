@@ -1,0 +1,28 @@
+[package]
+name = "coursecraft-mcp"
+description = "CourseCraft MCP server (stdio): drive a course headlessly or a running editor through engine commands."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "coursecraft_mcp"
+path = "src/lib.rs"
+
+[[bin]]
+name = "coursecraft-mcp"
+path = "src/main.rs"
+
+[dependencies]
+coursecraft-course.workspace = true
+coursecraft-logic.workspace = true
+coursecraft-engine.workspace = true
+coursecraft-format.workspace = true
+coursecraft-control.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

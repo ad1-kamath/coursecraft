@@ -1,0 +1,3 @@
+[
+  { "command": "course.set_player", "params": { "logo": "logo.png" } }
+]

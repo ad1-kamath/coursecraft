@@ -1,0 +1,20 @@
+[package]
+name = "coursecraft-control"
+description = "CourseCraft control channel (L6): local JSON-RPC protocol, server loop and client used by the editor, the CLI and the MCP server."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+coursecraft-course.workspace = true
+coursecraft-logic.workspace = true
+coursecraft-engine.workspace = true
+coursecraft-format.workspace = true
+coursecraft-render.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

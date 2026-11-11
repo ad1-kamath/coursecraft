@@ -1,0 +1,15 @@
+[package]
+name = "coursecraft-ai"
+description = "CourseCraft AI client (L3): OpenAI-compatible request and response types, pure and with no network."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+coursecraft-media.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

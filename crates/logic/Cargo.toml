@@ -1,0 +1,17 @@
+[package]
+name = "coursecraft-logic"
+description = "CourseCraft player runtime: deterministic trigger/timeline/state/variable/quiz engine. No UI, no I/O."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+coursecraft-course.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

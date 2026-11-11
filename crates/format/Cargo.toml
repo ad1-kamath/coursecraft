@@ -1,0 +1,17 @@
+[package]
+name = "coursecraft-format"
+description = "CourseCraft .ccraft project format (L3): a zip of course.json and media/, opened safely."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+coursecraft-course.workspace = true
+quick-xml.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+zip.workspace = true
+
+[lints]
+workspace = true
