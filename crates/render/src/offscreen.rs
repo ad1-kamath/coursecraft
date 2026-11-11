@@ -243,17 +243,12 @@ fn rasterise_triangle(
         return;
     }
 
-    let mut area2 = (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
+    let area2 = (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
     if area2.abs() < 1e-6 {
         return;
     }
 
-    let (v1, v2) = if area2 < 0.0 {
-        area2 = -area2;
-        (v2, v1)
-    } else {
-        (v1, v2)
-    };
+    let (v1, v2) = if area2 < 0.0 { (v2, v1) } else { (v1, v2) };
 
     let (p1, p2) = (v1.pos, v2.pos);
     let min_x = p0.x.min(p1.x).min(p2.x);
@@ -280,33 +275,42 @@ fn rasterise_triangle(
     let y_start = bbox_min_y as usize;
     let y_end = (bbox_max_y as usize).min(height as usize);
 
-    let inv_area2 = 1.0 / area2;
-    let dw0_dx = -(p2.y - p1.y) * inv_area2;
-    let dw1_dx = -(p0.y - p2.y) * inv_area2;
-    let dw2_dx = -(p1.y - p0.y) * inv_area2;
-
     let width_usize = width as usize;
 
-    // Inclusive edge test: a pixel centre exactly on an edge belongs to the
-    // triangle on *both* sides. That keeps fills watertight along shared edges
-    // and also keeps boundary pixels from falling between the fill and its
-    // feather fringe (which used to leave white nicks on long diagonals).
-    // Edge values are tested unnormalised (pixel-area units) so both triangles
-    // see the same magnitude.
-    let covers = |w: f32| w * area2 >= -EDGE_EPSILON;
+    // Edge values are evaluated afresh for every pixel centre in f64, in pixel-area units.
+    // Stepping them across a row in f32 drifted by more than the edge tolerance on large
+    // triangles (a dialog card), so a pixel centre on the shared edge of two triangles fell
+    // into neither and left a one-pixel hole that showed whatever was painted below.
+    let (q0x, q0y) = (f64::from(p0.x), f64::from(p0.y));
+    let (q1x, q1y) = (f64::from(p1.x), f64::from(p1.y));
+    let (q2x, q2y) = (f64::from(p2.x), f64::from(p2.y));
+    let inv_area2 = 1.0 / ((q1x - q0x) * (q2y - q0y) - (q1y - q0y) * (q2x - q0x));
+    let epsilon = f64::from(EDGE_EPSILON);
+    // A pixel centre on an edge belongs to the triangle that owns that edge (the top-left
+    // rule), so fills stay watertight along shared edges and a translucent one is never
+    // blended twice there. Edges run p1->p2, p2->p0 and p0->p1 of the positively wound triangle.
+    let owns = |ax: f64, ay: f64, bx: f64, by: f64| {
+        let (dx, dy) = (bx - ax, by - ay);
+        dy < 0.0 || (dy == 0.0 && dx > 0.0)
+    };
+    let own0 = owns(q1x, q1y, q2x, q2y);
+    let own1 = owns(q2x, q2y, q0x, q0y);
+    let own2 = owns(q0x, q0y, q1x, q1y);
+    let covers = |e: f64, own: bool| e > epsilon || (e >= -epsilon && own);
 
     for y in y_start..y_end {
-        let py = y as f32 + 0.5;
-        let px_start = x_start as f32 + 0.5;
-
-        let mut w0 = ((p2.x - p1.x) * (py - p1.y) - (p2.y - p1.y) * (px_start - p1.x)) * inv_area2;
-        let mut w1 = ((p0.x - p2.x) * (py - p2.y) - (p0.y - p2.y) * (px_start - p2.x)) * inv_area2;
-        let mut w2 = ((p1.x - p0.x) * (py - p0.y) - (p1.y - p0.y) * (px_start - p0.x)) * inv_area2;
-
+        let py = f64::from(y as f32 + 0.5);
         let row_offset = (y * width_usize) * 4;
 
         for x in x_start..x_end {
-            if covers(w0) && covers(w1) && covers(w2) {
+            let px = f64::from(x as f32 + 0.5);
+            let e0 = (q2x - q1x) * (py - q1y) - (q2y - q1y) * (px - q1x);
+            let e1 = (q0x - q2x) * (py - q2y) - (q0y - q2y) * (px - q2x);
+            let e2 = (q1x - q0x) * (py - q0y) - (q1y - q0y) * (px - q0x);
+            if covers(e0, own0) && covers(e1, own1) && covers(e2, own2) {
+                let w0 = (e0 * inv_area2) as f32;
+                let w1 = (e1 * inv_area2) as f32;
+                let w2 = (e2 * inv_area2) as f32;
                 let mut b0 = w0.max(0.0);
                 let mut b1 = w1.max(0.0);
                 let mut b2 = w2.max(0.0);
@@ -367,9 +371,6 @@ fn rasterise_triangle(
                     }
                 }
             }
-            w0 += dw0_dx;
-            w1 += dw1_dx;
-            w2 += dw2_dx;
         }
     }
 }

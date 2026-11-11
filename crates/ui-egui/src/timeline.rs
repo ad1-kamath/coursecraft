@@ -1124,13 +1124,32 @@ fn render_object_rows(
         } else {
             header_row_rect.min.x
         };
-        painter.text(
-            pos2(text_x, header_row_rect.center().y),
-            Align2::LEFT_CENTER,
-            display_name,
+        // The name stops short of the eye icon: elided with "...", full name on hover.
+        let name_max_w = (eye_rect.min.x - 6.0 - text_x).max(0.0);
+        let mut name_job = egui::text::LayoutJob::simple_singleline(
+            display_name.clone(),
             FontId::proportional(13.0),
             text_color,
         );
+        name_job.wrap = egui::text::TextWrapping::truncate_at_width(name_max_w);
+        let name_galley = painter.layout_job(name_job);
+        let name_elided = name_galley.elided;
+        let name_rect = Rect::from_min_size(
+            pos2(
+                text_x,
+                header_row_rect.center().y - name_galley.size().y * 0.5,
+            ),
+            name_galley.size(),
+        );
+        painter.galley(name_rect.min, name_galley, text_color);
+        if name_elided {
+            ui.interact(
+                name_rect,
+                ui.scope_id().with("timeline_name").with(oid),
+                Sense::hover(),
+            )
+            .on_hover_text(display_name);
+        }
 
         for (rect, icon, on) in [
             (
@@ -1167,7 +1186,11 @@ fn render_object_rows(
         );
         let track_bg_rect = Rect::from_min_max(
             track_row_rect.min,
-            pos2(track_row_rect.max.x + bleed, track_row_rect.max.y),
+            // Bleed to the panel edge, but never past the clip (the layers divider).
+            pos2(
+                (track_row_rect.max.x + bleed).min(painter.clip_rect().max.x),
+                track_row_rect.max.y,
+            ),
         );
         painter.rect_filled(track_bg_rect, CornerRadius::ZERO, row_bg);
         painter.line_segment(

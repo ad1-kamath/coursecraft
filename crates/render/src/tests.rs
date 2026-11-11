@@ -5464,7 +5464,9 @@ mod offscreen_tests {
             at_ms: None,
         };
         let img = render_slide_rgba(&course, "slide1", &opts, &DummyMedia).expect("render slide");
-        assert_eq!(pixel_hash(&img.pixels), 13_610_865_306_066_260_794);
+        // Re-recorded when the rasteriser moved to exact edge tests with top-left ownership: pixels
+        // on a shared triangle edge are now drawn once, not twice.
+        assert_eq!(pixel_hash(&img.pixels), 6_765_172_024_918_289_242);
     }
 
     #[test]

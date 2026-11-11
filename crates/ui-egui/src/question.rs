@@ -375,6 +375,8 @@ pub fn show_question_tab(
     let scroll_out = ScrollArea::vertical()
         .id_salt("question_panel_scroll")
         .auto_shrink([false, false])
+        // Rows below the fold are reached by scrolling; show the bar so that is visible.
+        .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
         .show(ui, |ui| {
             // Header bar: Kind, tip line, Remove button
             ui.horizontal(|ui| {
@@ -926,7 +928,7 @@ fn show_pairs(
                 return;
             };
             ui.label(RichText::new(format!("{}.", idx + 1)).strong());
-            let text_w = ((ui.available_width() - 150.0) * 0.5).clamp(60.0, 200.0);
+            let text_w = ((ui.available_width() - 150.0) * 0.5).clamp(60.0, 360.0);
             let left_res = {
                 let Some(pair) = editor.ui.question.pairs.get_mut(idx) else {
                     return;
@@ -1095,8 +1097,9 @@ fn show_hotspot(
                 editor.request(crate::EditorRequest::PickImage);
             }
         }
-
-        ui.add_space(16.0);
+    });
+    // Markers get their own line: the warning above can fill the whole row.
+    ui.horizontal(|ui| {
         ui.label(RichText::new("Markers").strong());
         let mut markers = editor.ui.question.markers;
         let mr = ui.add(DragValue::new(&mut markers).speed(1.0).range(1..=10));
@@ -1184,8 +1187,11 @@ fn show_hotspot(
                         ));
                     }
                 });
-
-            // X, Y, W, H drag values
+        });
+        // The frame, the Correct box and Remove go on a second line, indented under the name:
+        // one line is wider than a narrow panel.
+        ui.horizontal(|ui| {
+            ui.add_space(22.0);
             ui.label("X");
             let mut x = r.x;
             let xr = ui.add(

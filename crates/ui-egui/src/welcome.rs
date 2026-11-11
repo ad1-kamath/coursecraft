@@ -115,24 +115,34 @@ pub fn show_welcome_screen(editor: &mut Editor, ui: &mut Ui, requests: &mut Vec<
         .inner_margin(32.0);
 
     card_frame.show(&mut card_ui, |ui| {
-        // Top right: quiet "Back to course" if a course was already open
-        if editor.ui.has_loaded_course {
-            ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-                if crate::quiet_button(ui, "Back to course", crate::QuietTone::Secondary, true)
-                    .clicked()
-                {
-                    editor.ui.show_welcome = false;
+        // Title row: "CourseCraft" on the left and, if a course was already open, a quiet
+        // "Back to course" on the right, both centred on the same line.
+        let title_row_h = SIZE_DISPLAY * 1.4;
+        ui.allocate_ui_with_layout(
+            vec2(ui.available_width(), title_row_h),
+            Layout::left_to_right(Align::Center),
+            |ui| {
+                ui.label(
+                    RichText::new("CourseCraft")
+                        .size(SIZE_DISPLAY)
+                        .strong()
+                        .color(p.text),
+                );
+                if editor.ui.has_loaded_course {
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if crate::quiet_button(
+                            ui,
+                            "Back to course",
+                            crate::QuietTone::Secondary,
+                            true,
+                        )
+                        .clicked()
+                        {
+                            editor.ui.show_welcome = false;
+                        }
+                    });
                 }
-            });
-            ui.add_space(-20.0);
-        }
-
-        // Header
-        ui.label(
-            RichText::new("CourseCraft")
-                .size(SIZE_DISPLAY)
-                .strong()
-                .color(p.text),
+            },
         );
         ui.add_space(4.0);
         ui.label(

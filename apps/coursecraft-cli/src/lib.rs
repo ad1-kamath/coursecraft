@@ -300,7 +300,8 @@ enum Cmd {
     #[command(name = "snapshot-editor")]
     SnapshotEditor {
         /// Path to course.json or .ccraft archive.
-        course: PathBuf,
+        #[arg(required_unless_present = "list_windows")]
+        course: Option<PathBuf>,
         /// Theme mode: dark or light (default dark).
         #[arg(long, default_value = "dark")]
         theme: String,
@@ -873,7 +874,7 @@ fn load_media_from_dir(dir: &Path) -> Vec<CliMediaEntry> {
 
 #[allow(clippy::too_many_arguments)]
 fn run_snapshot_editor(
-    course: PathBuf,
+    course: Option<PathBuf>,
     theme: String,
     size: String,
     scale: f32,
@@ -897,8 +898,8 @@ fn run_snapshot_editor(
         }
         return Ok(ExitCode::SUCCESS);
     }
-    let Some(out) = out else {
-        return Err("snapshot-editor needs -o <png> (or --list-windows)".to_owned());
+    let (Some(course), Some(out)) = (course, out) else {
+        return Err("snapshot-editor needs a course and -o <png> (or --list-windows)".to_owned());
     };
     if let Some(name) = window.as_deref()
         && coursecraft_ui_egui::window_spec(name).is_none()

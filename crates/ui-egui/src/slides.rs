@@ -111,6 +111,7 @@ pub fn show_slides_panel(editor: &mut Editor, ui: &mut Ui, panel_rect: Rect) {
         .show(ui, |ui| {
             ui.horizontal(|ui| {
                 let caret_w = 22.0;
+                ui.spacing_mut().item_spacing.x = 0.0;
                 let add_btn = egui::Button::new(
                     coursecraft_render::icon_text(coursecraft_render::Icon::Plus, "New slide")
                         .color(p.accent_text)

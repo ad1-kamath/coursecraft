@@ -426,7 +426,7 @@ pub fn show_layers_panel(
 fn painter_header(ui: &Ui, rect: Rect, p: &coursecraft_render::Palette) {
     let painter = ui.painter_at(rect);
     painter.text(
-        rect.left_center(),
+        pos2(rect.left() + 8.0, rect.center().y),
         Align2::LEFT_CENTER,
         "Slide Layers",
         FontId::new(
@@ -844,13 +844,20 @@ fn show_footer(
     let p = coursecraft_render::palette(ui.ctx());
     if no_layers {
         ui.add_space(4.0);
-        ui.label(
-            RichText::new(
-                "Layers show extra content on top of the slide, like popups and feedback.",
-            )
-            .color(p.text_secondary)
-            .size(coursecraft_render::SIZE_SMALL),
-        );
+        // Same 8 pt inner margin as the rows above.
+        ui.horizontal(|ui| {
+            ui.add_space(8.0);
+            ui.add(
+                egui::Label::new(
+                    RichText::new(
+                        "Layers show extra content on top of the slide, like popups and feedback.",
+                    )
+                    .color(p.text_secondary)
+                    .size(coursecraft_render::SIZE_SMALL),
+                )
+                .wrap(),
+            );
+        });
         ui.add_space(4.0);
     }
     let mut footer = ui.new_child(

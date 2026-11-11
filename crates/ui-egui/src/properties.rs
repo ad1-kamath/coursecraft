@@ -8,8 +8,8 @@ use coursecraft_course::{
 };
 use coursecraft_render::parse_color;
 use egui::{
-    Align2, Color32, CornerRadius, DragValue, FontId, Rect, Response, RichText, Sense, Stroke,
-    StrokeKind, TextEdit, Ui, vec2,
+    Color32, CornerRadius, DragValue, FontId, Rect, Response, RichText, Sense, Stroke, StrokeKind,
+    TextEdit, Ui, vec2,
 };
 use serde_json::Value as Json;
 
@@ -979,38 +979,79 @@ fn all_same_align(values: impl Iterator<Item = Align>) -> Option<Align> {
     }
 }
 
-/// Standard inspector row layout: fixed 92 px label on the left, control filling the remaining width.
+/// A drag value laid out from the left of `size`, like the combos and text fields beside it
+/// (`add_sized` would centre its text).
+pub(crate) fn add_drag_left(ui: &mut Ui, size: [f32; 2], drag: DragValue<'_>) -> Response {
+    ui.allocate_ui_with_layout(
+        vec2(size[0], size[1]),
+        egui::Layout::left_to_right(egui::Align::Center),
+        |ui| ui.add(drag),
+    )
+    .inner
+}
+
+/// Standard inspector row layout: fixed 92 px label column on the left, control filling the
+/// remaining width. A label too long for the column is elided with "..." and shows in full on
+/// hover. The controls never grow the row: whatever they need beyond the width is cut at the
+/// row edge instead of pushing the following rows past the panel's right margin.
 pub fn inspector_row<R>(ui: &mut Ui, label: &str, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    inspector_row_inner(ui, label, add_contents)
+}
+
+fn inspector_row_inner<R>(ui: &mut Ui, label: &str, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    use egui::text::{LayoutJob, TextWrapping};
     let p = coursecraft_render::palette(ui.ctx());
     // Keynote style: labels never carry a trailing colon.
     let label = label.trim_end_matches(':');
-    ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 6.0;
-        let (label_rect, _) = ui.allocate_exact_size(
-            vec2(LABEL_COL_WIDTH, coursecraft_render::CONTROL_COMPACT),
-            Sense::hover(),
-        );
-        if ui.is_rect_visible(label_rect) {
-            ui.painter().with_clip_rect(ui.clip_rect()).text(
-                label_rect.left_center(),
-                Align2::LEFT_CENTER,
-                label,
-                FontId::proportional(coursecraft_render::SIZE_BODY),
-                p.text_secondary,
+    let row_h = coursecraft_render::CONTROL_COMPACT;
+    let align = egui::Align::Center;
+    ui.allocate_ui_with_layout(
+        vec2(ui.available_width(), row_h),
+        egui::Layout::left_to_right(align),
+        |ui| {
+            ui.spacing_mut().item_spacing.x = 6.0;
+            let (label_rect, label_resp) =
+                ui.allocate_exact_size(vec2(LABEL_COL_WIDTH, row_h), Sense::hover());
+            if ui.is_rect_visible(label_rect) {
+                let mut job = LayoutJob::simple_singleline(
+                    label.to_owned(),
+                    FontId::proportional(coursecraft_render::SIZE_BODY),
+                    p.text_secondary,
+                );
+                job.wrap = TextWrapping::truncate_at_width(label_rect.width());
+                let galley = ui.painter().layout_job(job);
+                let elided = galley.elided;
+                let pos = egui::pos2(
+                    label_rect.min.x,
+                    label_rect.center().y - galley.size().y * 0.5,
+                );
+                ui.painter()
+                    .with_clip_rect(ui.clip_rect().intersect(label_rect))
+                    .galley(pos, galley, p.text_secondary);
+                if elided {
+                    label_resp.on_hover_text(label);
+                }
+            }
+            let rem_w = ui.available_width().max(30.0);
+            let origin = ui.cursor().min;
+            let max_h = row_h;
+            let layout = egui::Layout::left_to_right(align);
+            let mut child = ui.new_child(
+                egui::UiBuilder::new()
+                    .max_rect(Rect::from_min_size(origin, vec2(rem_w, max_h)))
+                    .layout(layout),
             );
-        }
-        let rem_w = ui.available_width().max(30.0);
-        ui.allocate_ui_with_layout(
-            vec2(rem_w, coursecraft_render::CONTROL_COMPACT),
-            egui::Layout::left_to_right(egui::Align::Center),
-            |ui| {
-                ui.spacing_mut().button_padding = vec2(4.0, 2.0);
-                ui.spacing_mut().item_spacing.x = 4.0;
-                add_contents(ui)
-            },
-        )
-        .inner
-    })
+            child.spacing_mut().button_padding = vec2(4.0, 2.0);
+            child.spacing_mut().item_spacing.x = 4.0;
+            let inner = add_contents(&mut child);
+            let used = child.min_rect();
+            ui.allocate_rect(
+                Rect::from_min_size(origin, vec2(rem_w, used.height().max(row_h))),
+                Sense::hover(),
+            );
+            inner
+        },
+    )
     .inner
 }
 
@@ -1307,7 +1348,8 @@ pub(crate) fn show_paired_numeric_row(
                             .color(p.text_secondary),
                     );
                     let rem = ui.available_width().max(20.0);
-                    let r = ui.add_sized(
+                    let r = add_drag_left(
+                        ui,
                         [rem, coursecraft_render::CONTROL_COMPACT],
                         DragValue::new(v1).speed(speed1),
                     );
@@ -1329,7 +1371,8 @@ pub(crate) fn show_paired_numeric_row(
                             .color(p.text_secondary),
                     );
                     let rem = ui.available_width().max(20.0);
-                    let r = ui.add_sized(
+                    let r = add_drag_left(
+                        ui,
                         [rem, coursecraft_render::CONTROL_COMPACT],
                         DragValue::new(v2).speed(speed2),
                     );
@@ -1416,7 +1459,8 @@ fn show_anim_row(
     if effect_str.as_str() != "none" {
         inspector_row(ui, "Duration", |ui| {
             let rem_w = ui.available_width().max(30.0);
-            let r = ui.add_sized(
+            let r = add_drag_left(
+                ui,
                 [rem_w, coursecraft_render::CONTROL_COMPACT],
                 DragValue::new(duration_ms)
                     .speed(50.0)
@@ -2277,7 +2321,8 @@ fn show_multi_properties(
     inspector_section_header(ui, "Rotate");
     inspector_row(ui, "Rotation", |ui| {
         let rem_w = ui.available_width().max(30.0);
-        let r = ui.add_sized(
+        let r = add_drag_left(
+            ui,
             [rem_w, coursecraft_render::CONTROL_COMPACT],
             DragValue::new(&mut props.rotation)
                 .speed(1.0)
@@ -2894,10 +2939,17 @@ fn show_text_controls(
                 ));
             }
         }
+    });
 
-        ui.label("Size");
+    // The size sits on its own row: seven controls do not fit one row of the panel.
+    inspector_row(ui, "Font size", |ui| {
         let mut size_val = eff_size;
-        let r_size = ui.add(DragValue::new(&mut size_val).speed(1.0).range(1.0..=200.0));
+        let rem_w = ui.available_width();
+        let r_size = add_drag_left(
+            ui,
+            [rem_w, coursecraft_render::CONTROL_COMPACT],
+            DragValue::new(&mut size_val).speed(1.0).range(1.0..=200.0),
+        );
         let enter_size = r_size.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
         if (r_size.drag_stopped() || r_size.lost_focus() || enter_size)
             && size_val.is_finite()
@@ -3356,7 +3408,8 @@ fn show_fill_style_editor(
         Some(coursecraft_course::FillStyle::Linear { angle, stops }) => {
             inspector_row(ui, "Angle", |ui| {
                 let rem_w = ui.available_width().max(30.0);
-                let r = ui.add_sized(
+                let r = add_drag_left(
+                    ui,
                     [rem_w, coursecraft_render::CONTROL_COMPACT],
                     DragValue::new(angle)
                         .speed(1.0)
@@ -3373,7 +3426,8 @@ fn show_fill_style_editor(
         Some(coursecraft_course::FillStyle::Radial { center, stops }) => {
             inspector_row(ui, "Centre X", |ui| {
                 let rem_w = ui.available_width().max(30.0);
-                let r = ui.add_sized(
+                let r = add_drag_left(
+                    ui,
                     [rem_w, coursecraft_render::CONTROL_COMPACT],
                     DragValue::new(&mut center[0]).speed(0.01).range(0.0..=1.0),
                 );
@@ -3384,7 +3438,8 @@ fn show_fill_style_editor(
             });
             inspector_row(ui, "Centre Y", |ui| {
                 let rem_w = ui.available_width().max(30.0);
-                let r = ui.add_sized(
+                let r = add_drag_left(
+                    ui,
                     [rem_w, coursecraft_render::CONTROL_COMPACT],
                     DragValue::new(&mut center[1]).speed(0.01).range(0.0..=1.0),
                 );
@@ -3553,7 +3608,8 @@ fn show_effect_controls(
         ] {
             inspector_row(ui, label, |ui| {
                 let rem_w = ui.available_width().max(30.0);
-                let response = ui.add_sized(
+                let response = add_drag_left(
+                    ui,
                     [rem_w, coursecraft_render::CONTROL_COMPACT],
                     DragValue::new(value).speed(0.5).range(range),
                 );
@@ -3580,7 +3636,8 @@ fn show_effect_controls(
         });
         inspector_row(ui, "Size", |ui| {
             let rem_w = ui.available_width().max(30.0);
-            let response = ui.add_sized(
+            let response = add_drag_left(
+                ui,
                 [rem_w, coursecraft_render::CONTROL_COMPACT],
                 DragValue::new(&mut props.glow.size)
                     .speed(0.5)
@@ -5446,7 +5503,8 @@ fn show_object_properties(
 
                 inspector_row(ui, "Width", |ui| {
                     let rem_w = ui.available_width().max(30.0);
-                    let r = ui.add_sized(
+                    let r = add_drag_left(
+                        ui,
                         [rem_w, coursecraft_render::CONTROL_COMPACT],
                         DragValue::new(&mut props.shape_outline_width)
                             .speed(0.25)
@@ -5588,7 +5646,8 @@ fn show_object_properties(
 
             inspector_row(ui, "Width", |ui| {
                 let rem_w = ui.available_width().max(30.0);
-                let r = ui.add_sized(
+                let r = add_drag_left(
+                    ui,
                     [rem_w, coursecraft_render::CONTROL_COMPACT],
                     DragValue::new(&mut props.path_outline_width)
                         .speed(0.25)
@@ -6400,7 +6459,8 @@ fn show_object_properties(
 
     inspector_row(ui, "Start (ms)", |ui| {
         let rem_w = ui.available_width().max(30.0);
-        let r = ui.add_sized(
+        let r = add_drag_left(
+            ui,
             [rem_w, coursecraft_render::CONTROL_COMPACT],
             DragValue::new(&mut props.start_ms).speed(10.0),
         );
@@ -6420,7 +6480,8 @@ fn show_object_properties(
     if !props.until_end {
         inspector_row(ui, "End (ms)", |ui| {
             let rem_w = ui.available_width().max(30.0);
-            let r = ui.add_sized(
+            let r = add_drag_left(
+                ui,
                 [rem_w, coursecraft_render::CONTROL_COMPACT],
                 DragValue::new(&mut props.end_ms).speed(10.0),
             );
@@ -6456,7 +6517,8 @@ fn show_object_properties(
     inspector_section_header(ui, "Rotate");
     inspector_row(ui, "Rotation", |ui| {
         let rem_w = ui.available_width().max(30.0);
-        let r = ui.add_sized(
+        let r = add_drag_left(
+            ui,
             [rem_w, coursecraft_render::CONTROL_COMPACT],
             DragValue::new(&mut props.rotation)
                 .speed(1.0)
@@ -6649,7 +6711,8 @@ fn show_slide_properties(
     if !is_master {
         inspector_row(ui, "Duration", |ui| {
             let rem_w = ui.available_width().max(30.0);
-            let r = ui.add_sized(
+            let r = add_drag_left(
+                ui,
                 [rem_w, coursecraft_render::CONTROL_COMPACT],
                 DragValue::new(&mut props.slide_duration_ms)
                     .speed(50.0)
@@ -6900,7 +6963,8 @@ fn show_transition_section(
     if props.slide_transition_effect.as_str() != "none" {
         inspector_row(ui, "Duration", |ui| {
             let rem_w = ui.available_width().max(30.0);
-            let r = ui.add_sized(
+            let r = add_drag_left(
+                ui,
                 [rem_w, coursecraft_render::CONTROL_COMPACT],
                 DragValue::new(&mut props.slide_transition_duration_ms)
                     .speed(50.0)
@@ -7237,7 +7301,8 @@ pub fn show_animations_section(
                 // Duration: drag value and easing combo on one row.
                 inspector_row(ui, "Duration", |ui| {
                     let mut dur = path.duration_ms;
-                    let r = ui.add_sized(
+                    let r = add_drag_left(
+                        ui,
                         [64.0, coursecraft_render::CONTROL_COMPACT],
                         DragValue::new(&mut dur)
                             .speed(50.0)

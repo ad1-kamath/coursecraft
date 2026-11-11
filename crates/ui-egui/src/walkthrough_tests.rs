@@ -317,11 +317,16 @@ fn build_intro_slide(harness: &mut TestHarness) {
     set_object_name(harness, "title");
     set_object_frame(harness, 80.0, 120.0, 1120.0, 80.0);
     let size_pos = harness
-        .find_text_in("Size", harness.right_panel_rect())
-        .expect("Size label")
-        + vec2(30.0, 0.0);
+        .find_text_in("Font size", harness.right_panel_rect())
+        .expect("Font size label")
+        + vec2(110.0, 0.0);
     harness.set_field(size_pos, "48");
-    let bold_pos = harness.find_text("B").expect("Bold button");
+    // Focusing the size field scrolled the inspector; bring the Style row back into view.
+    let panel_mid = harness.right_panel_rect().center();
+    harness.scroll_over(panel_mid, 400.0);
+    let bold_pos = harness
+        .find_text_in("B", harness.right_panel_rect())
+        .expect("Bold button");
     harness.click_at(bold_pos);
     harness.idle_frame();
     let text_pos = harness

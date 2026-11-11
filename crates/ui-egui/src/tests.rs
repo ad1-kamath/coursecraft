@@ -5554,7 +5554,7 @@ fn typing_in_styled_text_preserves_runs() {
     harness.idle_frame();
 
     // Now edit text_body and blur/change
-    let frame_pos = harness.find_text("Frame").expect("Frame label to blur");
+    let frame_pos = harness.find_text("Font").expect("Font label to blur");
     harness.editor.ui.properties.text_body = "Thanks a lot for completing the course.".to_owned();
     // Simulate commit via blur
     let text_edit_pos = harness

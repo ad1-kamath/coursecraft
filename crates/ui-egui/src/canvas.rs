@@ -1257,9 +1257,32 @@ fn show_layer_pills(editor: &mut Editor, ui: &mut Ui, t: &SlideTransform) {
         return;
     }
     let p = coursecraft_render::palette(ui.ctx());
+    // The pills line up with the slide's left edge. When they are too many to fit between
+    // there and the canvas edge, the row starts further left rather than running off.
+    let canvas_right = ui.clip_rect().max.x - coursecraft_render::PANEL_MARGIN;
+    let canvas_left = ui.clip_rect().min.x + coursecraft_render::PANEL_MARGIN;
+    let estimated_w = editor
+        .session
+        .course
+        .slide(&editor.selection.slide)
+        .map_or(0.0, |slide| {
+            slide
+                .layers
+                .iter()
+                .map(|l| l.name.chars().count() as f32 * 6.5 + 28.0)
+                .sum::<f32>()
+        })
+        + 56.0
+        + 28.0;
+    let pills_x = t
+        .slide_rect()
+        .min
+        .x
+        .min(canvas_right - estimated_w)
+        .max(canvas_left);
     let pills_rect = Rect::from_min_size(
-        pos2(t.slide_rect().min.x, t.slide_rect().min.y - 24.0 - 8.0),
-        vec2(t.slide_rect().width(), 24.0),
+        pos2(pills_x, t.slide_rect().min.y - 24.0 - 8.0),
+        vec2((canvas_right - pills_x).max(t.slide_rect().width()), 24.0),
     );
 
     let mut pills_ui = ui.new_child(

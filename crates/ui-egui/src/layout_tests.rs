@@ -3,7 +3,7 @@
 //! `layout_checker_*` tests the checker itself on a fixture. `layout_sweep_*` opens every
 //! editor state and window at three window sizes in both themes and asserts the checker finds
 //! nothing. Run the sweep alone with
-//! `cargo test -p coursecraft-ui-egui layout_ -- --ignored --nocapture`.
+//! `cargo test -p coursecraft-ui-egui layout_sweep -- --nocapture`.
 
 use crate::snapshot::{SnapshotSelect, WINDOWS};
 use crate::test_harness::{LayoutReport, TestHarness, capture_layers, check_layout};
@@ -238,7 +238,6 @@ fn layout_checker_reports_deliberate_problems() {
 /// Every editor state and window, three sizes, both themes: nothing clipped, overlapping or
 /// off-window, and every window really opened.
 #[test]
-#[ignore = "full sweep is slow and still reports open layout problems; remove once it is clean"]
 fn layout_sweep_editor_states_and_windows() {
     let (findings, unopened) = sweep();
     println!("layout sweep: {} findings", findings.len());
