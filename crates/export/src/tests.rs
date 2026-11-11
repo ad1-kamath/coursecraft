@@ -13,6 +13,8 @@ use crate::mp4::{ExportMedia, branch_slides, exceeds_max_total};
 use crate::pages::{ReviewOptions, review_pages};
 use crate::pdf::{encode_winansi, export_pdf, write_pdf};
 
+// Only the macOS encoder tests below use it.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 struct NoMedia;
 
 impl ExportMedia for NoMedia {
