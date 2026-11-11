@@ -9,6 +9,7 @@
 //! A binary answer never goes through text: speech is kept as bytes until it is
 //! stored as an ordinary MP3 in the media library.
 
+use crate::dialog::Dialog;
 use std::sync::Arc;
 
 use coursecraft_ai::{
@@ -18,7 +19,7 @@ use coursecraft_ai::{
 use coursecraft_media::parse_webvtt;
 use coursecraft_playback::{MediaBackend, MediaKind};
 use coursecraft_render::{Icon, SIZE_BODY, SIZE_SMALL, palette};
-use egui::{Align2, Button, ComboBox, Id, Key, Modifiers, RichText, ScrollArea, TextEdit, Window};
+use egui::{Button, ComboBox, Id, Key, Modifiers, RichText, TextEdit};
 
 use crate::elevenlabs::{
     SpeechSource, commit_pasted_voice as commit_pasted_elevenlabs_voice,
@@ -383,8 +384,6 @@ pub fn show_captions_window(
         return;
     }
 
-    let screen = ctx.content_rect();
-    let max_height = (screen.height() - 40.0).max(240.0);
     let config = editor.ui.ai.config.clone();
     let model = config.speech_to_text_model.clone();
     let problem = feature_problem(&config, &model, "Speech-to-text");
@@ -400,124 +399,115 @@ pub fn show_captions_window(
 
     let replace = editor.ui.captions.had_captions;
 
-    Window::new("Generate Captions")
+    Dialog::new("Generate Captions")
         .id(Id::unique(("generate_captions_dialog", 0_u64)))
-        .collapsible(false)
-        .resizable(true)
-        .max_height(max_height)
-        .default_width(560.0)
-        .pivot(Align2::CENTER_CENTER)
-        .default_pos(screen.center())
+        .width(560.0)
         .open(&mut open)
-        .show(ctx, |ui| {
-            let p = palette(ui.ctx());
-            ui.set_max_width(560.0);
-            ScrollArea::vertical()
-                .id_salt("generate_captions_scroll")
-                .max_height((max_height - 60.0).max(180.0))
-                .show(ui, |ui| {
-                    ui.label(
-                        RichText::new(
-                            "CourseCraft sends the file as it is and turns the answer into \
+        .resizable(true)
+        .show_with_footer(ctx, |dialog| {
+            let p = palette(ctx);
+            dialog.body(|ui| {
+                ui.set_max_width(560.0);
+                ui.label(
+                    RichText::new(
+                        "CourseCraft sends the file as it is and turns the answer into \
                              WebVTT captions. Nothing changes until you use them.",
-                        )
-                        .size(SIZE_SMALL)
-                        .color(p.text_secondary),
-                    );
-                    ui.add_space(6.0);
-                    if agent_source {
-                        ui.label(
-                            RichText::new("Captions need an API endpoint or ElevenLabs")
-                                .color(p.text_secondary),
-                        );
-                        ui.add_space(8.0);
-                        if crate::primary_button(ui, "Open AI Settings").clicked() {
-                            open_settings = true;
-                        }
-                        ui.add_space(8.0);
-                        if ui.button("Close").clicked() {
-                            close_clicked = true;
-                        }
-                        return;
-                    }
+                    )
+                    .size(SIZE_SMALL)
+                    .color(p.text_secondary),
+                );
+                ui.add_space(6.0);
+                if agent_source {
                     ui.label(
-                        RichText::new(consent_line(editor))
-                            .size(SIZE_BODY)
+                        RichText::new("Captions need an API endpoint or ElevenLabs")
                             .color(p.text_secondary),
                     );
-                    ui.add_space(6.0);
-
-                    if !ready {
-                        ui.label(RichText::new(problem.unwrap_or_default()).color(p.danger));
-                        ui.add_space(8.0);
-                        if crate::primary_button(ui, "Open AI Settings").clicked() {
-                            open_settings = true;
-                        }
-                        ui.add_space(8.0);
-                        if ui.button("Close").clicked() {
-                            close_clicked = true;
-                        }
-                        return;
+                    ui.add_space(8.0);
+                    if crate::primary_button(ui, "Open AI Settings").clicked() {
+                        open_settings = true;
                     }
-
-                    match editor.ui.captions.phase {
-                        AudioPhase::Running => {
-                            ui.horizontal(|ui| {
-                                ui.add(egui::Spinner::new());
-                                ui.label("Transcribing…");
-                                if ui.button("Cancel").clicked() {
-                                    cancel = true;
-                                }
-                            });
-                        }
-                        AudioPhase::Ready => {
-                            let count = editor.ui.captions.cue_count;
-                            let plural = if count == 1 { "cue" } else { "cues" };
-                            ui.label(RichText::new(format!("Found {count} {plural}.")).strong());
-                            let preview = preview_text(&editor.ui.captions.preview);
-                            let mut shown = preview;
-                            ui.add(
-                                TextEdit::multiline(&mut shown)
-                                    .id_salt("captions_preview")
-                                    .desired_rows(4)
-                                    .interactive(false),
-                            );
-                            ui.add_space(6.0);
-                            ui.horizontal(|ui| {
-                                let label = if replace {
-                                    "Replace captions"
-                                } else {
-                                    "Use these captions"
-                                };
-                                if crate::primary_button(ui, label).clicked() {
-                                    use_captions = true;
-                                }
-                                if ui.button("Close").clicked() {
-                                    close_clicked = true;
-                                }
-                            });
-                        }
-                        AudioPhase::Idle => {
-                            ui.horizontal(|ui| {
-                                if ui.add(Button::new("Generate")).clicked() {
-                                    generate = true;
-                                }
-                                if ui.button("Close").clicked() {
-                                    close_clicked = true;
-                                }
-                            });
-                        }
+                    ui.add_space(8.0);
+                    if ui.button("Close").clicked() {
+                        close_clicked = true;
                     }
+                    return;
+                }
+                ui.label(
+                    RichText::new(consent_line(editor))
+                        .size(SIZE_BODY)
+                        .color(p.text_secondary),
+                );
+                ui.add_space(6.0);
 
-                    if let Some(error) = &editor.ui.captions.error {
+                if !ready {
+                    ui.label(RichText::new(problem.unwrap_or_default()).color(p.danger));
+                    ui.add_space(8.0);
+                    if crate::primary_button(ui, "Open AI Settings").clicked() {
+                        open_settings = true;
+                    }
+                    ui.add_space(8.0);
+                    if ui.button("Close").clicked() {
+                        close_clicked = true;
+                    }
+                    return;
+                }
+
+                match editor.ui.captions.phase {
+                    AudioPhase::Running => {
+                        ui.horizontal(|ui| {
+                            ui.add(egui::Spinner::new());
+                            ui.label("Transcribing…");
+                            if ui.button("Cancel").clicked() {
+                                cancel = true;
+                            }
+                        });
+                    }
+                    AudioPhase::Ready => {
+                        let count = editor.ui.captions.cue_count;
+                        let plural = if count == 1 { "cue" } else { "cues" };
+                        ui.label(RichText::new(format!("Found {count} {plural}.")).strong());
+                        let preview = preview_text(&editor.ui.captions.preview);
+                        let mut shown = preview;
+                        ui.add(
+                            TextEdit::multiline(&mut shown)
+                                .id_salt("captions_preview")
+                                .desired_rows(4)
+                                .interactive(false),
+                        );
                         ui.add_space(6.0);
-                        ui.label(RichText::new(error).color(p.danger));
+                        ui.horizontal(|ui| {
+                            let label = if replace {
+                                "Replace captions"
+                            } else {
+                                "Use these captions"
+                            };
+                            if crate::primary_button(ui, label).clicked() {
+                                use_captions = true;
+                            }
+                            if ui.button("Close").clicked() {
+                                close_clicked = true;
+                            }
+                        });
                     }
-                });
+                    AudioPhase::Idle => {
+                        ui.horizontal(|ui| {
+                            if ui.add(Button::new("Generate")).clicked() {
+                                generate = true;
+                            }
+                            if ui.button("Close").clicked() {
+                                close_clicked = true;
+                            }
+                        });
+                    }
+                }
 
-            if ui
-                .ctx()
-                .input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape))
+                if let Some(error) = &editor.ui.captions.error {
+                    ui.add_space(6.0);
+                    ui.label(RichText::new(error).color(p.danger));
+                }
+            });
+
+            if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape))
                 && !editor.ui.captions.is_running()
             {
                 close_clicked = true;
@@ -621,8 +611,6 @@ pub fn show_speech_window(
         return;
     }
 
-    let screen = ctx.content_rect();
-    let max_height = (screen.height() - 40.0).max(260.0);
     let config = editor.ui.ai.config.clone();
     let model = config.text_to_speech_model.clone();
     let problem = feature_problem(&config, &model, "Text-to-speech");
@@ -653,213 +641,202 @@ pub fn show_speech_window(
         editor.ui.speech.playing = false;
     }
 
-    Window::new("Narration from Text")
+    Dialog::new("Narration from Text")
         .id(Id::unique(("narration_from_text_dialog", 0_u64)))
-        .collapsible(false)
-        .resizable(true)
-        .max_height(max_height)
-        .default_width(560.0)
-        .pivot(Align2::CENTER_CENTER)
-        .default_pos(screen.center())
+        .width(560.0)
         .open(&mut open)
-        .show(ctx, |ui| {
-            let p = palette(ui.ctx());
-            ui.set_max_width(560.0);
-            ScrollArea::vertical()
-                .id_salt("narration_from_text_scroll")
-                .max_height((max_height - 60.0).max(200.0))
-                .show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.label("Voice source");
-                        for option in SpeechSource::ALL {
-                            let selected = editor.ui.speech_source == option;
-                            if ui.selectable_label(selected, option.label()).clicked() && !selected
-                            {
-                                editor.ui.speech_source = option;
-                                source_changed = true;
-                            }
+        .resizable(true)
+        .show_with_footer(ctx, |dialog| {
+            let p = palette(ctx);
+            dialog.body(|ui| {
+                ui.set_max_width(560.0);
+                ui.horizontal(|ui| {
+                    ui.label("Voice source");
+                    for option in SpeechSource::ALL {
+                        let selected = editor.ui.speech_source == option;
+                        if ui.selectable_label(selected, option.label()).clicked() && !selected {
+                            editor.ui.speech_source = option;
+                            source_changed = true;
                         }
-                    });
-                    ui.add_space(6.0);
-
-                    if editor.ui.speech_source == SpeechSource::AiProvider {
-                        if agent_source {
-                            ui.label(
-                                RichText::new("Narration needs an API endpoint or ElevenLabs")
-                                    .color(p.text_secondary),
-                            );
-                            ui.add_space(8.0);
-                            if crate::primary_button(ui, "Open AI Settings").clicked() {
-                                open_settings = true;
-                            }
-                            ui.add_space(8.0);
-                            if ui.button("Close").clicked() {
-                                close_clicked = true;
-                            }
-                            return;
-                        }
-                        if !ready {
-                            ui.label(
-                                RichText::new(problem.clone().unwrap_or_default()).color(p.danger),
-                            );
-                            ui.add_space(8.0);
-                            if crate::primary_button(ui, "Open AI Settings").clicked() {
-                                open_settings = true;
-                            }
-                            ui.add_space(8.0);
-                            if ui.button("Close").clicked() {
-                                close_clicked = true;
-                            }
-                            return;
-                        }
-                    } else {
-                        show_elevenlabs_settings(
-                            ui,
-                            editor,
-                            &mut key_committed,
-                            &mut refresh_voices,
-                            &mut paste_committed,
-                            &mut model_selected,
-                            &mut voice_selected,
-                        );
-                    }
-
-                    let characters = editor.ui.speech.text.chars().count();
-                    let limit = if editor.ui.speech_source == SpeechSource::ElevenLabs {
-                        editor.ui.elevenlabs.max_chars()
-                    } else {
-                        MAX_SPEECH_CHARS
-                    };
-                    ui.add(
-                        TextEdit::multiline(&mut editor.ui.speech.text)
-                            .id_salt("narration_text")
-                            .desired_rows(6)
-                            .hint_text("Type the words to speak"),
-                    );
-                    let count_color = if characters > limit {
-                        p.danger
-                    } else {
-                        p.text_secondary
-                    };
-                    ui.label(
-                        RichText::new(format!("{characters} of {limit} characters"))
-                            .size(SIZE_SMALL)
-                            .color(count_color),
-                    );
-                    if has_variable_reference(&editor.ui.speech.text) {
-                        ui.label(
-                            RichText::new(
-                                "%name% references are read aloud literally, because speech is \
-                                 made once.",
-                            )
-                            .size(SIZE_SMALL)
-                            .color(p.warning),
-                        );
-                    }
-                    ui.add_space(6.0);
-                    let consent = if editor.ui.speech_source == SpeechSource::ElevenLabs {
-                        format!(
-                            "This sends {characters} characters to ElevenLabs, which uses your \
-                             account's credits."
-                        )
-                    } else {
-                        speech_consent_line(editor, characters)
-                    };
-                    ui.label(
-                        RichText::new(consent)
-                            .size(SIZE_BODY)
-                            .color(p.text_secondary),
-                    );
-                    ui.label(
-                        RichText::new(
-                            "Tell your learners this voice is AI-generated, if your provider's \
-                             terms require it.",
-                        )
-                        .size(SIZE_SMALL)
-                        .color(p.text_tertiary),
-                    );
-                    ui.add_space(8.0);
-
-                    match editor.ui.speech.phase {
-                        AudioPhase::Running => {
-                            ui.horizontal(|ui| {
-                                ui.add(egui::Spinner::new());
-                                ui.label("Making audio…");
-                                if ui.button("Cancel").clicked() {
-                                    cancel = true;
-                                }
-                            });
-                        }
-                        AudioPhase::Ready => {
-                            let size = editor.ui.speech.mp3.as_ref().map_or(0, |bytes| bytes.len());
-                            ui.label(
-                                RichText::new(format!(
-                                    "Audio is ready ({:.1} KB).",
-                                    size as f64 / 1024.0
-                                ))
-                                .strong(),
-                            );
-                            ui.add_space(6.0);
-                            ui.horizontal(|ui| {
-                                if editor.ui.speech.playing {
-                                    if ui.button("Stop playback").clicked() {
-                                        stop_playback = true;
-                                    }
-                                } else if ui.button("Play").clicked() {
-                                    play = true;
-                                }
-                                if crate::primary_button(ui, "Add to slide").clicked() {
-                                    add_to_slide = true;
-                                }
-                                if ui.button("Close").clicked() {
-                                    close_clicked = true;
-                                }
-                            });
-                        }
-                        AudioPhase::Idle => {
-                            let elevenlabs_problem =
-                                if editor.ui.speech_source == SpeechSource::ElevenLabs {
-                                    elevenlabs_generate_problem(editor, characters)
-                                } else {
-                                    None
-                                };
-                            let can_generate =
-                                if editor.ui.speech_source == SpeechSource::ElevenLabs {
-                                    elevenlabs_problem.is_none()
-                                } else {
-                                    !editor.ui.speech.text.trim().is_empty()
-                                        && characters <= MAX_SPEECH_CHARS
-                                };
-                            ui.horizontal(|ui| {
-                                if ui
-                                    .add_enabled(can_generate, Button::new("Generate"))
-                                    .clicked()
-                                {
-                                    generate = true;
-                                }
-                                if ui.button("Close").clicked() {
-                                    close_clicked = true;
-                                }
-                            });
-                            if let Some(reason) = elevenlabs_problem {
-                                ui.label(
-                                    RichText::new(reason)
-                                        .size(SIZE_SMALL)
-                                        .color(p.text_secondary),
-                                );
-                            }
-                        }
-                    }
-
-                    if let Some(error) = &editor.ui.speech.error {
-                        ui.add_space(6.0);
-                        ui.label(RichText::new(error).color(p.danger));
                     }
                 });
+                ui.add_space(6.0);
 
-            if ui
-                .ctx()
-                .input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape))
+                if editor.ui.speech_source == SpeechSource::AiProvider {
+                    if agent_source {
+                        ui.label(
+                            RichText::new("Narration needs an API endpoint or ElevenLabs")
+                                .color(p.text_secondary),
+                        );
+                        ui.add_space(8.0);
+                        if crate::primary_button(ui, "Open AI Settings").clicked() {
+                            open_settings = true;
+                        }
+                        ui.add_space(8.0);
+                        if ui.button("Close").clicked() {
+                            close_clicked = true;
+                        }
+                        return;
+                    }
+                    if !ready {
+                        ui.label(
+                            RichText::new(problem.clone().unwrap_or_default()).color(p.danger),
+                        );
+                        ui.add_space(8.0);
+                        if crate::primary_button(ui, "Open AI Settings").clicked() {
+                            open_settings = true;
+                        }
+                        ui.add_space(8.0);
+                        if ui.button("Close").clicked() {
+                            close_clicked = true;
+                        }
+                        return;
+                    }
+                } else {
+                    show_elevenlabs_settings(
+                        ui,
+                        editor,
+                        &mut key_committed,
+                        &mut refresh_voices,
+                        &mut paste_committed,
+                        &mut model_selected,
+                        &mut voice_selected,
+                    );
+                }
+
+                let characters = editor.ui.speech.text.chars().count();
+                let limit = if editor.ui.speech_source == SpeechSource::ElevenLabs {
+                    editor.ui.elevenlabs.max_chars()
+                } else {
+                    MAX_SPEECH_CHARS
+                };
+                ui.add(
+                    TextEdit::multiline(&mut editor.ui.speech.text)
+                        .id_salt("narration_text")
+                        .desired_rows(6)
+                        .hint_text("Type the words to speak"),
+                );
+                let count_color = if characters > limit {
+                    p.danger
+                } else {
+                    p.text_secondary
+                };
+                ui.label(
+                    RichText::new(format!("{characters} of {limit} characters"))
+                        .size(SIZE_SMALL)
+                        .color(count_color),
+                );
+                if has_variable_reference(&editor.ui.speech.text) {
+                    ui.label(
+                        RichText::new(
+                            "%name% references are read aloud literally, because speech is \
+                                 made once.",
+                        )
+                        .size(SIZE_SMALL)
+                        .color(p.warning),
+                    );
+                }
+                ui.add_space(6.0);
+                let consent = if editor.ui.speech_source == SpeechSource::ElevenLabs {
+                    format!(
+                        "This sends {characters} characters to ElevenLabs, which uses your \
+                             account's credits."
+                    )
+                } else {
+                    speech_consent_line(editor, characters)
+                };
+                ui.label(
+                    RichText::new(consent)
+                        .size(SIZE_BODY)
+                        .color(p.text_secondary),
+                );
+                ui.label(
+                    RichText::new(
+                        "Tell your learners this voice is AI-generated, if your provider's \
+                             terms require it.",
+                    )
+                    .size(SIZE_SMALL)
+                    .color(p.text_tertiary),
+                );
+                ui.add_space(8.0);
+
+                match editor.ui.speech.phase {
+                    AudioPhase::Running => {
+                        ui.horizontal(|ui| {
+                            ui.add(egui::Spinner::new());
+                            ui.label("Making audio…");
+                            if ui.button("Cancel").clicked() {
+                                cancel = true;
+                            }
+                        });
+                    }
+                    AudioPhase::Ready => {
+                        let size = editor.ui.speech.mp3.as_ref().map_or(0, |bytes| bytes.len());
+                        ui.label(
+                            RichText::new(format!(
+                                "Audio is ready ({:.1} KB).",
+                                size as f64 / 1024.0
+                            ))
+                            .strong(),
+                        );
+                        ui.add_space(6.0);
+                        ui.horizontal(|ui| {
+                            if editor.ui.speech.playing {
+                                if ui.button("Stop playback").clicked() {
+                                    stop_playback = true;
+                                }
+                            } else if ui.button("Play").clicked() {
+                                play = true;
+                            }
+                            if crate::primary_button(ui, "Add to slide").clicked() {
+                                add_to_slide = true;
+                            }
+                            if ui.button("Close").clicked() {
+                                close_clicked = true;
+                            }
+                        });
+                    }
+                    AudioPhase::Idle => {
+                        let elevenlabs_problem =
+                            if editor.ui.speech_source == SpeechSource::ElevenLabs {
+                                elevenlabs_generate_problem(editor, characters)
+                            } else {
+                                None
+                            };
+                        let can_generate = if editor.ui.speech_source == SpeechSource::ElevenLabs {
+                            elevenlabs_problem.is_none()
+                        } else {
+                            !editor.ui.speech.text.trim().is_empty()
+                                && characters <= MAX_SPEECH_CHARS
+                        };
+                        ui.horizontal(|ui| {
+                            if ui
+                                .add_enabled(can_generate, Button::new("Generate"))
+                                .clicked()
+                            {
+                                generate = true;
+                            }
+                            if ui.button("Close").clicked() {
+                                close_clicked = true;
+                            }
+                        });
+                        if let Some(reason) = elevenlabs_problem {
+                            ui.label(
+                                RichText::new(reason)
+                                    .size(SIZE_SMALL)
+                                    .color(p.text_secondary),
+                            );
+                        }
+                    }
+                }
+
+                if let Some(error) = &editor.ui.speech.error {
+                    ui.add_space(6.0);
+                    ui.label(RichText::new(error).color(p.danger));
+                }
+            });
+
+            if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape))
                 && !editor.ui.speech.is_running()
             {
                 close_clicked = true;

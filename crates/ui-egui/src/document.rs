@@ -8,12 +8,13 @@
 //! Only `course.import_outline` changes the course, when the author presses
 //! `Add slides` there.
 
+use crate::dialog::Dialog;
 use coursecraft_ai::{
     ChatReply, MAX_DOCUMENT_CHARS, OutlineOptions, endpoint_host, endpoint_is_local,
     outline_request, strip_code_fence,
 };
 use coursecraft_render::{SIZE_BODY, SIZE_SMALL, palette};
-use egui::{Align2, Button, Color32, Id, Key, Modifiers, RichText, ScrollArea, TextEdit, Window};
+use egui::{Button, Color32, Id, Key, Modifiers, RichText, ScrollArea, TextEdit};
 
 use crate::{AiPurpose, Editor, EditorRequest};
 
@@ -216,8 +217,7 @@ pub fn show_document_dialog(
         return;
     }
 
-    let screen = ctx.content_rect();
-    let max_height = (screen.height() - 40.0).max(260.0);
+    let max_height = crate::dialog::dialog_area(ctx).height().max(260.0);
     let ready = editor.ai_ready();
     let consent = consent_line(editor);
     let count = character_count(&editor.ui.document.text);
@@ -229,142 +229,133 @@ pub fn show_document_dialog(
     let mut choose_file = false;
     let mut open_settings = false;
 
-    Window::new("Course from Document")
+    Dialog::new("Course from Document")
         .id(Id::unique(("course_from_document_dialog", 0_u64)))
-        .collapsible(false)
-        .resizable(true)
-        .max_height(max_height)
-        .default_width(640.0)
-        .default_height((max_height - 20.0).max(240.0))
-        .pivot(Align2::CENTER_CENTER)
-        .default_pos(screen.center())
+        .width(640.0)
         .open(&mut open)
-        .show(ctx, |ui| {
-            let p = palette(ui.ctx());
-            ui.set_max_width(640.0);
-            ScrollArea::vertical()
-                .id_salt("document_dialog_scroll")
-                .max_height((max_height - 60.0).max(200.0))
-                .show(ui, |ui| {
-                    if !ready {
-                        if crate::ai_settings::show_ai_not_ready(
-                            ui,
-                            "turn a document into a course",
-                        ) {
-                            open_settings = true;
-                        }
-                        ui.add_space(8.0);
-                        if ui.button("Cancel").clicked() {
-                            close_clicked = true;
-                        }
-                        return;
+        .resizable(true)
+        .show_with_footer(ctx, |dialog| {
+            let p = palette(ctx);
+            dialog.body(|ui| {
+                ui.set_max_width(640.0);
+                if !ready {
+                    if crate::ai_settings::show_ai_not_ready(ui, "turn a document into a course") {
+                        open_settings = true;
                     }
+                    ui.add_space(8.0);
+                    if ui.button("Cancel").clicked() {
+                        close_clicked = true;
+                    }
+                    return;
+                }
 
-                    ui.label(
-                        RichText::new(
-                            "Paste the document, or choose a .docx, .txt or .md file. You'll \
+                ui.label(
+                    RichText::new(
+                        "Paste the document, or choose a .docx, .txt or .md file. You'll \
                              review the outline before anything is added to the course.",
-                        )
-                        .size(SIZE_SMALL)
-                        .color(p.text_secondary),
-                    );
-                    ui.add_space(6.0);
+                    )
+                    .size(SIZE_SMALL)
+                    .color(p.text_secondary),
+                );
+                ui.add_space(6.0);
 
-                    let field_height = (max_height - 330.0).clamp(140.0, 380.0);
-                    let response = ScrollArea::vertical()
-                        .id_salt("document_dialog_source_scroll")
-                        .max_height(field_height)
-                        .min_scrolled_height(field_height)
-                        .auto_shrink([false, true])
-                        .show(ui, |ui| {
-                            ui.add(
-                                TextEdit::multiline(&mut editor.ui.document.text)
-                                    .id_salt("document_dialog_source")
-                                    .hint_text("Paste your document here")
-                                    .desired_width(f32::INFINITY)
-                                    .desired_rows(14),
-                            )
-                        })
-                        .inner;
-                    if editor.ui.document.focus {
-                        response.request_focus();
-                        editor.ui.document.focus = false;
-                    }
-
-                    ui.add_space(4.0);
-                    ui.horizontal(|ui| {
-                        ui.label(
-                            RichText::new(count_label(count))
-                                .size(SIZE_SMALL)
-                                .color(p.text_tertiary),
-                        );
-                        if editor.ui.document.file_available {
-                            if ui.button("Choose file…").clicked() {
-                                choose_file = true;
-                            }
-                            ui.label(
-                                RichText::new(".docx, .txt or .md")
-                                    .size(SIZE_SMALL)
-                                    .color(p.text_tertiary),
-                            );
-                        } else {
-                            ui.label(
-                                RichText::new("Paste only in the browser.")
-                                    .size(SIZE_SMALL)
-                                    .color(p.text_tertiary),
-                            );
-                        }
-                    });
-                    if count > MAX_DOCUMENT_CHARS {
-                        ui.label(RichText::new(OVER_LIMIT).size(SIZE_SMALL).color(p.warning));
-                    }
-
-                    ui.add_space(8.0);
-                    ui.horizontal(|ui| {
-                        ui.label("About how many slides");
+                let field_height = (max_height - 330.0).clamp(140.0, 380.0);
+                let response = ScrollArea::vertical()
+                    .id_salt("document_dialog_source_scroll")
+                    .max_height(field_height)
+                    .min_scrolled_height(field_height)
+                    .auto_shrink([false, true])
+                    .show(ui, |ui| {
                         ui.add(
-                            TextEdit::singleline(&mut editor.ui.document.slides)
-                                .id_salt("document_dialog_slides")
-                                .hint_text("Any")
-                                .desired_width(64.0),
-                        );
+                            TextEdit::multiline(&mut editor.ui.document.text)
+                                .id_salt("document_dialog_source")
+                                .hint_text("Paste your document here")
+                                .desired_width(f32::INFINITY)
+                                .desired_rows(14),
+                        )
+                    })
+                    .inner;
+                if editor.ui.document.focus {
+                    response.request_focus();
+                    editor.ui.document.focus = false;
+                }
+
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new(count_label(count))
+                            .size(SIZE_SMALL)
+                            .color(p.text_tertiary),
+                    );
+                    if editor.ui.document.file_available {
+                        if ui.button("Choose file…").clicked() {
+                            choose_file = true;
+                        }
                         ui.label(
-                            RichText::new("optional, 1 to 100")
+                            RichText::new(".docx, .txt or .md")
                                 .size(SIZE_SMALL)
                                 .color(p.text_tertiary),
                         );
-                    });
-                    ui.checkbox(&mut editor.ui.document.questions, "Include quiz questions");
-
-                    ui.add_space(8.0);
-                    ui.separator();
-                    ui.add_space(4.0);
-
-                    ui.label(
-                        RichText::new(consent)
-                            .size(SIZE_BODY)
-                            .color(p.text_secondary),
-                    );
-                    ui.add_space(4.0);
-
-                    match &editor.ui.document.state {
-                        DocumentRequestState::Running => {
-                            ui.horizontal(|ui| {
-                                ui.add(egui::Spinner::new());
-                                ui.label("Generating…");
-                                if ui.button("Cancel").clicked() {
-                                    cancel = true;
-                                }
-                            });
-                        }
-                        DocumentRequestState::Failed(message) => {
-                            ui.label(RichText::new(message).color(p.danger));
-                            ui.add_space(4.0);
-                        }
-                        DocumentRequestState::Idle => {}
+                    } else {
+                        ui.label(
+                            RichText::new("Paste only in the browser.")
+                                .size(SIZE_SMALL)
+                                .color(p.text_tertiary),
+                        );
                     }
+                });
+                if count > MAX_DOCUMENT_CHARS {
+                    ui.label(RichText::new(OVER_LIMIT).size(SIZE_SMALL).color(p.warning));
+                }
 
-                    if !editor.ui.document.is_running() {
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    ui.label("About how many slides");
+                    ui.add(
+                        TextEdit::singleline(&mut editor.ui.document.slides)
+                            .id_salt("document_dialog_slides")
+                            .hint_text("Any")
+                            .desired_width(64.0),
+                    );
+                    ui.label(
+                        RichText::new("optional, 1 to 100")
+                            .size(SIZE_SMALL)
+                            .color(p.text_tertiary),
+                    );
+                });
+                ui.checkbox(&mut editor.ui.document.questions, "Include quiz questions");
+
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(4.0);
+
+                ui.label(
+                    RichText::new(consent)
+                        .size(SIZE_BODY)
+                        .color(p.text_secondary),
+                );
+                ui.add_space(4.0);
+
+                match &editor.ui.document.state {
+                    DocumentRequestState::Running => {
+                        ui.horizontal(|ui| {
+                            ui.add(egui::Spinner::new());
+                            ui.label("Generating…");
+                            if ui.button("Cancel").clicked() {
+                                cancel = true;
+                            }
+                        });
+                    }
+                    DocumentRequestState::Failed(message) => {
+                        ui.label(RichText::new(message).color(p.danger));
+                        ui.add_space(4.0);
+                    }
+                    DocumentRequestState::Idle => {}
+                }
+            });
+            if ready && !editor.ui.document.is_running() {
+                dialog.footer(|ui| {
+                    ui.horizontal(|ui| {
                         let can_generate = !editor.ui.document.text.trim().is_empty();
                         let button =
                             Button::new(RichText::new("Generate outline").color(Color32::WHITE))
@@ -383,13 +374,11 @@ pub fn show_document_dialog(
                         if ui.button("Cancel").clicked() {
                             close_clicked = true;
                         }
-                    }
+                    });
                 });
+            }
 
-            if ui
-                .ctx()
-                .input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape))
-            {
+            if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape)) {
                 close_clicked = true;
             }
         });

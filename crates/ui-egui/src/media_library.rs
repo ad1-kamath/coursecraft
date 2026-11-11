@@ -3,6 +3,7 @@
 //! The list lives outside `course.json`, so Import, Replace and Delete change
 //! only the editor's media store. They are not undoable; the window says so.
 
+use crate::dialog::Dialog;
 use coursecraft_course::{MediaReference, media_references};
 use coursecraft_render::{Icon, MediaView, RADIUS_SM, SIZE_SMALL, icon, palette};
 use egui::{
@@ -105,12 +106,11 @@ pub fn show_media_library(editor: &mut Editor, ctx: &Context) {
     }
     let mut open = true;
     let mut action = None;
-    egui::Window::new("Media Library")
+    Dialog::new("Media Library")
         .id(egui::Id::unique("media_library_window"))
         .open(&mut open)
-        .collapsible(false)
-        .resizable(true)
         .default_size(vec2(720.0, 480.0))
+        .resizable(true)
         .show(ctx, |ui| {
             action = window_body(editor, ui);
         });
@@ -384,13 +384,10 @@ fn show_confirm(editor: &mut Editor, ctx: &Context) {
     let mut open = true;
     let mut confirmed = false;
     let mut cancel = false;
-    egui::Window::new("Delete files")
+    Dialog::new("Delete files")
         .id(egui::Id::unique("media_library_delete_confirm"))
         .open(&mut open)
-        .collapsible(false)
-        .resizable(false)
-        .min_width(340.0)
-        .default_width(340.0)
+        .width(340.0)
         .show(ctx, |ui| {
             ui.label(format!(
                 "Delete {count} {}? This cannot be undone.",

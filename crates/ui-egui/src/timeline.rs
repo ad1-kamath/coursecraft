@@ -1,6 +1,7 @@
 //! Timeline bottom panel: time ruler, object timing bars, move/resize dragging, and owner duration.
 
 use crate::Editor;
+use crate::dialog::Dialog;
 use coursecraft_course::{Course, Cue, ObjectKind, Timing};
 use egui::{
     Align2, Color32, CornerRadius, CursorIcon, DragValue, FontId, Rect, RichText, Sense, Stroke,
@@ -1570,28 +1571,25 @@ fn show_cue_rename_window(
     };
     let mut commit = false;
     let mut cancel = false;
-    egui::Window::new("Rename cue")
-        .collapsible(false)
-        .resizable(false)
-        .show(ui.ctx(), |ui| {
-            ui.label("Cue name");
-            let response =
-                ui.add(TextEdit::singleline(&mut rename.text).id_salt("timeline_cue_rename_text"));
-            if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+    Dialog::new("Rename cue").show(ui.ctx(), |ui| {
+        ui.label("Cue name");
+        let response =
+            ui.add(TextEdit::singleline(&mut rename.text).id_salt("timeline_cue_rename_text"));
+        if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+            commit = true;
+        }
+        if let Some(error) = &rename.error {
+            ui.colored_label(coursecraft_render::palette(ui.ctx()).danger, error.clone());
+        }
+        ui.horizontal(|ui| {
+            if ui.button("Rename").clicked() {
                 commit = true;
             }
-            if let Some(error) = &rename.error {
-                ui.colored_label(coursecraft_render::palette(ui.ctx()).danger, error.clone());
+            if ui.button("Cancel").clicked() {
+                cancel = true;
             }
-            ui.horizontal(|ui| {
-                if ui.button("Rename").clicked() {
-                    commit = true;
-                }
-                if ui.button("Cancel").clicked() {
-                    cancel = true;
-                }
-            });
         });
+    });
     if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
         cancel = true;
     }

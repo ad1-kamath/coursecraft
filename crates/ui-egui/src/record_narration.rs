@@ -6,6 +6,7 @@
 //! but cannot record. Everything that touches the microphone is compiled out on
 //! wasm.
 
+use crate::dialog::Dialog;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::Arc;
 
@@ -13,7 +14,7 @@ use std::sync::Arc;
 use coursecraft_render::palette;
 #[cfg(not(target_arch = "wasm32"))]
 use egui::{Button, Color32, ComboBox, CornerRadius, Rect, RichText, Sense, vec2};
-use egui::{Id, Key, Modifiers, Window};
+use egui::{Id, Key, Modifiers};
 
 #[cfg(not(target_arch = "wasm32"))]
 use coursecraft_playback::record::{
@@ -145,11 +146,9 @@ pub fn show_record_narration_window(editor: &mut Editor, ctx: &egui::Context) {
 
     let mut open = true;
     let mut close = false;
-    Window::new("Record Narration")
+    Dialog::new("Record Narration")
         .id(Id::unique(("record_narration_dialog", 0_u64)))
-        .collapsible(false)
-        .resizable(false)
-        .default_width(420.0)
+        .width(420.0)
         .open(&mut open)
         .show(ctx, |ui| {
             #[cfg(not(target_arch = "wasm32"))]

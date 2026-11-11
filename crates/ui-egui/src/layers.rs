@@ -2,6 +2,7 @@
 //! reorder, rename, duplicate/delete, eye and Dim, and the Layer Settings window.
 
 use crate::Editor;
+use crate::dialog::Dialog;
 use coursecraft_course::{Course, Layer, RevisitMode, SeekMode, Slide};
 use egui::{
     Align2, Color32, CornerRadius, CursorIcon, DragValue, FontFamily, FontId, Key, Modifiers, Rect,
@@ -1073,16 +1074,11 @@ pub fn show_layer_settings_window(editor: &mut crate::Editor, ctx: &egui::Contex
     let mut commit = false;
     let mut escape = false;
 
-    let max_height = (ctx.content_rect().height() - 40.0).max(220.0);
-    egui::Window::new(title)
-        .default_width(360.0)
-        .max_height(max_height)
-        .pivot(Align2::CENTER_CENTER)
-        .default_pos(ctx.content_rect().center())
-        .resizable(false)
-        .collapsible(false)
+    Dialog::new(title)
+        .width(360.0)
         .open(&mut open)
-        .show(ctx, |ui| {
+        .show_with_footer(ctx, |dialog| {
+            dialog.body(|ui| {
             ui.horizontal(|ui| {
                 ui.label("Name");
                 let name = ui.add(
@@ -1177,8 +1173,9 @@ pub fn show_layer_settings_window(editor: &mut crate::Editor, ctx: &egui::Contex
                 state.revisit_rect = Some(combo.response.rect);
             });
 
-            ui.add_space(8.0);
-            ui.separator();
+            });
+            dialog.footer(|ui| {
+            ui.add_space(coursecraft_render::SPACE_SM);
             ui.horizontal(|ui| {
                 let cancel = ui.button("Cancel");
                 state.cancel_rect = Some(cancel.rect);
@@ -1199,8 +1196,9 @@ pub fn show_layer_settings_window(editor: &mut crate::Editor, ctx: &egui::Contex
                     commit = true;
                 }
             });
+            });
 
-            escape = ui.input(|input| input.key_pressed(Key::Escape));
+            escape = ctx.input(|input| input.key_pressed(Key::Escape));
         });
 
     if !open {

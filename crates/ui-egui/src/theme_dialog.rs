@@ -1,7 +1,8 @@
 //! Theme window dialog: accent, background, text color, player bar colors, font name.
 
+use crate::dialog::Dialog;
 use coursecraft_course::{Course, Theme};
-use egui::{ScrollArea, TextEdit, Window};
+use egui::TextEdit;
 
 use crate::properties::{is_committed, show_color_field};
 
@@ -48,12 +49,10 @@ pub fn show_theme_dialog_window(editor: &mut crate::Editor, ctx: &egui::Context)
     let mut update_theme: Option<serde_json::Value> = None;
     let mut palette_actions = Vec::new();
 
-    Window::new("Theme")
-        .default_size([420.0, 640.0])
-        .resizable(false)
-        .collapsible(false)
-        .show(ctx, |ui| {
-            ScrollArea::vertical().show(ui, |ui| {
+    Dialog::new("Theme")
+        .width(420.0)
+        .show_with_footer(ctx, |dialog| {
+            dialog.body(|ui| {
                 ui.heading("Colors");
 
                 let (cr_acc, valid_acc) = show_color_field(
@@ -159,10 +158,8 @@ pub fn show_theme_dialog_window(editor: &mut crate::Editor, ctx: &egui::Context)
                     }
                 });
                 ui.small("Renders as Inter for now");
-
-                ui.add_space(16.0);
-                ui.separator();
-
+            });
+            dialog.footer(|ui| {
                 ui.horizontal(|ui| {
                     if ui.button("Reset to defaults").clicked() {
                         let def = Theme::default();

@@ -2,11 +2,12 @@
 //! only builds commands for the engine (`text_style.*`, `theme.set_palette*`);
 //! the editor runs them, so each click is one undo step.
 
+use crate::dialog::Dialog;
 use coursecraft_course::{
     Course, MAX_PALETTE_COLORS, MAX_TEXT_STYLES, Object, ObjectKind, StyleLink, style_link,
     style_of_text_box,
 };
-use egui::{Context, Id, RichText, TextEdit, Ui, Window};
+use egui::{Context, Id, RichText, TextEdit, Ui};
 use serde_json::{Value as Json, json};
 
 use crate::properties::{
@@ -190,15 +191,16 @@ pub fn show_manage_styles_window(editor: &mut crate::Editor, ctx: &Context) {
     }
     let mut close = false;
     let mut actions: Vec<Action> = Vec::new();
-    Window::new("Text styles")
-        .default_size([340.0, 300.0])
-        .collapsible(false)
-        .show(ctx, |ui| {
-            let styles = &editor.session.course.text_styles;
-            if styles.is_empty() {
-                ui.label("No text styles yet. Select a text box and choose \"New style from selection\".");
-            }
-            egui::ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
+    Dialog::new("Text styles").width(340.0).show(ctx, |ui| {
+        let styles = &editor.session.course.text_styles;
+        if styles.is_empty() {
+            ui.label(
+                "No text styles yet. Select a text box and choose \"New style from selection\".",
+            );
+        }
+        egui::ScrollArea::vertical()
+            .max_height(320.0)
+            .show(ui, |ui| {
                 for named in styles {
                     ui.horizontal(|ui| {
                         let key = Id::unique(("text_style_name", &named.id));
@@ -215,11 +217,11 @@ pub fn show_manage_styles_window(editor: &mut crate::Editor, ctx: &Context) {
                     });
                 }
             });
-            ui.add_space(8.0);
-            if crate::primary_button(ui, "Close").clicked() {
-                close = true;
-            }
-        });
+        ui.add_space(8.0);
+        if crate::primary_button(ui, "Close").clicked() {
+            close = true;
+        }
+    });
     for (id, params) in actions {
         editor.run(id, params);
     }

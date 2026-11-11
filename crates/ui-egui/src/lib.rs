@@ -26,6 +26,7 @@ mod content_region;
 pub mod course_map;
 pub mod course_settings;
 pub mod crop;
+pub mod dialog;
 pub mod document;
 pub mod elevenlabs;
 pub mod export_dialog;
@@ -3048,7 +3049,7 @@ impl Editor {
 
         if self.ui.show_welcome {
             // Top menu bar
-            Panel::top("editor_menu_bar")
+            let menu_bar = Panel::top("editor_menu_bar")
                 .exact_size(TOP_BAR_HEIGHT)
                 .resizable(false)
                 .frame(egui::Frame::NONE.fill(p.panel).inner_margin(edge_margin))
@@ -3056,6 +3057,7 @@ impl Editor {
                 .show(ui, |ui| {
                     menu::show_menu_bar(self, ui, &mut requests);
                 });
+            dialog::set_top_inset(ui.ctx(), menu_bar.response.rect.max.y);
 
             // Welcome screen card across the window ground
             egui::CentralPanel::default()
@@ -3094,7 +3096,7 @@ impl Editor {
             });
 
         // 1b. Keynote-style toolbar (52 px, panel fill, hairline below)
-        Panel::top("editor_toolbar")
+        let toolbar_panel = Panel::top("editor_toolbar")
             .exact_size(toolbar::TOOLBAR_HEIGHT)
             .resizable(false)
             .frame(egui::Frame::NONE.fill(p.panel).inner_margin(edge_margin))
@@ -3102,6 +3104,8 @@ impl Editor {
             .show(ui, |ui| {
                 toolbar::show_toolbar(self, ui, &mut requests);
             });
+        // Dialogs open below the toolbar.
+        dialog::set_top_inset(ui.ctx(), toolbar_panel.response.rect.max.y);
 
         // 2. Bottom status bar (26 px, panel fill, hairline above)
         Panel::bottom("editor_status_bar")

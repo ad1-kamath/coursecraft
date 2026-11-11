@@ -6,9 +6,10 @@
 //! sees exactly what would be shared. Course content, file names, file paths,
 //! user names, AI keys and settings are never included.
 
+use crate::dialog::Dialog;
 use std::collections::VecDeque;
 
-use egui::{Button, Context, ScrollArea, TextEdit, Window};
+use egui::{Button, Context, TextEdit};
 
 use crate::project_links::{BUG_TEMPLATE, FEATURE_TEMPLATE, new_issue_url};
 use crate::{Editor, EditorRequest};
@@ -328,25 +329,21 @@ fn show_crash_prompt(editor: &mut Editor, ctx: &Context, requests: &mut Vec<Edit
     if !editor.ui.report.crash_prompt {
         return;
     }
-    Window::new("CourseCraft closed unexpectedly")
-        .collapsible(false)
-        .resizable(false)
-        .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-        .show(ctx, |ui| {
-            ui.label("CourseCraft closed unexpectedly last time. Report it?");
-            ui.add_space(design::SPACE_MD);
-            ui.horizontal(|ui| {
-                if ui.add(Button::new("Report…")).clicked() {
-                    editor.report_crash(requests);
-                }
-                if ui.add(Button::new("Not now")).clicked() {
-                    editor.dismiss_crash(requests);
-                }
-                if ui.add(Button::new("Don't ask again")).clicked() {
-                    editor.dismiss_crash(requests);
-                }
-            });
+    Dialog::new("CourseCraft closed unexpectedly").show(ctx, |ui| {
+        ui.label("CourseCraft closed unexpectedly last time. Report it?");
+        ui.add_space(design::SPACE_MD);
+        ui.horizontal(|ui| {
+            if ui.add(Button::new("Report…")).clicked() {
+                editor.report_crash(requests);
+            }
+            if ui.add(Button::new("Not now")).clicked() {
+                editor.dismiss_crash(requests);
+            }
+            if ui.add(Button::new("Don't ask again")).clicked() {
+                editor.dismiss_crash(requests);
+            }
         });
+    });
 }
 
 fn show_report_window(editor: &mut Editor, ctx: &Context) {
@@ -355,17 +352,16 @@ fn show_report_window(editor: &mut Editor, ctx: &Context) {
     }
     let mut open = true;
     let mut done = false;
-    Window::new("Report a Problem")
+    Dialog::new("Report a Problem")
         .open(&mut open)
-        .collapsible(false)
+        .width(520.0)
         .resizable(true)
-        .default_width(520.0)
-        .show(ctx, |ui| {
-            ScrollArea::vertical().max_height(560.0).show(ui, |ui| {
-                report_fields(&mut editor.ui.report, ui);
+        .show_with_footer(ctx, |dialog| {
+            dialog.body(|ui| report_fields(&mut editor.ui.report, ui));
+            done = dialog.footer(|ui| {
+                ui.add_space(design::SPACE_SM);
+                report_buttons(&editor.ui.report, ui, ctx)
             });
-            ui.add_space(design::SPACE_MD);
-            done = report_buttons(&editor.ui.report, ui, ctx);
         });
     if done || !open {
         editor.ui.report.open = false;

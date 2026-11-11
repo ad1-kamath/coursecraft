@@ -6,12 +6,13 @@
 //! on the query, the options and the course revision, so they refresh after
 //! typing, undo, redo and every other course change.
 
+use crate::dialog::Dialog;
 use std::collections::BTreeSet;
 
 use coursecraft_course::{Hit, MAX_HITS};
 use coursecraft_render::{SIZE_BODY, SIZE_SMALL, palette};
 use egui::text::{LayoutJob, TextFormat};
-use egui::{Align2, Button, FontId, Id, Key, Modifiers, RichText, ScrollArea, TextEdit, Window};
+use egui::{Button, FontId, Id, Key, Modifiers, RichText, ScrollArea, TextEdit};
 use serde_json::{Value as Json, json};
 
 use crate::Editor;
@@ -104,14 +105,11 @@ pub fn show_find_window(editor: &mut Editor, ctx: &egui::Context) {
         .unwrap_or_else(|| Id::unique(("find_and_replace", 0_u64)));
     let mut open = true;
     let mut action = Action::None;
-    Window::new("Find and Replace")
+    Dialog::new("Find and Replace")
         .id(window_id)
-        .collapsible(false)
-        .resizable(false)
         // Pinned by its top edge, so the window doesn't jump as its height changes.
-        .pivot(Align2::CENTER_TOP)
-        .default_pos(egui::pos2(screen.center().x, screen.top() + 60.0))
-        .default_width(440.0)
+        .pinned_top()
+        .width(440.0)
         .open(&mut open)
         .show(ctx, |ui| {
             action = window_body(editor, ui, max_height);

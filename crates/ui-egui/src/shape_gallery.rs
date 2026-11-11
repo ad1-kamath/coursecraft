@@ -1,5 +1,6 @@
 //! The shape gallery popup: search, categories and shape icons.
 
+use crate::dialog::Dialog;
 use coursecraft_course::{SHAPE_CATALOG, ShapeCategory, ShapeInfo, ShapeKind, shape_label};
 use coursecraft_render::{CONTROL_COMPACT, RADIUS_SM, SIZE_BODY, caption, paint_shape, palette};
 use egui::{
@@ -291,11 +292,9 @@ pub fn show_shape_gallery_window(editor: &mut crate::Editor, ctx: &egui::Context
     }
     let mut open = true;
     let mut picked = None;
-    egui::Window::new("Shapes")
+    Dialog::new("Shapes")
         .open(&mut open)
-        .collapsible(false)
-        .resizable(false)
-        .default_width(GALLERY_WIDTH)
+        .width(GALLERY_WIDTH)
         .show(ctx, |ui| {
             let output = show_shape_gallery(ui, &mut editor.ui.shape_gallery_query, &mut |pick| {
                 picked = Some(pick)

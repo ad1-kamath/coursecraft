@@ -6,9 +6,10 @@
 //! command. It needs no file dialog or network, so it behaves the same on the
 //! web and on the desktop.
 
+use crate::dialog::Dialog;
 use coursecraft_course::{CourseOutline, OutlineProblem, outline_from_markdown};
 use coursecraft_render::{SIZE_BODY, SIZE_SMALL, palette};
-use egui::{Align2, Button, Color32, Id, Key, Modifiers, RichText, ScrollArea, TextEdit, Window};
+use egui::{Button, Color32, Id, Key, Modifiers, RichText, ScrollArea, TextEdit};
 use serde_json::{Value as Json, json};
 
 use crate::Editor;
@@ -118,105 +119,103 @@ pub fn show_outline_dialog(editor: &mut Editor, ctx: &egui::Context) {
     if !editor.ui.show_outline_dialog {
         return;
     }
-    let screen = ctx.content_rect();
-    let max_height = (screen.height() - 40.0).max(260.0);
+    let max_height = crate::dialog::dialog_area(ctx).height().max(260.0);
     let mut open = true;
     let mut add_clicked = false;
     let mut cancel_clicked = false;
 
-    Window::new("Slides from Outline")
+    Dialog::new("Slides from Outline")
         .id(Id::unique(("slides_from_outline_dialog", 0_u64)))
-        .collapsible(false)
-        .resizable(true)
-        .max_height(max_height)
-        .default_width(580.0)
-        .pivot(Align2::CENTER_CENTER)
-        .default_pos(screen.center())
+        .width(580.0)
         .open(&mut open)
-        .show(ctx, |ui| {
-            let p = palette(ui.ctx());
-            ui.label(
-                RichText::new(
-                    "Paste an outline: `#` starts a scene, `##` a slide, `-` a body line, \
+        .resizable(true)
+        .show_with_footer(ctx, |dialog| {
+            let p = palette(ctx);
+            let mut can = false;
+            dialog.body(|ui| {
+                ui.label(
+                    RichText::new(
+                        "Paste an outline: `#` starts a scene, `##` a slide, `-` a body line, \
                      `>` speaker notes, `?` a question and `[x]` / `[ ]` its choices.",
-                )
-                .size(SIZE_SMALL)
-                .color(p.text_secondary),
-            );
-            ui.add_space(2.0);
-            ui.label(
-                RichText::new(EXAMPLE)
-                    .monospace()
-                    .size(SIZE_SMALL)
-                    .color(p.text_tertiary),
-            );
-            if let Some(warning) = editor.ui.outline_warning.clone() {
-                ui.add_space(4.0);
-                ui.label(RichText::new(warning).size(SIZE_SMALL).color(p.warning));
-            }
-            ui.add_space(6.0);
-
-            let field_height = (max_height - 280.0).clamp(120.0, 420.0);
-            let response = ScrollArea::vertical()
-                .id_salt("outline_source_scroll")
-                .max_height(field_height)
-                .min_scrolled_height(field_height)
-                .auto_shrink([false, true])
-                .show(ui, |ui| {
-                    ui.add(
-                        TextEdit::multiline(&mut editor.ui.outline_text)
-                            .id_salt("outline_source")
-                            .hint_text("Paste your outline here")
-                            .desired_width(f32::INFINITY)
-                            .desired_rows(14),
                     )
-                })
-                .inner;
-            if editor.ui.outline_focus {
-                response.request_focus();
-                editor.ui.outline_focus = false;
-            }
-
-            ui.add_space(6.0);
-            let parsed = parse(editor);
-            let can = matches!(&parsed, Ok(outline) if outline.slides().next().is_some());
-            match &parsed {
-                Ok(outline) => {
-                    ui.label(
-                        RichText::new(summary(outline))
-                            .size(SIZE_BODY)
-                            .color(p.text_secondary),
-                    );
+                    .size(SIZE_SMALL)
+                    .color(p.text_secondary),
+                );
+                ui.add_space(2.0);
+                ui.label(
+                    RichText::new(EXAMPLE)
+                        .monospace()
+                        .size(SIZE_SMALL)
+                        .color(p.text_tertiary),
+                );
+                if let Some(warning) = editor.ui.outline_warning.clone() {
+                    ui.add_space(4.0);
+                    ui.label(RichText::new(warning).size(SIZE_SMALL).color(p.warning));
                 }
-                Err(problems) => {
-                    for problem in problems {
+                ui.add_space(6.0);
+
+                let field_height = (max_height - 280.0).clamp(120.0, 420.0);
+                let response = ScrollArea::vertical()
+                    .id_salt("outline_source_scroll")
+                    .max_height(field_height)
+                    .min_scrolled_height(field_height)
+                    .auto_shrink([false, true])
+                    .show(ui, |ui| {
+                        ui.add(
+                            TextEdit::multiline(&mut editor.ui.outline_text)
+                                .id_salt("outline_source")
+                                .hint_text("Paste your outline here")
+                                .desired_width(f32::INFINITY)
+                                .desired_rows(14),
+                        )
+                    })
+                    .inner;
+                if editor.ui.outline_focus {
+                    response.request_focus();
+                    editor.ui.outline_focus = false;
+                }
+
+                ui.add_space(6.0);
+                let parsed = parse(editor);
+                can = matches!(&parsed, Ok(outline) if outline.slides().next().is_some());
+                match &parsed {
+                    Ok(outline) => {
                         ui.label(
-                            RichText::new(problem.to_string())
-                                .size(SIZE_SMALL)
-                                .color(p.danger),
+                            RichText::new(summary(outline))
+                                .size(SIZE_BODY)
+                                .color(p.text_secondary),
                         );
                     }
+                    Err(problems) => {
+                        for problem in problems {
+                            ui.label(
+                                RichText::new(problem.to_string())
+                                    .size(SIZE_SMALL)
+                                    .color(p.danger),
+                            );
+                        }
+                    }
                 }
-            }
-
-            ui.separator();
-            ui.horizontal(|ui| {
-                let add =
-                    Button::new(RichText::new("Add slides").color(Color32::WHITE)).fill(p.accent);
-                if ui
-                    .add_enabled(can, add)
-                    .on_disabled_hover_text(if can {
-                        ""
-                    } else {
-                        "Fix the problems above first"
-                    })
-                    .clicked()
-                {
-                    add_clicked = true;
-                }
-                if ui.button("Cancel").clicked() {
-                    cancel_clicked = true;
-                }
+            });
+            dialog.footer(|ui| {
+                ui.horizontal(|ui| {
+                    let add = Button::new(RichText::new("Add slides").color(Color32::WHITE))
+                        .fill(p.accent);
+                    if ui
+                        .add_enabled(can, add)
+                        .on_disabled_hover_text(if can {
+                            ""
+                        } else {
+                            "Fix the problems above first"
+                        })
+                        .clicked()
+                    {
+                        add_clicked = true;
+                    }
+                    if ui.button("Cancel").clicked() {
+                        cancel_clicked = true;
+                    }
+                });
             });
         });
 

@@ -6,11 +6,12 @@
 //! `cargo test -p coursecraft-ui-egui layout_sweep -- --nocapture`.
 
 use crate::snapshot::{SnapshotSelect, WINDOWS};
-use crate::test_harness::{LayoutReport, TestHarness, capture_layers, check_layout};
+use crate::test_harness::{LayoutReport, TestHarness, capture_layers, check_layout, check_windows};
 use crate::{BottomTab, InspectorTab};
 use coursecraft_course::Course;
 use coursecraft_render::ThemeMode;
-use egui::{Align2, Color32, FontId, Rect, pos2, vec2};
+use egui::epaint::{ClippedShape, Shape};
+use egui::{Align2, Color32, FontId, Id, LayerId, Order, Rect, pos2, vec2};
 
 const SHOWCASE: &str = include_str!("../../../examples/showcase/course.json");
 
@@ -195,7 +196,7 @@ fn layout_checker_reports_deliberate_problems() {
     });
     output.drop_without_applying_deltas();
 
-    let findings = check_layout(&layers, screen, &[]).findings;
+    let findings = check_layout(&layers, screen, &[], &[]).findings;
     let joined = findings.join("\n");
     assert!(
         findings.iter().any(|f| f.starts_with("overlap:")
@@ -227,7 +228,7 @@ fn layout_checker_reports_deliberate_problems() {
         .map(|(id, _)| *id)
         .find(|id| id.order == egui::Order::Background)
         .unwrap_or_else(egui::LayerId::background);
-    let quiet = check_layout(&layers, screen, &[(layer, region)]).findings;
+    let quiet = check_layout(&layers, screen, &[(layer, region)], &[]).findings;
     assert!(
         !quiet.iter().any(|f| f.starts_with("overlap:")),
         "overlap not excluded by region:\n{}",
@@ -254,4 +255,119 @@ fn layout_sweep_editor_states_and_windows() {
         findings.len(),
         unopened.len()
     );
+}
+
+/// A window must stay inside the screen and below the menu bar, and a button cut off at the
+/// bottom edge of its window is a finding.
+#[test]
+fn layout_checker_reports_bad_windows_and_bottom_clips() {
+    let screen = Rect::from_min_size(pos2(0.0, 0.0), vec2(400.0, 300.0));
+    let menu_bar = Rect::from_min_size(pos2(0.0, 0.0), vec2(400.0, 26.0));
+    let layer = LayerId::new(Order::Middle, Id::unique("test_window"));
+    let windows = [
+        (
+            layer,
+            Rect::from_min_size(pos2(20.0, 4.0), vec2(200.0, 100.0)),
+        ),
+        (
+            layer,
+            Rect::from_min_size(pos2(300.0, 100.0), vec2(200.0, 100.0)),
+        ),
+        (
+            layer,
+            Rect::from_min_size(pos2(20.0, 200.0), vec2(100.0, 150.0)),
+        ),
+        (
+            layer,
+            Rect::from_min_size(pos2(100.0, 60.0), vec2(200.0, 120.0)),
+        ),
+    ];
+    let findings = check_windows(&windows, screen, menu_bar);
+    assert_eq!(
+        findings
+            .iter()
+            .filter(|f| f.starts_with("window-over-menu-bar:"))
+            .count(),
+        1,
+        "menu bar overlap in:\n{}",
+        findings.join("\n")
+    );
+    assert_eq!(
+        findings
+            .iter()
+            .filter(|f| f.starts_with("window-off-screen:"))
+            .count(),
+        2,
+        "off-screen in:\n{}",
+        findings.join("\n")
+    );
+
+    // A button cut off at the bottom of its window.
+    let win = Rect::from_min_size(pos2(50.0, 50.0), vec2(200.0, 100.0));
+    let button = |rect: Rect, clip: Rect| ClippedShape {
+        clip_rect: clip,
+        shape: Shape::rect_filled(rect, 4.0, Color32::from_gray(80)),
+        transform_after_tessellation: egui::emath::TSTransform::IDENTITY,
+    };
+    let layers = vec![(
+        layer,
+        vec![
+            // A button reaching past the window's bottom edge.
+            button(
+                Rect::from_min_size(pos2(60.0, 130.0), vec2(80.0, 30.0)),
+                win,
+            ),
+            // A button cut by a scroll viewport that ends well above the window's edge.
+            button(
+                Rect::from_min_size(pos2(60.0, 90.0), vec2(80.0, 30.0)),
+                Rect::from_min_size(pos2(50.0, 50.0), vec2(200.0, 60.0)),
+            ),
+        ],
+    )];
+    let findings = check_layout(&layers, screen, &[], &[(layer, win)]).findings;
+    let bottom: Vec<_> = findings
+        .iter()
+        .filter(|f| f.contains("bottom of its window"))
+        .collect();
+    assert_eq!(bottom.len(), 1, "bottom clips in:\n{}", findings.join("\n"));
+}
+
+/// The window checks only mean something if the checker really sees the dialogs: every
+/// dialog-style window opens as a window below the menu bar, inside the screen.
+#[test]
+fn layout_sweep_sees_dialogs_as_windows() {
+    for spec in WINDOWS {
+        if matches!(
+            spec.name,
+            "welcome" | "shortcuts" | "preview" | "coach-1" | "coach-2" | "coach-3"
+        ) {
+            continue;
+        }
+        let mut harness = TestHarness::new_with_theme(showcase(), (1024.0, 700.0), ThemeMode::Dark);
+        SnapshotSelect {
+            slide: Some("s-layers".to_owned()),
+            window: Some(spec.name.to_owned()),
+            ..Default::default()
+        }
+        .apply(&mut harness.editor);
+        let report = harness.layout_report(4);
+        let dialog = report
+            .windows
+            .iter()
+            .find(|(_, r)| r.width() > 200.0 && r.height() > 60.0);
+        assert!(
+            dialog.is_some(),
+            "{}: no dialog window seen among {:?}",
+            spec.name,
+            report.windows
+        );
+        let menu_bottom = crate::TOP_BAR_HEIGHT;
+        if let Some((_, r)) = dialog {
+            assert!(
+                r.min.y >= menu_bottom,
+                "{}: dialog {r:?} starts above the menu bar bottom {menu_bottom}",
+                spec.name
+            );
+        }
+    }
 }

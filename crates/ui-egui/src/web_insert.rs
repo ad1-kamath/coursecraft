@@ -4,8 +4,9 @@
 //! into the project's media. Folder picking belongs to the host shell, so the
 //! dialog asks for it through [`EditorRequest::PickWebFolder`].
 
+use crate::dialog::Dialog;
 use coursecraft_course::{ObjectKind, Rect, WebSource};
-use egui::{TextEdit, Window};
+use egui::TextEdit;
 
 use crate::{Editor, EditorRequest};
 
@@ -58,10 +59,8 @@ pub fn show_web_insert_window(
     }
     let mut open = true;
     let mut close = false;
-    Window::new("Insert Web Object")
+    Dialog::new("Insert Web Object")
         .open(&mut open)
-        .resizable(false)
-        .collapsible(false)
         .show(ctx, |ui| {
             ui.heading("Web address");
             ui.label("A page shown in the published course. It must use https://.");

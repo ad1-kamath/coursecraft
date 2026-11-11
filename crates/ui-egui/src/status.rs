@@ -1,6 +1,7 @@
 //! Status bar: course title, validation summary, and error notifications.
 
 use crate::Editor;
+use crate::dialog::Dialog;
 use coursecraft_course::Course;
 use egui::{RichText, Ui};
 
@@ -269,11 +270,10 @@ pub fn show_status_bar(editor: &mut Editor, ui: &mut Ui) {
             .audit_findings
             .iter()
             .any(|finding| finding.check == "alt-text");
-        egui::Window::new("Check Course")
+        Dialog::new("Check Course")
             .open(&mut editor.ui.show_validation_window)
             .default_size([500.0, 300.0])
-            .pivot(egui::Align2::CENTER_CENTER)
-            .default_pos(ui.ctx().content_rect().center())
+            .resizable(true)
             .show(ui.ctx(), |ui| {
                 if editor.ui.validation_issues.is_empty() {
                     ui.label("No validation issues found.");
@@ -398,9 +398,10 @@ pub fn show_status_bar(editor: &mut Editor, ui: &mut Ui) {
 
     // Error history popup window
     if editor.ui.show_error_history_window {
-        egui::Window::new("Error History")
+        Dialog::new("Error History")
             .open(&mut editor.ui.show_error_history_window)
             .default_size([500.0, 300.0])
+            .resizable(true)
             .show(ui.ctx(), |ui| {
                 if editor.ui.error_history.is_empty() {
                     ui.label("No errors recorded.");
@@ -418,9 +419,10 @@ pub fn show_status_bar(editor: &mut Editor, ui: &mut Ui) {
     if let Some(ref report) = editor.ui.pptx_import_report.clone() {
         let mut open = true;
         let mut dismissed = false;
-        egui::Window::new("PowerPoint Import Report")
+        Dialog::new("PowerPoint Import Report")
             .open(&mut open)
             .default_size([450.0, 220.0])
+            .resizable(true)
             .show(ui.ctx(), |ui| {
                 ui.label(report);
                 ui.add_space(12.0);

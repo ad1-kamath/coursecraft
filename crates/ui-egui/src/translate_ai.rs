@@ -5,6 +5,7 @@
 //! that goes through `course.import_xliff`, so the checks, the report, the
 //! language change and the single undo step are the importer's.
 
+use crate::dialog::Dialog;
 use std::collections::BTreeMap;
 
 use coursecraft_ai::{
@@ -14,10 +15,7 @@ use coursecraft_ai::{
 use coursecraft_course::{Course, is_language_tag_valid};
 use coursecraft_format::xliff::{fill_xliff, translation_units};
 use coursecraft_render::{CONTROL_COMPACT, SIZE_BODY, SIZE_SMALL, palette};
-use egui::{
-    Align2, Button, ComboBox, Id, Key, Label, Modifiers, RichText, ScrollArea, TextEdit, Window,
-    vec2,
-};
+use egui::{Button, ComboBox, Id, Key, Label, Modifiers, RichText, ScrollArea, TextEdit, vec2};
 
 use crate::{AiPurpose, Editor, EditorRequest};
 
@@ -445,8 +443,8 @@ pub fn show_translate_window(
     }
     refresh_problems(editor);
 
-    let screen = ctx.content_rect();
-    let max_height = (screen.height() - 40.0).max(300.0);
+    let _screen = ctx.content_rect();
+    let max_height = crate::dialog::dialog_area(ctx).height().max(300.0);
     let ready = editor.ai_ready();
     let units_count = if editor.ui.translate.rows.is_empty() {
         editor.ui.translate.units.len()
@@ -475,240 +473,235 @@ pub fn show_translate_window(
     let mut save = false;
     let mut open_settings = false;
 
-    Window::new("Translate with AI")
+    Dialog::new("Translate with AI")
         .id(Id::unique(("translate_with_ai_dialog", 0_u64)))
-        .collapsible(false)
-        .resizable(true)
-        .max_height(max_height)
-        .default_width(760.0)
-        .default_height((max_height - 20.0).max(300.0))
-        .pivot(Align2::CENTER_CENTER)
-        .default_pos(screen.center())
+        .width(760.0)
         .open(&mut open)
-        .show(ctx, |ui| {
-            let p = palette(ui.ctx());
-            ui.set_max_width(760.0);
-            ScrollArea::vertical()
-                .id_salt("translate_with_ai_scroll")
-                .max_height((max_height - 60.0).max(220.0))
-                .show(ui, |ui| {
-                    if !ready {
-                        if crate::ai_settings::show_ai_not_ready(ui, "translate this course") {
-                            open_settings = true;
-                        }
-                        ui.add_space(8.0);
-                        if ui.button("Cancel").clicked() {
-                            close_clicked = true;
-                        }
-                        return;
+        .resizable(true)
+        .show_with_footer(ctx, |dialog| {
+            let p = palette(ctx);
+            dialog.body(|ui| {
+                ui.set_max_width(760.0);
+                if !ready {
+                    if crate::ai_settings::show_ai_not_ready(ui, "translate this course") {
+                        open_settings = true;
                     }
+                    ui.add_space(8.0);
+                    if ui.button("Cancel").clicked() {
+                        close_clicked = true;
+                    }
+                    return;
+                }
 
-                    ui.label(
-                        RichText::new(
-                            "CourseCraft fills the exported XLIFF for you. Nothing changes until \
+                ui.label(
+                    RichText::new(
+                        "CourseCraft fills the exported XLIFF for you. Nothing changes until \
                              Apply, and Apply is the normal translation import.",
-                        )
-                        .size(SIZE_SMALL)
-                        .color(p.text_secondary),
-                    );
-                    ui.add_space(6.0);
+                    )
+                    .size(SIZE_SMALL)
+                    .color(p.text_secondary),
+                );
+                ui.add_space(6.0);
 
-                    ui.horizontal(|ui| {
-                        ui.label("Translate to:");
-                        ui.add(
-                            TextEdit::singleline(&mut editor.ui.translate.target_language)
-                                .desired_width(80.0)
-                                .hint_text("fr"),
-                        );
-                        ComboBox::from_id_salt("translate_common_language")
-                            .selected_text("Common languages")
-                            .show_ui(ui, |ui| {
-                                for (name, tag) in COMMON_LANGUAGES {
-                                    if ui
-                                        .selectable_label(
-                                            editor.ui.translate.target_language == *tag,
-                                            format!("{name} ({tag})"),
-                                        )
-                                        .clicked()
-                                    {
-                                        editor.ui.translate.target_language = (*tag).to_string();
-                                    }
+                ui.horizontal(|ui| {
+                    ui.label("Translate to:");
+                    ui.add(
+                        TextEdit::singleline(&mut editor.ui.translate.target_language)
+                            .desired_width(80.0)
+                            .hint_text("fr"),
+                    );
+                    ComboBox::from_id_salt("translate_common_language")
+                        .selected_text("Common languages")
+                        .show_ui(ui, |ui| {
+                            for (name, tag) in COMMON_LANGUAGES {
+                                if ui
+                                    .selectable_label(
+                                        editor.ui.translate.target_language == *tag,
+                                        format!("{name} ({tag})"),
+                                    )
+                                    .clicked()
+                                {
+                                    editor.ui.translate.target_language = (*tag).to_string();
                                 }
-                            });
-                    });
-                    let target = editor.ui.translate.target_language.trim().to_string();
-                    let valid = is_language_tag_valid(&target);
-                    if !valid && !target.is_empty() {
-                        ui.label(
-                            RichText::new("Use a tag such as fr, en-GB or pt-BR.").color(p.danger),
-                        );
-                    }
+                            }
+                        });
+                });
+                let target = editor.ui.translate.target_language.trim().to_string();
+                let valid = is_language_tag_valid(&target);
+                if !valid && !target.is_empty() {
+                    ui.label(
+                        RichText::new("Use a tag such as fr, en-GB or pt-BR.").color(p.danger),
+                    );
+                }
+                ui.label(
+                    RichText::new(
+                        "The bundled font is Latin only; non-Latin scripts aren't drawn yet.",
+                    )
+                    .size(SIZE_SMALL)
+                    .color(p.text_tertiary),
+                );
+                if language_may_lack_glyphs(&target) {
                     ui.label(
                         RichText::new(
-                            "The bundled font is Latin only; non-Latin scripts aren't drawn yet.",
+                            "This language uses a script the bundled font may not draw. \
+                                 The translation will still be saved.",
                         )
                         .size(SIZE_SMALL)
-                        .color(p.text_tertiary),
+                        .color(p.warning),
                     );
-                    if language_may_lack_glyphs(&target) {
-                        ui.label(
-                            RichText::new(
-                                "This language uses a script the bundled font may not draw. \
-                                 The translation will still be saved.",
-                            )
-                            .size(SIZE_SMALL)
-                            .color(p.warning),
-                        );
-                    }
+                }
+                ui.add_space(4.0);
+
+                if units_count == 0 {
+                    ui.label("This course has no text to translate.");
+                } else {
+                    ui.label(
+                        RichText::new(consent_line(editor, units_count))
+                            .size(SIZE_BODY)
+                            .color(p.text_secondary),
+                    );
+                }
+
+                if let Some(notice) = &editor.ui.translate.notice {
                     ui.add_space(4.0);
+                    ui.label(RichText::new(notice).color(p.danger));
+                }
+                if editor.ui.translate.changed {
+                    ui.add_space(4.0);
+                    ui.label(RichText::new("The course changed. Translate again.").color(p.danger));
+                }
 
-                    if units_count == 0 {
-                        ui.label("This course has no text to translate.");
-                    } else {
+                if editor.ui.translate.running {
+                    ui.add_space(6.0);
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Spinner::new());
+                        let number = editor
+                            .ui
+                            .translate
+                            .pending
+                            .as_ref()
+                            .map_or(1, |pending| pending.batch.saturating_add(1));
+                        ui.label(format!(
+                            "Batch {number} of {}",
+                            editor.ui.translate.total_batches
+                        ));
+                        if ui.button("Cancel").clicked() {
+                            cancel = true;
+                        }
+                    });
+                } else {
+                    ui.add_space(6.0);
+                    ui.horizontal(|ui| {
+                        let can_translate = valid && units_count > 0;
+                        if ui
+                            .add_enabled(can_translate, Button::new("Translate"))
+                            .clicked()
+                        {
+                            translate = true;
+                        }
+                    });
+                }
+
+                if !editor.ui.translate.rows.is_empty() {
+                    ui.add_space(6.0);
+                    ui.separator();
+                    ui.horizontal(|ui| {
                         ui.label(
-                            RichText::new(consent_line(editor, units_count))
-                                .size(SIZE_BODY)
-                                .color(p.text_secondary),
+                            RichText::new(format!(
+                                "{translated} translated, {attention} need attention."
+                            ))
+                            .strong(),
                         );
-                    }
-
-                    if let Some(notice) = &editor.ui.translate.notice {
-                        ui.add_space(4.0);
-                        ui.label(RichText::new(notice).color(p.danger));
-                    }
-                    if editor.ui.translate.changed {
-                        ui.add_space(4.0);
-                        ui.label(
-                            RichText::new("The course changed. Translate again.").color(p.danger),
+                        ui.checkbox(
+                            &mut editor.ui.translate.only_attention,
+                            "Show only those needing attention",
                         );
-                    }
+                    });
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        ui.add_sized(
+                            [190.0, CONTROL_COMPACT],
+                            Label::new(RichText::new("Location").strong()).truncate(),
+                        );
+                        ui.add_sized(
+                            [220.0, CONTROL_COMPACT],
+                            Label::new(RichText::new("Source").strong()).truncate(),
+                        );
+                        ui.label(RichText::new("Target").strong());
+                    });
 
-                    if editor.ui.translate.running {
-                        ui.add_space(6.0);
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Spinner::new());
-                            let number = editor
-                                .ui
-                                .translate
-                                .pending
-                                .as_ref()
-                                .map_or(1, |pending| pending.batch.saturating_add(1));
-                            ui.label(format!(
-                                "Batch {number} of {}",
-                                editor.ui.translate.total_batches
-                            ));
-                            if ui.button("Cancel").clicked() {
-                                cancel = true;
-                            }
-                        });
-                    } else {
-                        ui.add_space(6.0);
-                        ui.horizontal(|ui| {
-                            let can_translate = valid && units_count > 0;
-                            if ui
-                                .add_enabled(can_translate, Button::new("Translate"))
-                                .clicked()
-                            {
-                                translate = true;
-                            }
-                        });
-                    }
-
-                    if !editor.ui.translate.rows.is_empty() {
-                        ui.add_space(6.0);
-                        ui.separator();
-                        ui.horizontal(|ui| {
-                            ui.label(
-                                RichText::new(format!(
-                                    "{translated} translated, {attention} need attention."
-                                ))
-                                .strong(),
-                            );
-                            ui.checkbox(
-                                &mut editor.ui.translate.only_attention,
-                                "Show only those needing attention",
-                            );
-                        });
-                        ui.add_space(4.0);
-                        ui.horizontal(|ui| {
-                            ui.add_sized(
-                                [190.0, CONTROL_COMPACT],
-                                Label::new(RichText::new("Location").strong()).truncate(),
-                            );
-                            ui.add_sized(
-                                [220.0, CONTROL_COMPACT],
-                                Label::new(RichText::new("Source").strong()).truncate(),
-                            );
-                            ui.label(RichText::new("Target").strong());
-                        });
-
-                        ScrollArea::vertical()
-                            .id_salt("translate_review_rows")
-                            .max_height(table_height)
-                            .show_rows(ui, ROW_HEIGHT, visible.len(), |ui, range| {
-                                for visible_index in range {
-                                    let Some(&row_index) = visible.get(visible_index) else {
-                                        continue;
-                                    };
-                                    let Some(row) = editor.ui.translate.rows.get_mut(row_index)
-                                    else {
-                                        continue;
-                                    };
-                                    ui.allocate_ui_with_layout(
-                                        vec2(ui.available_width(), ROW_HEIGHT),
-                                        egui::Layout::top_down(egui::Align::Min),
-                                        |ui| {
-                                            ui.horizontal(|ui| {
-                                                let colour = if row.problem.is_some() {
-                                                    p.danger
-                                                } else {
-                                                    p.text
-                                                };
-                                                ui.add_sized(
-                                                    [190.0, CONTROL_COMPACT],
-                                                    Label::new(
-                                                        RichText::new(&row.location)
-                                                            .strong()
-                                                            .color(colour),
-                                                    )
-                                                    .truncate(),
-                                                );
-                                                ui.add_sized(
-                                                    [220.0, CONTROL_COMPACT],
-                                                    Label::new(
-                                                        RichText::new(&row.source)
-                                                            .size(SIZE_SMALL)
-                                                            .color(p.text_secondary),
-                                                    )
-                                                    .truncate(),
-                                                );
-                                                let width = ui.available_width().max(120.0);
-                                                ui.add_sized(
-                                                    [width, CONTROL_COMPACT],
-                                                    TextEdit::singleline(&mut row.target)
-                                                        .id_salt(("translate_target", row_index))
-                                                        .hint_text("Translation"),
-                                                );
-                                            });
-                                            if let Some(problem) = &row.problem {
-                                                ui.label(
-                                                    RichText::new(problem)
+                    ScrollArea::vertical()
+                        .id_salt("translate_review_rows")
+                        .max_height(table_height)
+                        .show_rows(ui, ROW_HEIGHT, visible.len(), |ui, range| {
+                            for visible_index in range {
+                                let Some(&row_index) = visible.get(visible_index) else {
+                                    continue;
+                                };
+                                let Some(row) = editor.ui.translate.rows.get_mut(row_index) else {
+                                    continue;
+                                };
+                                ui.allocate_ui_with_layout(
+                                    vec2(ui.available_width(), ROW_HEIGHT),
+                                    egui::Layout::top_down(egui::Align::Min),
+                                    |ui| {
+                                        ui.horizontal(|ui| {
+                                            let colour = if row.problem.is_some() {
+                                                p.danger
+                                            } else {
+                                                p.text
+                                            };
+                                            ui.add_sized(
+                                                [190.0, CONTROL_COMPACT],
+                                                Label::new(
+                                                    RichText::new(&row.location)
+                                                        .strong()
+                                                        .color(colour),
+                                                )
+                                                .truncate(),
+                                            );
+                                            ui.add_sized(
+                                                [220.0, CONTROL_COMPACT],
+                                                Label::new(
+                                                    RichText::new(&row.source)
                                                         .size(SIZE_SMALL)
-                                                        .color(p.danger),
-                                                );
-                                            }
-                                        },
-                                    );
-                                    row.problem = row_problem(row);
-                                }
-                            });
-                        ui.add_space(6.0);
-                        let valid_count = valid_targets(editor).len();
-                        let can_apply = valid
-                            && !editor.ui.translate.running
-                            && !editor.ui.translate.changed
-                            && valid_count > 0;
-                        ui.horizontal(|ui| {
+                                                        .color(p.text_secondary),
+                                                )
+                                                .truncate(),
+                                            );
+                                            let width = ui.available_width().max(120.0);
+                                            ui.add_sized(
+                                                [width, CONTROL_COMPACT],
+                                                TextEdit::singleline(&mut row.target)
+                                                    .id_salt(("translate_target", row_index))
+                                                    .hint_text("Translation"),
+                                            );
+                                        });
+                                        if let Some(problem) = &row.problem {
+                                            ui.label(
+                                                RichText::new(problem)
+                                                    .size(SIZE_SMALL)
+                                                    .color(p.danger),
+                                            );
+                                        }
+                                    },
+                                );
+                                row.problem = row_problem(row);
+                            }
+                        });
+                }
+            });
+            if ready {
+                dialog.footer(|ui| {
+                    ui.horizontal(|ui| {
+                        if !editor.ui.translate.rows.is_empty() {
+                            let valid_count = valid_targets(editor).len();
+                            let valid =
+                                is_language_tag_valid(editor.ui.translate.target_language.trim());
+                            let can_apply = valid
+                                && !editor.ui.translate.running
+                                && !editor.ui.translate.changed
+                                && valid_count > 0;
                             if ui
                                 .add_enabled(can_apply, Button::new(format!("Apply {valid_count}")))
                                 .clicked()
@@ -725,19 +718,13 @@ pub fn show_translate_window(
                                         "Saving files is desktop-only in this version",
                                     );
                             }
-                            if ui.button("Close").clicked() {
-                                close_clicked = true;
-                            }
-                        });
-                    } else {
-                        ui.add_space(6.0);
-                        ui.horizontal(|ui| {
-                            if ui.button("Close").clicked() {
-                                close_clicked = true;
-                            }
-                        });
-                    }
+                        }
+                        if ui.button("Close").clicked() {
+                            close_clicked = true;
+                        }
+                    });
                 });
+            }
         });
 
     if !open {

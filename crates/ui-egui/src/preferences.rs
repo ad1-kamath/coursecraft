@@ -3,8 +3,9 @@
 //! The window holds a view of the saved settings. Every change applies at once
 //! and goes to the app as an [`EditorRequest`], which saves it.
 
+use crate::dialog::Dialog;
 use coursecraft_render::ThemePref;
-use egui::{DragValue, Window};
+use egui::DragValue;
 
 use crate::slide_size_dialog::PRESETS;
 use crate::{Editor, EditorRequest};
@@ -70,49 +71,45 @@ pub fn show_preferences_window(
     let mut open = true;
     let before = editor.ui.prefs.clone();
     let mut theme = editor.theme_pref;
-    Window::new("Preferences")
-        .open(&mut open)
-        .resizable(false)
-        .collapsible(false)
-        .show(ctx, |ui| {
-            let prefs = &mut editor.ui.prefs;
-            ui.horizontal(|ui| {
-                ui.label("Autosave every");
-                ui.add(
-                    DragValue::new(&mut prefs.autosave_minutes)
-                        .range(0..=MAX_AUTOSAVE_MINUTES)
-                        .suffix(" min"),
-                );
-            });
-            ui.small("0 turns autosave off.");
-            ui.horizontal(|ui| {
-                ui.label("Versions to keep");
-                ui.add(
-                    DragValue::new(&mut prefs.versions_to_keep)
-                        .range(0..=MAX_VERSIONS_TO_KEEP)
-                        .suffix(" per file"),
-                );
-            });
-            ui.small("Each save keeps the file it replaced. 0 turns versions off.");
-            ui.separator();
-            ui.label("Appearance");
-            for (pref, label) in [
-                (ThemePref::System, "System"),
-                (ThemePref::Light, "Light"),
-                (ThemePref::Dark, "Dark"),
-            ] {
-                if ui.radio(theme == pref, label).clicked() {
-                    theme = pref;
-                }
-            }
-            ui.separator();
-            ui.label("Default slide size for new courses");
-            for (label, w, h) in PRESETS {
-                if ui.radio(prefs.default_slide == (w, h), label).clicked() {
-                    prefs.default_slide = (w, h);
-                }
-            }
+    Dialog::new("Preferences").open(&mut open).show(ctx, |ui| {
+        let prefs = &mut editor.ui.prefs;
+        ui.horizontal(|ui| {
+            ui.label("Autosave every");
+            ui.add(
+                DragValue::new(&mut prefs.autosave_minutes)
+                    .range(0..=MAX_AUTOSAVE_MINUTES)
+                    .suffix(" min"),
+            );
         });
+        ui.small("0 turns autosave off.");
+        ui.horizontal(|ui| {
+            ui.label("Versions to keep");
+            ui.add(
+                DragValue::new(&mut prefs.versions_to_keep)
+                    .range(0..=MAX_VERSIONS_TO_KEEP)
+                    .suffix(" per file"),
+            );
+        });
+        ui.small("Each save keeps the file it replaced. 0 turns versions off.");
+        ui.separator();
+        ui.label("Appearance");
+        for (pref, label) in [
+            (ThemePref::System, "System"),
+            (ThemePref::Light, "Light"),
+            (ThemePref::Dark, "Dark"),
+        ] {
+            if ui.radio(theme == pref, label).clicked() {
+                theme = pref;
+            }
+        }
+        ui.separator();
+        ui.label("Default slide size for new courses");
+        for (label, w, h) in PRESETS {
+            if ui.radio(prefs.default_slide == (w, h), label).clicked() {
+                prefs.default_slide = (w, h);
+            }
+        }
+    });
     if theme != editor.theme_pref {
         editor.theme_pref = theme;
         requests.push(EditorRequest::SetTheme(theme));

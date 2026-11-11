@@ -1,5 +1,6 @@
 //! The Publish dialog: standard picker, pre-flight checks and publish results.
 
+use crate::dialog::Dialog;
 use coursecraft_render::{
     CONTROL_PRIMARY, RADIUS_MD, SIZE_BODY, SPACE_MD, SPACE_SM, palette, small,
 };
@@ -188,138 +189,133 @@ pub fn show_publish_dialog(
     let mut open = true;
     let mut close_after = false;
 
-    let max_height = (ctx.content_rect().height() - 40.0).max(240.0);
-    let mut window = egui::Window::new("Publish course")
-        .collapsible(false)
-        .resizable(false)
-        .default_width(430.0)
-        .max_height(max_height)
-        .pivot(egui::Align2::CENTER_CENTER)
-        .default_pos(ctx.content_rect().center());
+    let mut dialog = Dialog::new("Publish course").width(430.0);
     if !busy {
-        window = window.open(&mut open);
+        dialog = dialog.open(&mut open);
     }
-    window.show(ctx, |ui| {
+    dialog.show_with_footer(ctx, |dialog| {
         let p = palette(ctx);
-        ui.set_max_width(430.0);
-        egui::ScrollArea::vertical()
-            .max_height((max_height - 80.0).max(160.0))
-            .show(ui, |ui| {
-        ui.label(
-            small(editor.session.course.title.clone())
-                .size(SIZE_BODY)
-                .color(p.text_secondary),
-        );
-        ui.add_space(SPACE_MD);
-
-        if success {
-            show_success(editor, ui, requests, &mut close_after);
-            return;
-        }
-
-        show_standards(editor, ui, busy);
-
         let validation_errors = editor.ui.validation_errors;
-        let warnings = editor.ui.validation_warnings;
-        let audit_errors = editor
-            .ui
-            .audit_findings
-            .iter()
-            .filter(|f| f.severity == "error")
-            .count();
         let available = editor.publish_available;
         let missing_media = editor.missing_media();
-
-        if validation_errors > 0 {
-            ui.add_space(SPACE_SM);
+        dialog.body(|ui| {
+            ui.set_max_width(430.0);
             ui.label(
-                RichText::new(format!(
-                    "This course has {validation_errors} problem(s) to fix before publishing."
-                ))
-                .color(p.danger),
-            );
-            if ui.button("Show problems").clicked() {
-                editor.ui.show_validation_window = true;
-            }
-        } else if warnings > 0 {
-            ui.add_space(SPACE_SM);
-            ui.label(
-                small(format!("{warnings} warning(s). You can still publish."))
+                small(editor.session.course.title.clone())
+                    .size(SIZE_BODY)
                     .color(p.text_secondary),
             );
-        }
+            ui.add_space(SPACE_MD);
 
-        if !missing_media.is_empty() {
-            ui.add_space(SPACE_SM);
-            for src in &missing_media {
-                ui.label(
-                    RichText::new(format!("Missing media: {src}"))
-                        .color(p.danger)
-                        .size(SIZE_BODY),
-                );
+            if success {
+                show_success_details(editor, ui);
+                return;
             }
-        }
 
-        if audit_errors > 0 {
-            ui.add_space(SPACE_SM);
-            ui.horizontal(|ui| {
+            show_standards(editor, ui, busy);
+
+            let warnings = editor.ui.validation_warnings;
+            let audit_errors = editor
+                .ui
+                .audit_findings
+                .iter()
+                .filter(|f| f.severity == "error")
+                .count();
+
+            if validation_errors > 0 {
+                ui.add_space(SPACE_SM);
                 ui.label(
-                    small(format!(
-                        "{audit_errors} accessibility findings. You can still publish."
+                    RichText::new(format!(
+                        "This course has {validation_errors} problem(s) to fix before publishing."
                     ))
-                    .color(p.text_secondary),
+                    .color(p.danger),
                 );
-                if ui.button("Show findings").clicked() {
+                if ui.button("Show problems").clicked() {
                     editor.ui.show_validation_window = true;
                 }
-            });
-        }
+            } else if warnings > 0 {
+                ui.add_space(SPACE_SM);
+                ui.label(
+                    small(format!("{warnings} warning(s). You can still publish."))
+                        .color(p.text_secondary),
+                );
+            }
 
-        if !available {
-            ui.add_space(SPACE_SM);
-            ui.label(
-                small(
-                    "This build doesn't include the player. Run cargo xtask build-player and rebuild.",
-                )
-                .color(p.danger),
-            );
-        }
-
-        if let PublishPhase::Failed { ref message } = editor.ui.publish.phase {
-            ui.add_space(SPACE_SM);
-            ui.label(RichText::new(message.clone()).color(p.danger));
-        }
-
-        ui.add_space(SPACE_MD);
-
-        if busy {
-            ui.horizontal(|ui| {
-                ui.add(egui::Spinner::new());
-                ui.label("Publishing…");
-            });
-        } else {
-            ui.horizontal(|ui| {
-                let blocked = validation_errors > 0 || !available || !missing_media.is_empty();
-                if blocked {
-                    ui.add_enabled(false, egui::Button::new("Publish"));
-                } else if publish_button(ui, "Publish").clicked() {
-                    editor.ui.publish.phase = PublishPhase::Idle;
-                    editor.ui.publish.status = None;
-                    requests.push(EditorRequest::Publish {
-                        standard: editor.ui.publish.standard,
-                    });
+            if !missing_media.is_empty() {
+                ui.add_space(SPACE_SM);
+                for src in &missing_media {
+                    ui.label(
+                        RichText::new(format!("Missing media: {src}"))
+                            .color(p.danger)
+                            .size(SIZE_BODY),
+                    );
                 }
-                if ui.button("Cancel").clicked() {
-                    close_after = true;
-                }
-            });
-        }
+            }
 
-        if let Some(ref status) = editor.ui.publish.status {
+            if audit_errors > 0 {
+                ui.add_space(SPACE_SM);
+                ui.horizontal(|ui| {
+                    ui.label(
+                        small(format!(
+                            "{audit_errors} accessibility findings. You can still publish."
+                        ))
+                        .color(p.text_secondary),
+                    );
+                    if ui.button("Show findings").clicked() {
+                        editor.ui.show_validation_window = true;
+                    }
+                });
+            }
+
+            if !available {
+                ui.add_space(SPACE_SM);
+                ui.label(
+                    small(
+                        "This build doesn't include the player. Run cargo xtask build-player and rebuild.",
+                    )
+                    .color(p.danger),
+                );
+            }
+
+            if let PublishPhase::Failed { ref message } = editor.ui.publish.phase {
+                ui.add_space(SPACE_SM);
+                ui.label(RichText::new(message.clone()).color(p.danger));
+            }
+
+            if let Some(ref status) = editor.ui.publish.status {
+                ui.add_space(SPACE_SM);
+                ui.label(small(status.clone()).color(p.danger));
+            }
+        });
+
+        // The action buttons stay put below the scrolling body.
+        dialog.footer(|ui| {
             ui.add_space(SPACE_SM);
-            ui.label(small(status.clone()).color(p.danger));
-        }
-            });
+            if success {
+                show_success_buttons(editor, ui, requests, &mut close_after);
+            } else if busy {
+                ui.horizontal(|ui| {
+                    ui.add(egui::Spinner::new());
+                    ui.label("Publishing…");
+                });
+            } else {
+                ui.horizontal(|ui| {
+                    let blocked = validation_errors > 0 || !available || !missing_media.is_empty();
+                    if blocked {
+                        ui.add_enabled(false, egui::Button::new("Publish"));
+                    } else if publish_button(ui, "Publish").clicked() {
+                        editor.ui.publish.phase = PublishPhase::Idle;
+                        editor.ui.publish.status = None;
+                        requests.push(EditorRequest::Publish {
+                            standard: editor.ui.publish.standard,
+                        });
+                    }
+                    if ui.button("Cancel").clicked() {
+                        close_after = true;
+                    }
+                });
+            }
+        });
     });
 
     if close_after || (!busy && !open) {
@@ -344,12 +340,7 @@ fn show_standards(editor: &mut Editor, ui: &mut egui::Ui, busy: bool) {
     ui.add_space(SPACE_SM);
 }
 
-fn show_success(
-    editor: &mut Editor,
-    ui: &mut egui::Ui,
-    requests: &mut Vec<EditorRequest>,
-    close_after: &mut bool,
-) {
+fn show_success_details(editor: &mut Editor, ui: &mut egui::Ui) {
     let p = palette(ui.ctx());
     let PublishPhase::Success {
         ref file_name,
@@ -368,16 +359,6 @@ fn show_success(
     ui.add_space(SPACE_SM);
     let megabytes = bytes as f64 / (1024.0 * 1024.0);
     ui.label(small(format!("{megabytes:.1} MB")).color(p.text_secondary));
-    ui.add_space(SPACE_MD);
-
-    ui.horizontal(|ui| {
-        if ui.button("Show in folder").clicked() {
-            requests.push(EditorRequest::ShowPublished);
-        }
-        if publish_button(ui, "Done").clicked() {
-            *close_after = true;
-        }
-    });
 
     if let Some(ref status) = editor.ui.publish.status {
         ui.add_space(SPACE_SM);
@@ -386,6 +367,22 @@ fn show_success(
 
     ui.add_space(SPACE_SM);
     ui.label(small(editor.ui.publish.standard.upload_help()).color(p.text_secondary));
+}
+
+fn show_success_buttons(
+    _editor: &mut Editor,
+    ui: &mut egui::Ui,
+    requests: &mut Vec<EditorRequest>,
+    close_after: &mut bool,
+) {
+    ui.horizontal(|ui| {
+        if ui.button("Show in folder").clicked() {
+            requests.push(EditorRequest::ShowPublished);
+        }
+        if publish_button(ui, "Done").clicked() {
+            *close_after = true;
+        }
+    });
 }
 
 fn publish_button(ui: &mut egui::Ui, label: &str) -> egui::Response {

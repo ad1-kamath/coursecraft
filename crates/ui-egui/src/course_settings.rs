@@ -1,7 +1,8 @@
 //! Course settings window dialog: title, id, player chrome toggles, quiz passing percent.
 
+use crate::dialog::Dialog;
 use coursecraft_course::{Course, NavMode, NextRequirement, ValueKind};
-use egui::{DragValue, ScrollArea, TextEdit, Window};
+use egui::{DragValue, TextEdit};
 
 /// Names of the true/false variables a "Next unlocks" rule can watch.
 #[must_use]
@@ -239,18 +240,10 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
     let needs_result = !editor.session.course.reports_result();
     let bool_names = bool_variable_names(&editor.session.course);
 
-    let max_height = (ctx.content_rect().height() - 40.0).max(240.0);
-    Window::new("Course Settings")
-        .default_size([440.0, 620.0])
-        .max_height(max_height)
-        .pivot(egui::Align2::CENTER_CENTER)
-        .default_pos(ctx.content_rect().center())
-        .resizable(false)
-        .collapsible(false)
-        .show(ctx, |ui| {
-            ScrollArea::vertical()
-                .max_height((max_height - 60.0).max(160.0))
-                .show(ui, |ui| {
+    Dialog::new("Course Settings")
+        .width(440.0)
+        .show_with_footer(ctx, |dialog| {
+            dialog.body(|ui| {
                 // Course Info
                 ui.heading("General");
                 ui.horizontal(|ui| {
@@ -532,13 +525,14 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
                 ui.add_space(8.0);
                 ui.separator();
                 resource_actions = editor.ui.course_settings.resources.show(ui);
+            });
+            dialog.footer(|ui| {
+                ui.add_space(coursecraft_render::SPACE_SM);
+                ui.horizontal(|ui| {
+                    if crate::primary_button(ui, "Close").clicked() {
+                        close = true;
+                    }
                 });
-            ui.add_space(8.0);
-            ui.separator();
-            ui.horizontal(|ui| {
-                if crate::primary_button(ui, "Close").clicked() {
-                    close = true;
-                }
             });
         });
 

@@ -3241,10 +3241,8 @@ fn show_paragraph_controls(
         let mut close = false;
         let mut apply = false;
         let mut remove = false;
-        egui::Window::new("Link")
+        crate::dialog::Dialog::new("Link")
             .id(egui::Id::unique(("link_dialog", id_prefix, obj_id)))
-            .collapsible(false)
-            .resizable(false)
             .show(ui.ctx(), |ui| {
                 ui.horizontal(|ui| {
                     ui.selectable_value(&mut props.link_use_slide, false, "URL");

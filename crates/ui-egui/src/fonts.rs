@@ -1,7 +1,8 @@
 //! Course font manager: list, remove and add custom font faces.
 
+use crate::dialog::Dialog;
 use coursecraft_course::FontStyle;
-use egui::{Context, RichText, Window};
+use egui::{Context, RichText};
 
 use crate::Editor;
 
@@ -21,10 +22,10 @@ pub fn show_fonts_window(editor: &mut Editor, ctx: &Context) {
     }
     let mut open = true;
     let mut action: Option<Action> = None;
-    Window::new("Fonts")
+    Dialog::new("Fonts")
         .open(&mut open)
+        .width(420.0)
         .resizable(true)
-        .default_width(420.0)
         .show(ctx, |ui| {
             ui.label(
                 RichText::new("Inter is always available. Add a .ttf or .otf to use its family in the course.")
@@ -81,10 +82,8 @@ pub fn show_fonts_window(editor: &mut Editor, ctx: &Context) {
 
     if let Some((family, style)) = editor.ui.pending_remove_font.clone() {
         let mut confirm_open = true;
-        Window::new("Remove font?")
+        Dialog::new("Remove font?")
             .open(&mut confirm_open)
-            .collapsible(false)
-            .resizable(false)
             .show(ctx, |ui| {
                 ui.label(format!(
                     "\"{family}\" is used by text in this course. Removing it leaves that text in Inter. Remove it anyway?"

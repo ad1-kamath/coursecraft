@@ -1,6 +1,7 @@
 //! File ▸ Export ▸ Video (MP4)…, PDF/Word for review, and the status bar's
 //! export progress.
 
+use crate::dialog::Dialog;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -111,12 +112,8 @@ pub fn show_export_dialog(
     let mut close_after = false;
     let desktop = editor.file_ops_available && !cfg!(target_arch = "wasm32");
 
-    egui::Window::new("Export Video")
-        .collapsible(false)
-        .resizable(false)
-        .default_width(380.0)
-        .pivot(egui::Align2::CENTER_CENTER)
-        .default_pos(ctx.content_rect().center())
+    Dialog::new("Export Video")
+        .width(380.0)
         .open(&mut open)
         .show(ctx, |ui| {
             let p = palette(ctx);
@@ -205,12 +202,8 @@ pub fn show_export_review_dialog(
     let desktop = editor.file_ops_available && !cfg!(target_arch = "wasm32");
     let label = editor.ui.review_format.label();
 
-    egui::Window::new("Export for Review")
-        .collapsible(false)
-        .resizable(false)
-        .default_width(380.0)
-        .pivot(egui::Align2::CENTER_CENTER)
-        .default_pos(ctx.content_rect().center())
+    Dialog::new("Export for Review")
+        .width(380.0)
         .open(&mut open)
         .show(ctx, |ui| {
             let p = palette(ctx);

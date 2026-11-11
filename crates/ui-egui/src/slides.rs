@@ -1,6 +1,7 @@
 //! Slides left panel: scenes, slides list, thumbnails, and reordering.
 
 use crate::Editor;
+use crate::dialog::Dialog;
 use coursecraft_course::Course;
 use coursecraft_render::{Highlight, SlideTransform, compose_authoring, paint};
 use egui::{
@@ -540,25 +541,20 @@ pub fn show_master_delete_dialog(editor: &mut Editor, ctx: &egui::Context) {
     let count = slides_using_master(&editor.session.course, &master_id);
     let mut close = false;
     let mut delete = false;
-    egui::Window::new("Delete master")
-        .collapsible(false)
-        .resizable(false)
-        .pivot(Align2::CENTER_CENTER)
-        .default_pos(ctx.content_rect().center())
-        .show(ctx, |ui| {
-            ui.label(format!(
-                "Delete the master \"{title}\"? {count} slide(s) use it and will draw with no master."
-            ));
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                if ui.button("Delete master").clicked() {
-                    delete = true;
-                }
-                if ui.button("Cancel").clicked() {
-                    close = true;
-                }
-            });
+    Dialog::new("Delete master").show(ctx, |ui| {
+        ui.label(format!(
+            "Delete the master \"{title}\"? {count} slide(s) use it and will draw with no master."
+        ));
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+            if ui.button("Delete master").clicked() {
+                delete = true;
+            }
+            if ui.button("Cancel").clicked() {
+                close = true;
+            }
         });
+    });
     if delete {
         editor.run("master.delete", serde_json::json!({ "master": master_id }));
         editor.ui.pending_delete_master = None;
@@ -1743,32 +1739,27 @@ pub fn show_scene_delete_dialog(editor: &mut Editor, ctx: &egui::Context) {
     let title = scene.title.clone();
     let mut close = false;
     let mut delete = false;
-    egui::Window::new("Delete scene")
-        .collapsible(false)
-        .resizable(false)
-        .pivot(Align2::CENTER_CENTER)
-        .default_pos(ctx.content_rect().center())
-        .show(ctx, |ui| {
-            if slide_count == 0 {
-                ui.label(format!("Delete the scene \"{title}\"?"));
-            } else {
-                ui.label(format!(
-                    "Delete the scene \"{title}\"? {slide_count} slide(s) will be deleted."
-                ));
+    Dialog::new("Delete scene").show(ctx, |ui| {
+        if slide_count == 0 {
+            ui.label(format!("Delete the scene \"{title}\"?"));
+        } else {
+            ui.label(format!(
+                "Delete the scene \"{title}\"? {slide_count} slide(s) will be deleted."
+            ));
+        }
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+            if ui
+                .add_enabled(true, egui::Button::new("Delete scene"))
+                .clicked()
+            {
+                delete = true;
             }
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                if ui
-                    .add_enabled(true, egui::Button::new("Delete scene"))
-                    .clicked()
-                {
-                    delete = true;
-                }
-                if ui.button("Cancel").clicked() {
-                    close = true;
-                }
-            });
+            if ui.button("Cancel").clicked() {
+                close = true;
+            }
         });
+    });
     if delete {
         editor.run("scene.delete", serde_json::json!({ "scene": scene_id }));
         editor.ui.pending_delete_scene = None;

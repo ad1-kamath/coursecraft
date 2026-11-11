@@ -6,12 +6,13 @@
 //! owns the transport through `EditorRequest::AiChat`. Agent commands and files
 //! are the app's job too; the UI only sends `EditorRequest`s.
 
+use crate::dialog::Dialog;
 use coursecraft_ai::agents::{AgentAction, AgentId, AgentStatus};
 use coursecraft_ai::{
     AiConfig, AiSource, ChatMessage, ChatReply, ChatRequest, MessageContent, Role, check_config,
     endpoint_host,
 };
-use egui::{Button, ComboBox, Key, Modifiers, RichText, ScrollArea, TextEdit, Ui, Window};
+use egui::{Button, ComboBox, Key, Modifiers, RichText, TextEdit, Ui};
 
 use crate::{AiPurpose, Editor, EditorRequest};
 
@@ -420,28 +421,19 @@ pub fn show_ai_settings_window(
     let mut save = false;
     let mut remove = false;
     let content_rect = ctx.content_rect();
-    let max_height = if content_rect.height().is_finite() {
-        (content_rect.height() - 40.0).max(240.0)
-    } else {
-        240.0
-    };
     let max_width = if content_rect.width().is_finite() {
         (content_rect.width() - 40.0).clamp(320.0, 560.0)
     } else {
         560.0
     };
 
-    Window::new("AI Settings")
-        .collapsible(false)
-        .resizable(false)
-        .default_width(max_width)
-        .max_height(max_height)
-        .pivot(egui::Align2::CENTER_CENTER)
-        .default_pos(ctx.content_rect().center())
+    Dialog::new("AI Settings")
+        .width(max_width)
         .open(&mut open)
-        .show(ctx, |ui| {
-            ui.set_max_width(max_width);
-            ui.horizontal(|ui| {
+        .show_with_footer(ctx, |dialog| {
+            let tabs = dialog.ui();
+            tabs.set_max_width(max_width);
+            tabs.horizontal(|ui| {
                 ui.selectable_value(&mut editor.ui.ai.tab, AiSettingsTab::Agents, "Agents");
                 ui.selectable_value(
                     &mut editor.ui.ai.tab,
@@ -449,53 +441,37 @@ pub fn show_ai_settings_window(
                     "AI features",
                 );
             });
-            ui.add_space(coursecraft_render::SPACE_SM);
+            tabs.add_space(coursecraft_render::SPACE_SM);
 
-            let scroll_height = (max_height - 170.0).max(160.0);
-            match editor.ui.ai.tab {
-                AiSettingsTab::Features => {
-                    ScrollArea::vertical()
-                        .max_height(scroll_height)
-                        .show(ui, |ui| {
-                            show_features_tab(editor, ui, requests);
-                        });
-                }
-                AiSettingsTab::Agents => {
-                    ScrollArea::vertical()
-                        .max_height(scroll_height)
-                        .show(ui, |ui| {
-                            show_agents_tab(editor, ui, requests);
-                        });
-                }
-            }
-
-            // Outside the scroll area, so the way out never scrolls off.
-            ui.add_space(coursecraft_render::SPACE_MD);
-            ui.separator();
-            ui.add_space(coursecraft_render::SPACE_SM);
-            ui.horizontal(|ui| match editor.ui.ai.tab {
-                AiSettingsTab::Features => {
-                    if crate::primary_button(ui, "Save").clicked() {
-                        save = true;
-                    }
-                    if ui.button("Cancel").clicked() {
-                        close = true;
-                    }
-                    if ui.button("Remove").clicked() {
-                        remove = true;
-                    }
-                }
-                AiSettingsTab::Agents => {
-                    if ui.button("Close").clicked() {
-                        close = true;
-                    }
-                }
+            dialog.body(|ui| match editor.ui.ai.tab {
+                AiSettingsTab::Features => show_features_tab(editor, ui, requests),
+                AiSettingsTab::Agents => show_agents_tab(editor, ui, requests),
             });
 
-            if ui
-                .ctx()
-                .input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape))
-            {
+            // Outside the scrolling body, so the way out never scrolls off.
+            dialog.footer(|ui| {
+                ui.add_space(coursecraft_render::SPACE_SM);
+                ui.horizontal(|ui| match editor.ui.ai.tab {
+                    AiSettingsTab::Features => {
+                        if crate::primary_button(ui, "Save").clicked() {
+                            save = true;
+                        }
+                        if ui.button("Cancel").clicked() {
+                            close = true;
+                        }
+                        if ui.button("Remove").clicked() {
+                            remove = true;
+                        }
+                    }
+                    AiSettingsTab::Agents => {
+                        if ui.button("Close").clicked() {
+                            close = true;
+                        }
+                    }
+                });
+            });
+
+            if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape)) {
                 close = true;
             }
         });

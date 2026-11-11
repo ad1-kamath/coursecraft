@@ -1,5 +1,6 @@
 //! XLIFF translation dialogs: the target-language prompt and the import report.
 
+use crate::dialog::Dialog;
 use crate::{Editor, EditorRequest};
 
 /// Show the export language prompt and the import report, when open.
@@ -17,11 +18,7 @@ fn show_export_prompt(editor: &mut Editor, ctx: &egui::Context, requests: &mut V
         return;
     }
     let mut open = true;
-    egui::Window::new("Export Translation")
-        .collapsible(false)
-        .resizable(false)
-        .pivot(egui::Align2::CENTER_CENTER)
-        .default_pos(ctx.content_rect().center())
+    Dialog::new("Export Translation")
         .open(&mut open)
         .show(ctx, |ui| {
             ui.label("Target language (BCP 47, for example fr or pt-BR):");
@@ -92,13 +89,9 @@ fn show_report(editor: &mut Editor, ctx: &egui::Context) {
     };
     let mut open = true;
     let max_height = (ctx.content_rect().height() - 40.0).max(240.0);
-    egui::Window::new("Translation Import Report")
-        .collapsible(false)
-        .resizable(true)
-        .max_height(max_height)
-        .pivot(egui::Align2::CENTER_CENTER)
-        .default_pos(ctx.content_rect().center())
+    Dialog::new("Translation Import Report")
         .open(&mut open)
+        .resizable(true)
         .show(ctx, |ui| {
             egui::ScrollArea::vertical()
                 .max_height((max_height - 80.0).max(160.0))

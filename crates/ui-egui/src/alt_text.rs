@@ -9,6 +9,7 @@
 //! is built in `coursecraft_ai`; the app owns the transport. A late answer is
 //! dropped when it is for another `src`, or after Cancel.
 
+use crate::dialog::Dialog;
 use std::sync::Arc;
 
 use coursecraft_ai::{
@@ -19,10 +20,7 @@ use coursecraft_course::{Course, ObjectKind, Slide};
 use coursecraft_media::image::{ImageFormat, RgbaImage, imageops::FilterType};
 use coursecraft_media::{Limits, decode_image, encode_png_rgba};
 use coursecraft_render::{SIZE_BODY, SIZE_SMALL, palette};
-use egui::{
-    Align2, Button, Id, Key, Modifiers, RichText, ScrollArea, TextEdit, TextureId, Vec2, Window,
-    vec2,
-};
+use egui::{Button, Id, Key, Modifiers, RichText, TextEdit, TextureId, Vec2, vec2};
 
 use crate::{AiPurpose, Editor, EditorRequest};
 
@@ -360,8 +358,6 @@ pub fn show_alt_text_window(
         return;
     }
 
-    let screen = ctx.content_rect();
-    let max_height = (screen.height() - 40.0).max(260.0);
     let ready = editor.ai_ready();
     let mut open = true;
     let mut close_clicked = false;
@@ -370,166 +366,158 @@ pub fn show_alt_text_window(
     let mut apply = false;
     let mut open_settings = false;
 
-    Window::new("Suggest Alt Text")
+    Dialog::new("Suggest Alt Text")
         .id(Id::unique(("suggest_alt_text_dialog", 0_u64)))
-        .collapsible(false)
-        .resizable(true)
-        .max_height(max_height)
-        .default_width(620.0)
-        .default_height((max_height - 20.0).max(260.0))
-        .pivot(Align2::CENTER_CENTER)
-        .default_pos(screen.center())
+        .width(620.0)
         .open(&mut open)
-        .show(ctx, |ui| {
-            let p = palette(ui.ctx());
-            ui.set_max_width(620.0);
-            ScrollArea::vertical()
-                .id_salt("alt_text_dialog_scroll")
-                .max_height((max_height - 60.0).max(200.0))
-                .show(ui, |ui| {
-                    if !ready {
-                        if crate::ai_settings::show_ai_not_ready(ui, "suggest alt text") {
-                            open_settings = true;
-                        }
-                        ui.add_space(8.0);
-                        if ui.button("Cancel").clicked() {
-                            close_clicked = true;
-                        }
-                        return;
+        .resizable(true)
+        .show_with_footer(ctx, |dialog| {
+            let p = palette(ctx);
+            dialog.body(|ui| {
+                ui.set_max_width(620.0);
+                if !ready {
+                    if crate::ai_settings::show_ai_not_ready(ui, "suggest alt text") {
+                        open_settings = true;
                     }
+                    ui.add_space(8.0);
+                    if ui.button("Cancel").clicked() {
+                        close_clicked = true;
+                    }
+                    return;
+                }
 
-                    ui.label(
-                        RichText::new(
-                            "CourseCraft sends each image with a little of its slide's text, \
+                ui.label(
+                    RichText::new(
+                        "CourseCraft sends each image with a little of its slide's text, \
                              then shows the suggestion here. Nothing changes until Apply.",
-                        )
-                        .size(SIZE_SMALL)
-                        .color(p.text_secondary),
+                    )
+                    .size(SIZE_SMALL)
+                    .color(p.text_secondary),
+                );
+                ui.add_space(6.0);
+
+                if editor.ui.alt.rows.is_empty() {
+                    ui.label("No images need alt text.");
+                } else {
+                    ui.label(
+                        RichText::new(consent_line(editor, editor.ui.alt.total))
+                            .size(SIZE_BODY)
+                            .color(p.text_secondary),
                     );
-                    ui.add_space(6.0);
+                }
+                if editor.ui.alt.missing_files > 0 {
+                    ui.label(
+                        RichText::new(missing_line(editor.ui.alt.missing_files))
+                            .size(SIZE_SMALL)
+                            .color(p.text_tertiary),
+                    );
+                }
 
-                    if editor.ui.alt.rows.is_empty() {
-                        ui.label("No images need alt text.");
-                    } else {
-                        ui.label(
-                            RichText::new(consent_line(editor, editor.ui.alt.total))
-                                .size(SIZE_BODY)
-                                .color(p.text_secondary),
-                        );
-                    }
-                    if editor.ui.alt.missing_files > 0 {
-                        ui.label(
-                            RichText::new(missing_line(editor.ui.alt.missing_files))
-                                .size(SIZE_SMALL)
-                                .color(p.text_tertiary),
-                        );
-                    }
-
-                    if let Some(notice) = &editor.ui.alt.notice {
-                        ui.add_space(4.0);
-                        ui.label(RichText::new(notice).color(p.success));
-                    }
-                    if let Some(error) = &editor.ui.alt.inline_error {
-                        ui.add_space(4.0);
-                        ui.label(RichText::new(error).color(p.danger));
-                    }
-
-                    if editor.ui.alt.running {
-                        ui.add_space(6.0);
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Spinner::new());
-                            let number = editor
-                                .ui
-                                .alt
-                                .pending
-                                .as_ref()
-                                .map_or(1, |pending| pending.number);
-                            ui.label(format!("Image {number} of {}", editor.ui.alt.total));
-                            if ui.button("Cancel").clicked() {
-                                cancel = true;
-                            }
-                        });
-                    } else if !editor.ui.alt.rows.is_empty() {
-                        ui.add_space(6.0);
-                        ui.horizontal(|ui| {
-                            let can_suggest =
-                                !editor.ui.alt.queue.is_empty() && editor.ui.alt.inline.is_none();
-                            if ui
-                                .add_enabled(can_suggest, Button::new("Suggest"))
-                                .clicked()
-                            {
-                                suggest = true;
-                            }
-                            let any_ticked = editor
-                                .ui
-                                .alt
-                                .rows
-                                .iter()
-                                .any(|row| row.ticked && !row.suggestion.trim().is_empty());
-                            if ui.add_enabled(any_ticked, Button::new("Apply")).clicked() {
-                                apply = true;
-                            }
-                        });
-                    }
-
-                    ui.add_space(6.0);
-                    ui.separator();
+                if let Some(notice) = &editor.ui.alt.notice {
                     ui.add_space(4.0);
+                    ui.label(RichText::new(notice).color(p.success));
+                }
+                if let Some(error) = &editor.ui.alt.inline_error {
+                    ui.add_space(4.0);
+                    ui.label(RichText::new(error).color(p.danger));
+                }
 
-                    let thumbs: Vec<Option<(TextureId, Vec2)>> = editor
-                        .ui
-                        .alt
-                        .rows
-                        .iter()
-                        .map(|row| thumbnail(&editor.media_cache, &row.src))
-                        .collect();
-                    for (index, row) in editor.ui.alt.rows.iter_mut().enumerate() {
-                        ui.horizontal(|ui| {
-                            match thumbs.get(index).copied().flatten() {
-                                Some((texture, size)) => {
-                                    ui.add(
-                                        egui::Image::new((texture, size))
-                                            .fit_to_exact_size(vec2(48.0, 36.0)),
-                                    );
-                                }
-                                None => {
-                                    ui.add_space(48.0);
-                                }
-                            }
-                            ui.vertical(|ui| {
-                                ui.horizontal(|ui| {
-                                    ui.checkbox(&mut row.ticked, "");
-                                    ui.label(RichText::new(&row.location).strong());
-                                });
-                                ui.add_sized(
-                                    [
-                                        ui.available_width().max(90.0),
-                                        coursecraft_render::CONTROL_COMPACT,
-                                    ],
-                                    TextEdit::singleline(&mut row.suggestion)
-                                        .id_salt(("alt_suggestion", index))
-                                        .hint_text("A description of the image"),
+                if editor.ui.alt.running {
+                    ui.add_space(6.0);
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Spinner::new());
+                        let number = editor
+                            .ui
+                            .alt
+                            .pending
+                            .as_ref()
+                            .map_or(1, |pending| pending.number);
+                        ui.label(format!("Image {number} of {}", editor.ui.alt.total));
+                        if ui.button("Cancel").clicked() {
+                            cancel = true;
+                        }
+                    });
+                } else if !editor.ui.alt.rows.is_empty() {
+                    ui.add_space(6.0);
+                    ui.horizontal(|ui| {
+                        let can_suggest =
+                            !editor.ui.alt.queue.is_empty() && editor.ui.alt.inline.is_none();
+                        if ui
+                            .add_enabled(can_suggest, Button::new("Suggest"))
+                            .clicked()
+                        {
+                            suggest = true;
+                        }
+                        let any_ticked = editor
+                            .ui
+                            .alt
+                            .rows
+                            .iter()
+                            .any(|row| row.ticked && !row.suggestion.trim().is_empty());
+                        if ui.add_enabled(any_ticked, Button::new("Apply")).clicked() {
+                            apply = true;
+                        }
+                    });
+                }
+
+                ui.add_space(6.0);
+                ui.separator();
+                ui.add_space(4.0);
+
+                let thumbs: Vec<Option<(TextureId, Vec2)>> = editor
+                    .ui
+                    .alt
+                    .rows
+                    .iter()
+                    .map(|row| thumbnail(&editor.media_cache, &row.src))
+                    .collect();
+                for (index, row) in editor.ui.alt.rows.iter_mut().enumerate() {
+                    ui.horizontal(|ui| {
+                        match thumbs.get(index).copied().flatten() {
+                            Some((texture, size)) => {
+                                ui.add(
+                                    egui::Image::new((texture, size))
+                                        .fit_to_exact_size(vec2(48.0, 36.0)),
                                 );
-                                if let Some(error) = &row.error {
-                                    ui.label(RichText::new(error).size(SIZE_SMALL).color(p.danger));
-                                }
+                            }
+                            None => {
+                                ui.add_space(48.0);
+                            }
+                        }
+                        ui.vertical(|ui| {
+                            ui.horizontal(|ui| {
+                                ui.checkbox(&mut row.ticked, "");
+                                ui.label(RichText::new(&row.location).strong());
                             });
+                            ui.add_sized(
+                                [
+                                    ui.available_width().max(90.0),
+                                    coursecraft_render::CONTROL_COMPACT,
+                                ],
+                                TextEdit::singleline(&mut row.suggestion)
+                                    .id_salt(("alt_suggestion", index))
+                                    .hint_text("A description of the image"),
+                            );
+                            if let Some(error) = &row.error {
+                                ui.label(RichText::new(error).size(SIZE_SMALL).color(p.danger));
+                            }
                         });
-                        ui.add_space(4.0);
-                        ui.separator();
-                    }
-
+                    });
                     ui.add_space(4.0);
+                    ui.separator();
+                }
+            });
+            if ready {
+                dialog.footer(|ui| {
                     ui.horizontal(|ui| {
                         if ui.button("Close").clicked() {
                             close_clicked = true;
                         }
                     });
                 });
+            }
 
-            if ui
-                .ctx()
-                .input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape))
+            if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape))
                 && !editor.ui.alt.running
             {
                 close_clicked = true;

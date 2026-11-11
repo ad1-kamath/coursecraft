@@ -468,6 +468,8 @@ pub(crate) struct LayoutReport {
     pub findings: Vec<String>,
     /// Every non-blank text painted in the frame (to prove a window really was on screen).
     pub texts: Vec<String>,
+    /// Every window (dialog) the checker saw, as a layer name and its rect.
+    pub windows: Vec<(String, Rect)>,
 }
 
 impl LayoutReport {
@@ -490,13 +492,19 @@ impl TestHarness {
         let screen = self.screen_rect;
         let mut layers: Vec<(LayerId, Vec<ClippedShape>)> = Vec::new();
         let mut regions = Vec::new();
+        let mut windows = Vec::new();
         let output = self.ctx.run_ui(raw_input, |ui| {
             let _ = self.editor.show(ui);
             let ctx = ui.ctx().clone();
             regions = crate::content_region::content_regions(&ctx);
             layers = capture_layers(&ctx);
+            windows = window_rects(&ctx, &layers);
         });
-        let mut report = check_layout(&layers, screen, &regions);
+        let mut report = check_layout(&layers, screen, &regions, &windows);
+        let menu_bar = Rect::from_min_size(screen.min, vec2(screen.width(), crate::TOP_BAR_HEIGHT));
+        report
+            .findings
+            .extend(check_windows(&windows, screen, menu_bar));
         // The per-layer walk must see every text the final output has, or a layer was missed.
         let from_layers: usize = layers
             .iter()
@@ -636,6 +644,55 @@ fn shorten(text: &str) -> String {
     }
 }
 
+/// The windows (dialogs) the checker knows about: every `Order::Middle` layer that painted
+/// something, with its rect from egui's area memory.
+pub(crate) fn window_rects(
+    ctx: &Context,
+    layers: &[(LayerId, Vec<ClippedShape>)],
+) -> Vec<(LayerId, Rect)> {
+    layers
+        .iter()
+        .filter(|(layer, shapes)| layer.order == Order::Middle && !shapes.is_empty())
+        .filter_map(|(layer, _)| {
+            ctx.memory(|m| m.area_rect(layer.id))
+                .filter(|r| r.is_positive())
+                .map(|r| (*layer, r))
+        })
+        .collect()
+}
+
+/// Windows must lie inside the screen and must not cover the menu bar.
+pub(crate) fn check_windows(
+    windows: &[(LayerId, Rect)],
+    screen: Rect,
+    menu_bar: Rect,
+) -> Vec<String> {
+    const TOLERANCE: f32 = 1.0;
+    let mut findings = Vec::new();
+    for (layer, rect) in windows {
+        let name = layer_name(*layer);
+        if rect.min.x < screen.min.x - TOLERANCE
+            || rect.min.y < screen.min.y - TOLERANCE
+            || rect.max.x > screen.max.x + TOLERANCE
+            || rect.max.y > screen.max.y + TOLERANCE
+        {
+            findings.push(format!(
+                "window-off-screen: {name} {} is outside the window {}",
+                fmt_rect(*rect),
+                fmt_rect(screen)
+            ));
+        }
+        if rect.min.y < menu_bar.max.y - TOLERANCE && rect.min.x < menu_bar.max.x {
+            findings.push(format!(
+                "window-over-menu-bar: {name} {} overlaps the menu bar {}",
+                fmt_rect(*rect),
+                fmt_rect(menu_bar)
+            ));
+        }
+    }
+    findings
+}
+
 /// Look for editor-chrome text that is cut off, runs under other text, or leaves the window.
 ///
 /// `layers` holds every layer's painted shapes (tooltips are skipped). Text whose visible centre
@@ -645,11 +702,14 @@ fn shorten(text: &str) -> String {
 ///   or right, so part of it is cut off;
 /// - **overlap:** two labels of one layer whose visible rects intersect by more than 2 pt in
 ///   both axes;
-/// - **off-window:** visible text beyond `screen`.
+/// - **off-window:** visible text beyond `screen`;
+/// - **clipped-widget:** a button or other framed widget cut off at the right by its clip, or, inside a window in `windows`, cut off at the bottom or top by the window's own
+///   edge (a body that scrolls inside the window clips by design and is left alone).
 pub(crate) fn check_layout(
     layers: &[(LayerId, Vec<ClippedShape>)],
     screen: Rect,
     regions: &[(LayerId, Rect)],
+    windows: &[(LayerId, Rect)],
 ) -> LayoutReport {
     const CLIP_TOLERANCE: f32 = 1.0;
     const OVERLAP_TOLERANCE: f32 = 2.0;
@@ -683,6 +743,32 @@ pub(crate) fn check_layout(
                     fmt_rect(b.rect),
                     fmt_rect(b.clip)
                 ));
+            }
+            // Top and bottom: a window's own edge. Anything clipped by a scroll viewport
+            // inside the window ends well above the window's lower edge (the window margin
+            // and the footer sit below it), so only a clip that reaches the window's edge
+            // counts.
+            if let Some((_, win)) = windows.iter().find(|(l, _)| l == layer) {
+                if b.rect.max.y - b.clip.max.y > 1.5
+                    && visible.height() > 4.0
+                    && b.clip.max.y >= win.max.y - 4.0
+                {
+                    findings.push(format!(
+                        "clipped-widget: {name} box {} is cut off at the bottom of its window {}",
+                        fmt_rect(b.rect),
+                        fmt_rect(*win)
+                    ));
+                }
+                if b.clip.min.y - b.rect.min.y > 1.5
+                    && visible.height() > 4.0
+                    && b.clip.min.y <= win.min.y + 4.0
+                {
+                    findings.push(format!(
+                        "clipped-widget: {name} box {} is cut off at the top of its window {}",
+                        fmt_rect(b.rect),
+                        fmt_rect(*win)
+                    ));
+                }
             }
         }
         texts.extend(items.iter().map(|item| item.text.clone()));
@@ -748,5 +834,12 @@ pub(crate) fn check_layout(
             }
         }
     }
-    LayoutReport { findings, texts }
+    LayoutReport {
+        findings,
+        texts,
+        windows: windows
+            .iter()
+            .map(|(layer, rect)| (layer_name(*layer), *rect))
+            .collect(),
+    }
 }

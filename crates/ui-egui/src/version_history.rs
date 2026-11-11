@@ -2,7 +2,8 @@
 //! opened as a copy or deleted. The app owns the files; this window only shows
 //! the rows it is given and asks for an action through an [`EditorRequest`].
 
-use egui::{Button, Grid, ScrollArea, Window};
+use crate::dialog::Dialog;
+use egui::{Button, Grid, ScrollArea};
 
 use crate::{Editor, EditorRequest};
 use coursecraft_render::design;
@@ -68,11 +69,10 @@ pub fn show_version_history_window(
         return;
     }
     let mut open = true;
-    Window::new("Version History")
+    Dialog::new("Version History")
         .open(&mut open)
         .resizable(true)
-        .collapsible(false)
-        .default_width(460.0)
+        .width(460.0)
         .show(ctx, |ui| {
             if editor.ui.versions.folder_project {
                 ui.label(

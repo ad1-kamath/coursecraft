@@ -1,10 +1,11 @@
 //! Triggers bottom panel and Trigger Editor dialog.
 
+use crate::dialog::Dialog;
 use coursecraft_course::{
     Action, BACKGROUND_AUDIO_ID, BUILTIN_STATES, CmpOp, CompletionStatus, Condition, Course, Event,
     Slide, SlideTarget, Trigger, Value, ValueKind, VarOp,
 };
-use egui::{DragValue, RichText, ScrollArea, TextEdit, Ui, Window};
+use egui::{DragValue, RichText, ScrollArea, TextEdit, Ui};
 use serde_json::Value as Json;
 
 /// Helper to get the display name of an object (its name if non-empty, otherwise its id).
@@ -1768,81 +1769,74 @@ pub fn show_trigger_editor_window(editor: &mut crate::Editor, ctx: &egui::Contex
     let mut close_dialog = false;
     let mut commit_requested = false;
 
-    let max_height = (ctx.content_rect().height() - 40.0).max(240.0);
-    Window::new(title)
+    Dialog::new(title)
         .default_size([550.0, 600.0])
-        .max_height(max_height)
-        .pivot(egui::Align2::CENTER_CENTER)
-        .default_pos(ctx.content_rect().center())
         .resizable(true)
-        .collapsible(false)
-        .show(ctx, |ui| {
+        .show_with_footer(ctx, |dialog| {
             let p = coursecraft_render::palette(ctx);
             if let Some(ref err) = form.error_message {
+                let ui = dialog.ui();
                 ui.colored_label(p.danger, err);
                 ui.separator();
             }
 
-            ScrollArea::vertical()
-                .id_salt("trigger_form_scroll")
-                .max_height(ui.available_height() - 48.0)
-                .show(ui, |ui| {
-                    // ---------------- 1. Action ----------------
-                    ui.heading("1. Action");
-                    tall_combo(ui, "trigger_action_combo")
-                        .selected_text(form.action_tag.name())
-                        .show_ui(ui, |ui| {
-                            for tag in ActionTag::ALL {
-                                ui.selectable_value(&mut form.action_tag, tag, tag.name());
-                            }
-                        });
+            dialog.body(|ui| {
+                // ---------------- 1. Action ----------------
+                ui.heading("1. Action");
+                tall_combo(ui, "trigger_action_combo")
+                    .selected_text(form.action_tag.name())
+                    .show_ui(ui, |ui| {
+                        for tag in ActionTag::ALL {
+                            ui.selectable_value(&mut form.action_tag, tag, tag.name());
+                        }
+                    });
 
-                    render_action_fields(&mut form, ui, &slide_clone, &course_clone);
+                render_action_fields(&mut form, ui, &slide_clone, &course_clone);
 
-                    ui.add_space(8.0);
-                    ui.separator();
+                ui.add_space(8.0);
+                ui.separator();
 
-                    // ---------------- 2. When ----------------
-                    ui.heading("2. When");
-                    tall_combo(ui, "trigger_event_combo")
-                        .selected_text(form.event_tag.name())
-                        .show_ui(ui, |ui| {
-                            for tag in EventKindTag::ALL {
-                                ui.selectable_value(&mut form.event_tag, tag, tag.name());
-                            }
-                        });
+                // ---------------- 2. When ----------------
+                ui.heading("2. When");
+                tall_combo(ui, "trigger_event_combo")
+                    .selected_text(form.event_tag.name())
+                    .show_ui(ui, |ui| {
+                        for tag in EventKindTag::ALL {
+                            ui.selectable_value(&mut form.event_tag, tag, tag.name());
+                        }
+                    });
 
-                    render_event_fields(&mut form, ui, &slide_clone, &course_clone);
+                render_event_fields(&mut form, ui, &slide_clone, &course_clone);
 
-                    ui.add_space(8.0);
-                    ui.separator();
+                ui.add_space(8.0);
+                ui.separator();
 
-                    // ---------------- 3. Conditions ----------------
-                    ui.heading("3. Conditions (optional)");
-                    ui.checkbox(&mut form.condition_enabled, "Enable condition");
-                    if form.condition_enabled {
-                        ui.indent("condition_tree_indent", |ui| {
-                            render_condition_editor(
-                                &mut form.condition_root,
-                                ui,
-                                &slide_clone,
-                                &course_clone,
-                                1,
-                            );
-                        });
+                // ---------------- 3. Conditions ----------------
+                ui.heading("3. Conditions (optional)");
+                ui.checkbox(&mut form.condition_enabled, "Enable condition");
+                if form.condition_enabled {
+                    ui.indent("condition_tree_indent", |ui| {
+                        render_condition_editor(
+                            &mut form.condition_root,
+                            ui,
+                            &slide_clone,
+                            &course_clone,
+                            1,
+                        );
+                    });
+                }
+            });
+
+            dialog.footer(|ui| {
+                ui.add_space(coursecraft_render::SPACE_SM);
+                ui.horizontal(|ui| {
+                    if crate::primary_button(ui, "OK").clicked() {
+                        commit_requested = true;
+                    }
+                    if ui.button("Cancel").clicked() {
+                        close_dialog = true;
                     }
                 });
-
-            ui.add_space(8.0);
-            ui.separator();
-
-            ui.horizontal(|ui| {
-                if crate::primary_button(ui, "OK").clicked() {
-                    commit_requested = true;
-                }
-                if ui.button("Cancel").clicked() {
-                    close_dialog = true;
-                }
             });
         });
 
