@@ -1854,10 +1854,43 @@ pub fn show_trigger_editor_window(editor: &mut crate::Editor, ctx: &egui::Contex
     }
 }
 
+/// Every label of a trigger dialog's rows. The label column is as wide as the widest, so all
+/// the fields of the dialog start at the same x.
+const TRIGGER_ROW_LABELS: &[&str] = &[
+    "Timer",
+    "Target",
+    "Slide",
+    "Layer",
+    "Object",
+    "State",
+    "Variable",
+    "Operator",
+    "Value",
+    "Media Object",
+    "Status",
+    "URL",
+    "Path",
+    "Timeline",
+    "Time (ms)",
+    "To state",
+    "Video",
+    "Cue",
+    "Key",
+    "Object (optional)",
+    "Draggable Object",
+    "Object A",
+    "Object B",
+    "Animation",
+];
+
+/// One label-plus-field row of the trigger dialog.
+fn trigger_row<R>(ui: &mut Ui, label: &str, add_field: impl FnOnce(&mut Ui) -> R) -> R {
+    crate::dialog::Form::new(ui, TRIGGER_ROW_LABELS).row(ui, label, |ui, _| add_field(ui))
+}
+
 /// Pick one of the slide's timers (base layer and layers).
 fn timer_picker(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, salt: &str) {
-    ui.horizontal(|ui| {
-        ui.label("Timer");
+    trigger_row(ui, "Timer", |ui| {
         tall_combo(ui, salt)
             .selected_text(object_label(slide, &form.timer_object))
             .show_ui(ui, |ui| {
@@ -1882,8 +1915,7 @@ fn timer_picker(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, salt: &
 fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, course: &Course) {
     match form.action_tag {
         ActionTag::JumpToSlide => {
-            ui.horizontal(|ui| {
-                ui.label("Target");
+            trigger_row(ui, "Target", |ui| {
                 ui.selectable_value(&mut form.jump_target_tag, JumpTargetTag::Next, "Next");
                 ui.selectable_value(
                     &mut form.jump_target_tag,
@@ -1897,8 +1929,7 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
                 );
             });
             if form.jump_target_tag == JumpTargetTag::SlideId {
-                ui.horizontal(|ui| {
-                    ui.label("Slide");
+                trigger_row(ui, "Slide", |ui| {
                     tall_combo(ui, "action_jump_slide_combo")
                         .selected_text(slide_label(course, &form.jump_slide_id))
                         .show_ui(ui, |ui| {
@@ -1917,8 +1948,7 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
             }
         }
         ActionTag::ShowLayer => {
-            ui.horizontal(|ui| {
-                ui.label("Layer");
+            trigger_row(ui, "Layer", |ui| {
                 tall_combo(ui, "action_show_layer_combo")
                     .selected_text(layer_name(slide, &form.show_layer_id))
                     .show_ui(ui, |ui| {
@@ -1930,8 +1960,7 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
             });
         }
         ActionTag::HideLayer => {
-            ui.horizontal(|ui| {
-                ui.label("Layer");
+            trigger_row(ui, "Layer", |ui| {
                 let is_self = form.hide_layer_id.is_none();
                 let display = match form.hide_layer_id.as_deref() {
                     Some(id) => layer_name(slide, id),
@@ -1954,8 +1983,7 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
             });
         }
         ActionTag::ChangeState => {
-            ui.horizontal(|ui| {
-                ui.label("Object");
+            trigger_row(ui, "Object", |ui| {
                 tall_combo(ui, "action_change_state_obj_combo")
                     .selected_text(object_label(slide, &form.change_state_object))
                     .show_ui(ui, |ui| {
@@ -1991,8 +2019,7 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
                 }
             }
 
-            ui.horizontal(|ui| {
-                ui.label("State");
+            trigger_row(ui, "State", |ui| {
                 tall_combo(ui, "action_change_state_st_combo")
                     .selected_text(&form.change_state_state)
                     .show_ui(ui, |ui| {
@@ -2003,8 +2030,7 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
             });
         }
         ActionTag::SetVariable => {
-            ui.horizontal(|ui| {
-                ui.label("Variable");
+            trigger_row(ui, "Variable", |ui| {
                 tall_combo(ui, "action_set_var_name_combo")
                     .selected_text(&form.set_var_name)
                     .show_ui(ui, |ui| {
@@ -2031,8 +2057,7 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
                 ValueKind::Text => vec![VarOp::Assign],
             };
 
-            ui.horizontal(|ui| {
-                ui.label("Operator");
+            trigger_row(ui, "Operator", |ui| {
                 let op_name = match form.set_var_op {
                     VarOp::Assign => "Assign (=)",
                     VarOp::Add => "Add (+)",
@@ -2059,25 +2084,21 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
             });
 
             if form.set_var_op != VarOp::Toggle {
-                ui.horizontal(|ui| {
-                    ui.label("Value");
-                    match var_kind {
-                        ValueKind::Bool => {
-                            ui.checkbox(&mut form.set_var_val_bool, "true / false");
-                        }
-                        ValueKind::Number => {
-                            ui.add(DragValue::new(&mut form.set_var_val_num).speed(1.0));
-                        }
-                        ValueKind::Text => {
-                            ui.add(TextEdit::singleline(&mut form.set_var_val_text));
-                        }
+                trigger_row(ui, "Value", |ui| match var_kind {
+                    ValueKind::Bool => {
+                        ui.checkbox(&mut form.set_var_val_bool, "true / false");
+                    }
+                    ValueKind::Number => {
+                        ui.add(DragValue::new(&mut form.set_var_val_num).speed(1.0));
+                    }
+                    ValueKind::Text => {
+                        ui.add(TextEdit::singleline(&mut form.set_var_val_text));
                     }
                 });
             }
         }
         ActionTag::PlayMedia | ActionTag::PauseMedia | ActionTag::StopMedia => {
-            ui.horizontal(|ui| {
-                ui.label("Media Object");
+            trigger_row(ui, "Media Object", |ui| {
                 tall_combo(ui, "action_media_obj_combo")
                     .selected_text(media_object_label(slide, &form.media_object))
                     .show_ui(ui, |ui| {
@@ -2102,8 +2123,7 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
             });
         }
         ActionTag::CompleteCourse => {
-            ui.horizontal(|ui| {
-                ui.label("Status");
+            trigger_row(ui, "Status", |ui| {
                 let label = match form.complete_status {
                     CompletionStatus::Passed => "Passed",
                     CompletionStatus::Failed => "Failed",
@@ -2137,14 +2157,12 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
             });
         }
         ActionTag::OpenUrl => {
-            ui.horizontal(|ui| {
-                ui.label("URL");
+            trigger_row(ui, "URL", |ui| {
                 ui.add(TextEdit::singleline(&mut form.open_url).desired_width(300.0));
             });
         }
         ActionTag::MoveOnPath => {
-            ui.horizontal(|ui| {
-                ui.label("Object");
+            trigger_row(ui, "Object", |ui| {
                 tall_combo(ui, "action_move_path_obj_combo")
                     .selected_text(object_label(slide, &form.move_path_object))
                     .show_ui(ui, |ui| {
@@ -2164,8 +2182,7 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
                         }
                     });
             });
-            ui.horizontal(|ui| {
-                ui.label("Path");
+            trigger_row(ui, "Path", |ui| {
                 let paths: Vec<String> = slide
                     .object(&form.move_path_object)
                     .map(|(o, _)| o.motion_paths.iter().map(|p| p.id.clone()).collect())
@@ -2221,8 +2238,7 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
             );
         }
         ActionTag::LightboxSlide => {
-            ui.horizontal(|ui| {
-                ui.label("Slide");
+            trigger_row(ui, "Slide", |ui| {
                 tall_combo(ui, "action_lightbox_slide_combo")
                     .selected_text(slide_label(course, &form.lightbox_slide_id))
                     .show_ui(ui, |ui| {
@@ -2265,8 +2281,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
         | EventKindTag::HoverEnd
         | EventKindTag::MarkerOpened
         | EventKindTag::MarkerClosed => {
-            ui.horizontal(|ui| {
-                ui.label("Object");
+            trigger_row(ui, "Object", |ui| {
                 tall_combo(ui, "event_obj_combo")
                     .selected_text(object_label(slide, &form.event_object))
                     .show_ui(ui, |ui| {
@@ -2284,8 +2299,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
             });
         }
         EventKindTag::TimelineStarts | EventKindTag::TimelineEnds => {
-            ui.horizontal(|ui| {
-                ui.label("Timeline");
+            trigger_row(ui, "Timeline", |ui| {
                 let is_base = form.event_layer.is_none();
                 let display = match form.event_layer.as_deref() {
                     Some(id) => format!("Layer: {}", layer_name(slide, id)),
@@ -2311,8 +2325,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
             });
         }
         EventKindTag::TimelineReaches => {
-            ui.horizontal(|ui| {
-                ui.label("Timeline");
+            trigger_row(ui, "Timeline", |ui| {
                 let is_base = form.event_layer.is_none();
                 let display = match form.event_layer.as_deref() {
                     Some(id) => format!("Layer: {}", layer_name(slide, id)),
@@ -2336,8 +2349,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
                         }
                     });
             });
-            ui.horizontal(|ui| {
-                ui.label("Time (ms)");
+            trigger_row(ui, "Time (ms)", |ui| {
                 ui.add(
                     DragValue::new(&mut form.event_ms)
                         .speed(50.0)
@@ -2346,8 +2358,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
             });
         }
         EventKindTag::VariableChanges => {
-            ui.horizontal(|ui| {
-                ui.label("Variable");
+            trigger_row(ui, "Variable", |ui| {
                 tall_combo(ui, "event_var_combo")
                     .selected_text(&form.event_var)
                     .show_ui(ui, |ui| {
@@ -2358,8 +2369,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
             });
         }
         EventKindTag::StateChanges => {
-            ui.horizontal(|ui| {
-                ui.label("Object");
+            trigger_row(ui, "Object", |ui| {
                 tall_combo(ui, "event_state_obj_combo")
                     .selected_text(object_label(slide, &form.event_object))
                     .show_ui(ui, |ui| {
@@ -2386,8 +2396,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
                 }
             }
 
-            ui.horizontal(|ui| {
-                ui.label("To state");
+            trigger_row(ui, "To state", |ui| {
                 let display = form.event_state_to.as_deref().unwrap_or("Any state change");
                 let is_any = form.event_state_to.is_none();
                 tall_combo(ui, "event_state_to_combo")
@@ -2406,8 +2415,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
             });
         }
         EventKindTag::MediaEnds => {
-            ui.horizontal(|ui| {
-                ui.label("Media Object");
+            trigger_row(ui, "Media Object", |ui| {
                 tall_combo(ui, "event_media_ends_obj_combo")
                     .selected_text(media_object_label(slide, &form.event_object))
                     .show_ui(ui, |ui| {
@@ -2455,8 +2463,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
             if !cues.iter().any(|cue| cue.id == form.event_cue) {
                 form.event_cue = cues.first().map(|cue| cue.id.clone()).unwrap_or_default();
             }
-            ui.horizontal(|ui| {
-                ui.label("Video");
+            trigger_row(ui, "Video", |ui| {
                 tall_combo(ui, "event_cue_video_combo")
                     .selected_text(object_label(slide, &form.event_object))
                     .show_ui(ui, |ui| {
@@ -2466,8 +2473,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
                         }
                     });
             });
-            ui.horizontal(|ui| {
-                ui.label("Cue");
+            trigger_row(ui, "Cue", |ui| {
                 let cue_label = cues
                     .iter()
                     .find(|cue| cue.id == form.event_cue)
@@ -2487,8 +2493,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
             });
         }
         EventKindTag::KeyPress => {
-            ui.horizontal(|ui| {
-                ui.label("Key");
+            trigger_row(ui, "Key", |ui| {
                 tall_combo(ui, "event_key_pressed_combo")
                     .selected_text(&form.event_key)
                     .show_ui(ui, |ui| {
@@ -2497,8 +2502,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
                         }
                     });
             });
-            ui.horizontal(|ui| {
-                ui.label("Object (optional)");
+            trigger_row(ui, "Object (optional)", |ui| {
                 let current_label = match &form.event_key_object {
                     Some(obj) => object_label(slide, obj),
                     None => "Anywhere on slide".to_string(),
@@ -2532,8 +2536,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
                     .map(|object| object.id.clone())
                     .unwrap_or_default();
             }
-            ui.horizontal(|ui| {
-                ui.label("Draggable Object");
+            trigger_row(ui, "Draggable Object", |ui| {
                 tall_combo(ui, "event_dropped_on_obj_combo")
                     .selected_text(object_label(slide, &form.event_object))
                     .show_ui(ui, |ui| {
@@ -2551,8 +2554,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
             if !targets.contains(&form.event_drop_target) {
                 form.event_drop_target = targets.first().cloned().unwrap_or_default();
             }
-            ui.horizontal(|ui| {
-                ui.label("Target");
+            trigger_row(ui, "Target", |ui| {
                 tall_combo(ui, "event_dropped_on_tgt_combo")
                     .selected_text(object_label(slide, &form.event_drop_target))
                     .show_ui(ui, |ui| {
@@ -2582,8 +2584,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
                     .map(|object| object.id.clone())
                     .unwrap_or_default();
             }
-            ui.horizontal(|ui| {
-                ui.label("Object A");
+            trigger_row(ui, "Object A", |ui| {
                 tall_combo(ui, "event_intersect_obj_a_combo")
                     .selected_text(object_label(slide, &form.event_object))
                     .show_ui(ui, |ui| {
@@ -2593,8 +2594,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
                         }
                     });
             });
-            ui.horizontal(|ui| {
-                ui.label("Object B");
+            trigger_row(ui, "Object B", |ui| {
                 tall_combo(ui, "event_intersect_obj_b_combo")
                     .selected_text(object_label(slide, &form.event_intersect_other))
                     .show_ui(ui, |ui| {
@@ -2614,8 +2614,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
         }
         EventKindTag::Submit => {}
         EventKindTag::AnimationCompletes => {
-            ui.horizontal(|ui| {
-                ui.label("Object");
+            trigger_row(ui, "Object", |ui| {
                 tall_combo(ui, "event_anim_complete_obj_combo")
                     .selected_text(object_label(slide, &form.anim_complete_object))
                     .show_ui(ui, |ui| {
@@ -2639,8 +2638,7 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
                         }
                     });
             });
-            ui.horizontal(|ui| {
-                ui.label("Animation");
+            trigger_row(ui, "Animation", |ui| {
                 let mut options = vec![("entrance".to_owned(), "Entrance".to_owned())];
                 if let Some((o, _)) = slide.object(&form.anim_complete_object) {
                     for p in &o.motion_paths {

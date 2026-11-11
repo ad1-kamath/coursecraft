@@ -1,6 +1,6 @@
 //! Course settings window dialog: title, id, player chrome toggles, quiz passing percent.
 
-use crate::dialog::Dialog;
+use crate::dialog::{Dialog, Form};
 use coursecraft_course::{Course, NavMode, NextRequirement, ValueKind};
 use egui::{DragValue, TextEdit};
 
@@ -106,12 +106,12 @@ pub fn next_rule_editor(
 /// Returns the new choice (`None` clears the logo).
 fn logo_picker(
     ui: &mut egui::Ui,
+    form: &Form,
     current: Option<&str>,
     media: &[(String, std::sync::Arc<[u8]>)],
 ) -> Option<Option<String>> {
     let mut chosen = None;
-    ui.horizontal(|ui| {
-        ui.label("Logo");
+    form.row(ui, "Logo", |ui, _| {
         egui::ComboBox::from_id_salt("course_player_logo")
             .selected_text(current.unwrap_or("None"))
             .width(160.0)
@@ -245,12 +245,25 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
         .show_with_footer(ctx, |dialog| {
             dialog.body(|ui| {
                 // Course Info
+                // One label column for the whole dialog, so every field starts at the same x.
+                let form = Form::new(
+                    ui,
+                    &[
+                        "Course Title",
+                        "Course ID",
+                        "Language",
+                        "Logo",
+                        "Navigation",
+                        "Next unlocks",
+                        "Passing score",
+                        "Volume",
+                    ],
+                );
                 ui.heading("General");
-                ui.horizontal(|ui| {
-                    ui.label("Course Title");
+                form.row(ui, "Course Title", |ui, width| {
                     let tr = ui.add(
                         TextEdit::singleline(&mut editor.ui.course_settings.title)
-                            .desired_width(260.0),
+                            .desired_width(width),
                     );
                     let enter = tr.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                     if (tr.lost_focus() || enter)
@@ -260,11 +273,10 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
                     }
                 });
 
-                ui.horizontal(|ui| {
-                    ui.label("Course ID");
+                form.row(ui, "Course ID", |ui, width| {
                     let ir = ui.add(
                         TextEdit::singleline(&mut editor.ui.course_settings.id)
-                            .desired_width(260.0),
+                            .desired_width(width),
                     );
                     let enter = ir.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                     if (ir.lost_focus() || enter)
@@ -274,35 +286,38 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
                     }
                 });
 
-                ui.horizontal(|ui| {
-                    ui.label("Language");
+                let mut language_valid = true;
+                form.row(ui, "Language", |ui, width| {
                     let lr = ui.add(
                         TextEdit::singleline(&mut editor.ui.course_settings.language)
-                            .desired_width(260.0),
+                            .desired_width(width),
                     );
                     let enter = lr.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                     let tag = editor.ui.course_settings.language.trim();
-                    let valid = tag.is_empty() || coursecraft_course::is_language_tag_valid(tag);
-                    if !valid {
-                        ui.colored_label(
-                            coursecraft_render::palette(ui.ctx()).danger,
-                            "Use a tag such as en, fr or pt-BR.",
-                        );
-                    }
+                    language_valid = tag.is_empty() || coursecraft_course::is_language_tag_valid(tag);
                     if (lr.lost_focus() || enter)
-                        && valid
+                        && language_valid
                         && Some(tag) != editor.session.course.language.as_deref()
                     {
                         update_course = true;
                     }
                 });
-                ui.label(
-                    egui::RichText::new(
-                        "Used by screen readers. For example en, fr or pt-BR.",
-                    )
-                    .color(coursecraft_render::palette(ui.ctx()).text_secondary)
-                    .size(coursecraft_render::SIZE_SMALL),
-                );
+                // The note, or the error that replaces it, lines up with the fields.
+                ui.horizontal(|ui| {
+                    ui.add_space(form.label_width() + Form::LABEL_GAP);
+                    let p = coursecraft_render::palette(ui.ctx());
+                    if language_valid {
+                        ui.label(
+                            egui::RichText::new(
+                                "Used by screen readers. For example en, fr or pt-BR.",
+                            )
+                            .color(p.text_secondary)
+                            .size(coursecraft_render::SIZE_SMALL),
+                        );
+                    } else {
+                        ui.colored_label(p.danger, "Use a tag such as en, fr or pt-BR.");
+                    }
+                });
 
                 if needs_result {
                     ui.add_space(8.0);
@@ -383,13 +398,13 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
                 });
                 if let Some(choice) = logo_picker(
                     ui,
+                    &form,
                     editor.ui.course_settings.logo.as_deref(),
                     &editor.media,
                 ) {
                     logo_choice = Some(choice);
                 }
-                ui.horizontal(|ui| {
-                    ui.label("Navigation");
+                form.row(ui, "Navigation", |ui, _| {
                     let mut mode = editor.ui.course_settings.navigation;
                     egui::ComboBox::from_id_salt("course_navigation_mode")
                         .selected_text(nav_mode_label(mode))
@@ -402,7 +417,8 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
                         editor.ui.course_settings.navigation = mode;
                         update_player = true;
                     }
-                    ui.label("Next unlocks");
+                });
+                form.row(ui, "Next unlocks", |ui, _| {
                     let current = editor.ui.course_settings.next_requires.clone();
                     if let Some(Some(rule)) = next_rule_editor(
                         ui,
@@ -433,8 +449,7 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
                 }
 
                 if editor.ui.course_settings.quiz_enabled {
-                    ui.horizontal(|ui| {
-                        ui.label("Passing score");
+                    form.row(ui, "Passing score", |ui, _| {
                         let pr = ui.add(
                             DragValue::new(&mut editor.ui.course_settings.passing_percent)
                                 .speed(1.0)
@@ -475,9 +490,7 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
                             remove_background_audio = true;
                         }
                     });
-                    ui.horizontal(|ui| {
-                        ui.label("Volume");
-                        let rem_w = ui.available_width().max(30.0);
+                    form.row(ui, "Volume", |ui, rem_w| {
                         let response = ui.add_sized(
                             [rem_w, coursecraft_render::CONTROL_COMPACT],
                             egui::Slider::new(

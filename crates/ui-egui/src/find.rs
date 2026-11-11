@@ -137,12 +137,12 @@ fn window_body(editor: &mut Editor, ui: &mut egui::Ui, max_height: f32) -> Actio
     let p = palette(ui.ctx());
     let mut action = Action::None;
 
-    ui.horizontal(|ui| {
-        ui.label("Find");
+    let form = crate::dialog::Form::new(ui, &["Find", "Replace"]);
+    form.row(ui, "Find", |ui, width| {
         let response = ui.add(
             TextEdit::singleline(&mut editor.ui.find.query)
                 .hint_text("Text to find")
-                .desired_width(f32::INFINITY),
+                .desired_width(width),
         );
         if editor.ui.find.focus_query {
             response.request_focus();
@@ -153,12 +153,11 @@ fn window_body(editor: &mut Editor, ui: &mut egui::Ui, max_height: f32) -> Actio
             editor.ui.find.selected = 0;
         }
     });
-    ui.horizontal(|ui| {
-        ui.label("Replace");
+    form.row(ui, "Replace", |ui, width| {
         ui.add(
             TextEdit::singleline(&mut editor.ui.find.replacement)
                 .hint_text("Replacement text")
-                .desired_width(f32::INFINITY),
+                .desired_width(width),
         );
     });
     ui.horizontal(|ui| {

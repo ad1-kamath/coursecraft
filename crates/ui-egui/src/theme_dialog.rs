@@ -141,12 +141,11 @@ pub fn show_theme_dialog_window(editor: &mut crate::Editor, ctx: &egui::Context)
                 ui.separator();
                 ui.heading("Typography");
 
-                ui.horizontal(|ui| {
-                    ui.label("Font Name");
+                crate::properties::inspector_row(ui, "Font Name", |ui| {
                     let r = ui.add(
                         TextEdit::singleline(&mut editor.ui.theme_dialog.font)
                             .id_salt("theme_font_name")
-                            .desired_width(180.0),
+                            .desired_width(ui.available_width()),
                     );
                     if is_committed(&r, ui)
                         && !editor.ui.theme_dialog.font.trim().is_empty()

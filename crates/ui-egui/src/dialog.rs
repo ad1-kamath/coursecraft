@@ -248,3 +248,68 @@ impl DialogUi<'_> {
         self.ui
     }
 }
+
+/// A label-plus-field form inside a dialog.
+///
+/// The label column is as wide as the widest label of this form, measured with the real font,
+/// so every field starts at the same x. [`Form::row`] hands the field the width left to the
+/// dialog's right edge; a field that fills it ends at the same right edge as the rest. A field
+/// meant to be short (a number, a pick list) takes less, and still starts at the same x.
+#[derive(Debug, Clone, Copy)]
+pub struct Form {
+    label_width: f32,
+}
+
+impl Form {
+    /// Gap between the label column and the fields.
+    pub const LABEL_GAP: f32 = 12.0;
+
+    /// A form whose label column fits every one of `labels`.
+    #[must_use]
+    pub fn new(ui: &Ui, labels: &[&str]) -> Self {
+        let font = egui::TextStyle::Body.resolve(ui.style());
+        let widest = labels
+            .iter()
+            .map(|label| {
+                ui.painter()
+                    .layout_no_wrap((*label).to_owned(), font.clone(), egui::Color32::WHITE)
+                    .size()
+                    .x
+            })
+            .fold(0.0_f32, f32::max);
+        Self {
+            label_width: widest.ceil(),
+        }
+    }
+
+    /// The width of the label column (without the gap).
+    #[must_use]
+    pub fn label_width(&self) -> f32 {
+        self.label_width
+    }
+
+    /// One row: `label` in the label column, then `field`, which is given the width left to
+    /// the right edge.
+    pub fn row<R>(&self, ui: &mut Ui, label: &str, field: impl FnOnce(&mut Ui, f32) -> R) -> R {
+        let label_width = self.label_width;
+        let row_height = coursecraft_render::CONTROL_COMPACT;
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = Self::LABEL_GAP;
+            let (rect, _) =
+                ui.allocate_exact_size(egui::vec2(label_width, row_height), egui::Sense::hover());
+            if ui.is_rect_visible(rect) {
+                let color = coursecraft_render::palette(ui.ctx()).text_secondary;
+                let font = egui::TextStyle::Body.resolve(ui.style());
+                let galley = ui.painter().layout_no_wrap(label.to_owned(), font, color);
+                ui.painter().galley(
+                    pos2(rect.min.x, rect.center().y - galley.size().y * 0.5),
+                    galley,
+                    color,
+                );
+            }
+            let width = ui.available_width().max(60.0);
+            field(ui, width)
+        })
+        .inner
+    }
+}

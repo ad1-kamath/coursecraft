@@ -371,3 +371,40 @@ fn layout_sweep_sees_dialogs_as_windows() {
         }
     }
 }
+
+/// The inspector's label column must show its long labels whole; eliding is a last resort.
+#[test]
+fn inspector_label_column_shows_the_long_labels() {
+    let ctx = egui::Context::default();
+    coursecraft_render::apply_style(&ctx, ThemeMode::Dark);
+    let raw = egui::RawInput {
+        screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), vec2(400.0, 300.0))),
+        ..Default::default()
+    };
+    let output = ctx.run_ui(raw, |ui| {
+        for label in [
+            "Navigation buttons",
+            "When revisiting",
+            "Return on miss",
+            "Snap to center",
+            "Content height",
+            "Slide Background",
+        ] {
+            let width = ui
+                .painter()
+                .layout_no_wrap(
+                    label.to_owned(),
+                    FontId::proportional(coursecraft_render::SIZE_BODY),
+                    Color32::WHITE,
+                )
+                .size()
+                .x;
+            assert!(
+                width <= crate::properties::LABEL_COL_WIDTH,
+                "\"{label}\" is {width} pt, wider than the {} pt label column",
+                crate::properties::LABEL_COL_WIDTH
+            );
+        }
+    });
+    output.drop_without_applying_deltas();
+}

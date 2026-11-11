@@ -5560,7 +5560,7 @@ fn typing_in_styled_text_preserves_runs() {
     let text_edit_pos = harness
         .find_text("Text Content")
         .expect("Text Content label")
-        + vec2(80.0, 0.0);
+        + vec2(110.0, 0.0);
     harness.click_at(text_edit_pos);
     harness.click_at(frame_pos);
     harness.idle_frame();
@@ -8896,7 +8896,7 @@ fn course_inspector_title_commits_through_course_update() {
     let title_pos = harness
         .find_text_in("Title", harness.right_panel_rect())
         .expect("Title label")
-        + vec2(100.0, 0.0);
+        + vec2(130.0, 0.0);
     harness.set_field(title_pos, "Edited Course");
     assert_eq!(harness.editor.session.course.title, "Edited Course");
 }
@@ -14565,7 +14565,7 @@ fn story_view_keys_do_nothing_while_a_text_field_has_focus() {
     // Focus the Slide title field in the inspector.
     let field = harness
         .find_text("Slide title")
-        .map(|p| p + vec2(80.0, 0.0))
+        .map(|p| p + vec2(110.0, 0.0))
         .expect("Slide title field");
     harness.click_at(field);
     harness.idle_frame();

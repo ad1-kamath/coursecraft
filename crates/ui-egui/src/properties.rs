@@ -13,10 +13,12 @@ use egui::{
 };
 use serde_json::Value as Json;
 
-pub const PROPERTIES_PANEL_WIDTH: f32 = 300.0;
+pub const PROPERTIES_PANEL_WIDTH: f32 = 320.0;
 pub const PROPERTIES_PANEL_MIN_WIDTH: f32 = 260.0;
 pub const PROPERTIES_PANEL_MAX_WIDTH: f32 = 400.0;
-pub const LABEL_COL_WIDTH: f32 = 92.0;
+/// Width of the inspector's label column. "Navigation buttons", the longest label, measures
+/// about 116 pt at the body size, so 120 shows every label whole; a longer one is elided.
+pub const LABEL_COL_WIDTH: f32 = 120.0;
 
 /// Tab in the segmented inspector panel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -990,7 +992,7 @@ pub(crate) fn add_drag_left(ui: &mut Ui, size: [f32; 2], drag: DragValue<'_>) ->
     .inner
 }
 
-/// Standard inspector row layout: fixed 92 px label column on the left, control filling the
+/// Standard inspector row layout: fixed 120 pt label column on the left, control filling the
 /// remaining width. A label too long for the column is elided with "..." and shows in full on
 /// hover. The controls never grow the row: whatever they need beyond the width is cut at the
 /// row edge instead of pushing the following rows past the panel's right margin.

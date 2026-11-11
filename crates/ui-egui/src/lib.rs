@@ -3169,7 +3169,7 @@ impl Editor {
 
         // 5. Right properties panel (Inspector: Format, Animate, Slide, Course)
         Panel::right("editor_properties_panel")
-            .default_size(300.0)
+            .default_size(PROPERTIES_PANEL_WIDTH)
             .size_range(260.0..=400.0)
             .resizable(true)
             .frame(egui::Frame::NONE.fill(p.panel))

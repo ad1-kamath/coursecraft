@@ -106,7 +106,7 @@ fn set_object_name(harness: &mut TestHarness, name: &str) {
     let n = harness
         .find_text_in("Name", harness.right_panel_rect())
         .expect("Name label");
-    let name_pos = n + vec2(80.0, 0.0);
+    let name_pos = n + vec2(110.0, 0.0);
     harness.set_field(name_pos, name);
 }
 
@@ -191,7 +191,7 @@ fn add_button_with_visited(
     let label_pos = harness
         .find_text_in("Label", harness.right_panel_rect())
         .expect("Label label")
-        + vec2(80.0, 0.0);
+        + vec2(110.0, 0.0);
     harness.set_field(label_pos, label);
     set_object_frame(harness, x, y, w, h);
 
@@ -273,13 +273,13 @@ fn configure_course_settings(harness: &mut TestHarness) {
 
     let title_pos = harness
         .find_text("Course Title")
-        .map(|p| p + vec2(100.0, 0.0))
+        .map(|p| p + vec2(130.0, 0.0))
         .expect("Course Title field");
     harness.set_field(title_pos, "Workplace Safety Basics");
 
     let id_pos = harness
         .find_text("Course ID")
-        .map(|p| p + vec2(100.0, 0.0))
+        .map(|p| p + vec2(130.0, 0.0))
         .expect("Course ID field");
     harness.set_field(id_pos, "hello-course");
 
@@ -296,7 +296,7 @@ fn configure_course_settings(harness: &mut TestHarness) {
 
 /// Task 2: Slide 1 "Welcome" (title text, start button, about button, about layer and triggers).
 fn build_intro_slide(harness: &mut TestHarness) {
-    let title_pos = harness.find_text("Slide title").expect("Slide title label") + vec2(80.0, 0.0);
+    let title_pos = harness.find_text("Slide title").expect("Slide title label") + vec2(110.0, 0.0);
     harness.set_field(title_pos, "Welcome");
 
     let dur_pos = harness
@@ -319,7 +319,7 @@ fn build_intro_slide(harness: &mut TestHarness) {
     let size_pos = harness
         .find_text_in("Font size", harness.right_panel_rect())
         .expect("Font size label")
-        + vec2(110.0, 0.0);
+        + vec2(140.0, 0.0);
     harness.set_field(size_pos, "48");
     // Focusing the size field scrolled the inspector; bring the Style row back into view.
     let panel_mid = harness.right_panel_rect().center();
@@ -332,7 +332,7 @@ fn build_intro_slide(harness: &mut TestHarness) {
     let text_pos = harness
         .find_text("Text Content")
         .expect("Text Content label")
-        + vec2(80.0, 0.0);
+        + vec2(110.0, 0.0);
     set_multiline_text(harness, text_pos, "Workplace Safety Basics");
 
     // Button `btn-start`
@@ -341,10 +341,10 @@ fn build_intro_slide(harness: &mut TestHarness) {
     let label_pos = harness
         .find_text_in("Label", harness.right_panel_rect())
         .expect("Label label")
-        + vec2(80.0, 0.0);
+        + vec2(110.0, 0.0);
     harness.set_field(label_pos, "Start");
     set_object_frame(harness, 80.0, 520.0, 200.0, 60.0);
-    let start_pos = scroll_to_label(harness, "Start (ms)") + vec2(90.0, 0.0);
+    let start_pos = scroll_to_label(harness, "Start (ms)") + vec2(120.0, 0.0);
     harness.set_field(start_pos, "1000");
 
     // Button `btn-about`
@@ -353,12 +353,12 @@ fn build_intro_slide(harness: &mut TestHarness) {
     let label_pos = harness
         .find_text_in("Label", harness.right_panel_rect())
         .expect("Label label")
-        + vec2(80.0, 0.0);
+        + vec2(110.0, 0.0);
     harness.set_field(label_pos, "About this course");
     let fill_pos = harness
         .find_text_in("Fill", harness.right_panel_rect())
         .expect("Fill label")
-        + vec2(110.0, 0.0);
+        + vec2(140.0, 0.0);
     harness.set_field(fill_pos, "#5A5A5A");
     set_object_frame(harness, 300.0, 520.0, 260.0, 60.0);
 
@@ -397,7 +397,7 @@ fn build_intro_slide(harness: &mut TestHarness) {
     let fill_pos = harness
         .find_text_in("Fill", harness.right_panel_rect())
         .expect("Fill label")
-        + vec2(110.0, 0.0);
+        + vec2(140.0, 0.0);
     harness.set_field(fill_pos, "#FFFFFFF0");
     set_object_frame(harness, 240.0, 140.0, 800.0, 440.0);
 
@@ -407,7 +407,7 @@ fn build_intro_slide(harness: &mut TestHarness) {
     let text_pos = harness
         .find_text("Text Content")
         .expect("Text Content label")
-        + vec2(80.0, 0.0);
+        + vec2(110.0, 0.0);
     set_multiline_text(harness, text_pos, "Ten minutes. One quiz. 80% to pass.");
     set_object_frame(harness, 280.0, 200.0, 720.0, 200.0);
 
@@ -417,7 +417,7 @@ fn build_intro_slide(harness: &mut TestHarness) {
     let label_pos = harness
         .find_text_in("Label", harness.right_panel_rect())
         .expect("Label label")
-        + vec2(80.0, 0.0);
+        + vec2(110.0, 0.0);
     harness.set_field(label_pos, "Close");
     set_object_frame(harness, 820.0, 500.0, 180.0, 56.0);
 
@@ -518,7 +518,7 @@ fn build_tabs_slide(harness: &mut TestHarness) {
     let slide2_id = harness.editor.selection.slide.clone();
 
     // Slide 2 properties
-    let title_pos = harness.find_text("Slide title").expect("Slide title label") + vec2(80.0, 0.0);
+    let title_pos = harness.find_text("Slide title").expect("Slide title label") + vec2(110.0, 0.0);
     harness.set_field(title_pos, "Three hazards");
 
     let dur_pos = harness
@@ -562,7 +562,7 @@ fn build_tabs_slide(harness: &mut TestHarness) {
     let label_pos = harness
         .find_text_in("Label", harness.right_panel_rect())
         .expect("Label label")
-        + vec2(80.0, 0.0);
+        + vec2(110.0, 0.0);
     harness.set_field(label_pos, "Next");
     set_object_frame(harness, 1000.0, 600.0, 200.0, 60.0);
 
@@ -643,7 +643,7 @@ fn build_tabs_slide(harness: &mut TestHarness) {
         let text_pos = harness
             .find_text("Text Content")
             .expect("Text Content label")
-            + vec2(80.0, 0.0);
+            + vec2(110.0, 0.0);
         set_multiline_text(harness, text_pos, text_body);
         set_object_frame(harness, 80.0, 200.0, 1000.0, 300.0);
     }
@@ -671,7 +671,7 @@ fn build_tabs_slide(harness: &mut TestHarness) {
 
         harness.pick_combo("Jump to slide", "Set variable");
         harness.pick_combo("Assign (=)", "Add (+)");
-        let val_pos = harness.find_text("Value").expect("Value label") + vec2(40.0, 0.0);
+        let val_pos = harness.find_text("Value").expect("Value label") + vec2(115.0, 0.0);
         harness.set_field(val_pos, "1");
 
         let cur_obj = harness
@@ -837,7 +837,7 @@ fn build_quiz_slide(harness: &mut TestHarness) {
     let slide3_id = harness.editor.selection.slide.clone();
 
     // Slide 3 properties
-    let title_pos = harness.find_text("Slide title").expect("Slide title label") + vec2(80.0, 0.0);
+    let title_pos = harness.find_text("Slide title").expect("Slide title label") + vec2(110.0, 0.0);
     harness.set_field(title_pos, "Check your knowledge");
 
     let dur_pos = harness
@@ -863,7 +863,7 @@ fn build_quiz_slide(harness: &mut TestHarness) {
     let label_pos = harness
         .find_text_in("Label", harness.right_panel_rect())
         .expect("Label label")
-        + vec2(80.0, 0.0);
+        + vec2(110.0, 0.0);
     harness.set_field(label_pos, "Continue");
     set_object_frame(harness, 540.0, 420.0, 200.0, 60.0);
 
@@ -903,7 +903,7 @@ fn build_quiz_slide(harness: &mut TestHarness) {
     let label_pos = harness
         .find_text_in("Label", harness.right_panel_rect())
         .expect("Label label")
-        + vec2(80.0, 0.0);
+        + vec2(110.0, 0.0);
     harness.set_field(label_pos, "Try again");
     set_object_frame(harness, 540.0, 420.0, 200.0, 60.0);
 
@@ -1108,7 +1108,7 @@ fn build_results_slide(harness: &mut TestHarness) {
     harness.idle_frame();
 
     // Slide 4 properties
-    let title_pos = harness.find_text("Slide title").expect("Slide title label") + vec2(80.0, 0.0);
+    let title_pos = harness.find_text("Slide title").expect("Slide title label") + vec2(110.0, 0.0);
     harness.set_field(title_pos, "Results");
 
     let dur_pos = harness
@@ -1130,7 +1130,7 @@ fn build_results_slide(harness: &mut TestHarness) {
     let text_pos = harness
         .find_text("Text Content")
         .expect("Text Content label")
-        + vec2(80.0, 0.0);
+        + vec2(110.0, 0.0);
     set_multiline_text(harness, text_pos, "Thanks for completing the course.");
     set_object_frame(harness, 80.0, 200.0, 1120.0, 200.0);
 

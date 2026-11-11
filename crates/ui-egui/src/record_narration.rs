@@ -201,8 +201,7 @@ fn desktop_contents(editor: &mut Editor, ui: &mut egui::Ui) -> bool {
             state.playing = false;
         }
 
-        ui.horizontal(|ui| {
-            ui.label("Microphone");
+        crate::dialog::Form::new(ui, &["Microphone"]).row(ui, "Microphone", |ui, _| {
             let selected = state.device.as_deref().unwrap_or("Default").to_owned();
             ComboBox::from_id_salt("record_narration_device")
                 .selected_text(selected)

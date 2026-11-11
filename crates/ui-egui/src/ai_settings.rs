@@ -6,7 +6,7 @@
 //! owns the transport through `EditorRequest::AiChat`. Agent commands and files
 //! are the app's job too; the UI only sends `EditorRequest`s.
 
-use crate::dialog::Dialog;
+use crate::dialog::{Dialog, Form};
 use coursecraft_ai::agents::{AgentAction, AgentId, AgentStatus};
 use coursecraft_ai::{
     AiConfig, AiSource, ChatMessage, ChatReply, ChatRequest, MessageContent, Role, check_config,
@@ -603,8 +603,8 @@ fn show_features_tab(editor: &mut Editor, ui: &mut Ui, requests: &mut Vec<Editor
 
 fn show_endpoint_settings(editor: &mut Editor, ui: &mut Ui) -> bool {
     let p = coursecraft_render::palette(ui.ctx());
-    ui.horizontal(|ui| {
-        ui.label("Provider");
+    let form = Form::new(ui, &["Provider", "Base URL", "Model", "API key"]);
+    form.row(ui, "Provider", |ui, _| {
         ComboBox::from_id_salt("ai_provider")
             .selected_text(editor.ui.ai.provider.label())
             .show_ui(ui, |ui| {
@@ -623,43 +623,48 @@ fn show_endpoint_settings(editor: &mut Editor, ui: &mut Ui) -> bool {
     });
 
     ui.add_space(coursecraft_render::SPACE_SM);
-    ui.horizontal(|ui| {
-        ui.label("Base URL");
+    form.row(ui, "Base URL", |ui, width| {
         ui.add(
             TextEdit::singleline(&mut editor.ui.ai.config.base_url)
                 .id_salt("ai_base_url")
-                .desired_width(320.0),
+                .desired_width(width),
         );
     });
 
-    ui.horizontal(|ui| {
-        ui.label("Model");
+    form.row(ui, "Model", |ui, width| {
         ui.add(
             TextEdit::singleline(&mut editor.ui.ai.config.model)
                 .id_salt("ai_model")
-                .desired_width(320.0),
+                .desired_width(width),
         );
     });
 
     ui.add_space(coursecraft_render::SPACE_SM);
-    ui.horizontal(|ui| {
-        ui.label("API key");
-        ui.add(
-            TextEdit::singleline(&mut editor.ui.ai.config.api_key)
-                .id_salt("ai_api_key")
-                .password(!editor.ui.ai.show_key)
-                .desired_width(260.0),
-        );
+    form.row(ui, "API key", |ui, _| {
         let label = if editor.ui.ai.show_key {
             "Hide"
         } else {
             "Show"
         };
-        if ui.button(label).clicked() {
-            editor.ui.ai.show_key = !editor.ui.ai.show_key;
-        }
+        // The Show / Hide button sits at the right edge; the field takes the rest, so both
+        // end where the other fields end.
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui.button(label).clicked() {
+                editor.ui.ai.show_key = !editor.ui.ai.show_key;
+            }
+            ui.add(
+                TextEdit::singleline(&mut editor.ui.ai.config.api_key)
+                    .id_salt("ai_api_key")
+                    .password(!editor.ui.ai.show_key)
+                    .desired_width(ui.available_width()),
+            );
+        });
     });
-    ui.small("Leave empty for a local server");
+    // Notes under a field line up with the fields.
+    ui.horizontal(|ui| {
+        ui.add_space(form.label_width() + Form::LABEL_GAP);
+        ui.small("Leave empty for a local server");
+    });
     #[cfg(target_arch = "wasm32")]
     ui.small("Kept for this session only.");
 
@@ -672,31 +677,32 @@ fn show_endpoint_settings(editor: &mut Editor, ui: &mut Ui) -> bool {
                 "Optional. Each audio feature uses its own model; leave one \
                  empty and that feature stays off.",
             );
-            ui.horizontal(|ui| {
-                ui.label("Speech-to-text model");
+            let audio = Form::new(
+                ui,
+                &["Speech-to-text model", "Text-to-speech model", "Voice"],
+            );
+            audio.row(ui, "Speech-to-text model", |ui, width| {
                 ui.add(
                     TextEdit::singleline(&mut editor.ui.ai.config.speech_to_text_model)
                         .id_salt("ai_speech_to_text_model")
                         .hint_text("whisper-1")
-                        .desired_width(240.0),
+                        .desired_width(width),
                 );
             });
-            ui.horizontal(|ui| {
-                ui.label("Text-to-speech model");
+            audio.row(ui, "Text-to-speech model", |ui, width| {
                 ui.add(
                     TextEdit::singleline(&mut editor.ui.ai.config.text_to_speech_model)
                         .id_salt("ai_text_to_speech_model")
                         .hint_text("tts-1")
-                        .desired_width(240.0),
+                        .desired_width(width),
                 );
             });
-            ui.horizontal(|ui| {
-                ui.label("Voice");
+            audio.row(ui, "Voice", |ui, width| {
                 ui.add(
                     TextEdit::singleline(&mut editor.ui.ai.config.voice)
                         .id_salt("ai_voice")
                         .hint_text("alloy")
-                        .desired_width(240.0),
+                        .desired_width(width),
                 );
             });
         });

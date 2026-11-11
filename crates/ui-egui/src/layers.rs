@@ -1079,17 +1079,16 @@ pub fn show_layer_settings_window(editor: &mut crate::Editor, ctx: &egui::Contex
         .open(&mut open)
         .show_with_footer(ctx, |dialog| {
             dialog.body(|ui| {
-            ui.horizontal(|ui| {
-                ui.label("Name");
-                let name = ui.add(
-                    TextEdit::singleline(&mut state.name)
-                        .desired_width(ui.available_width().max(80.0)),
-                );
+            let form = crate::dialog::Form::new(
+                ui,
+                &["Name", "Duration", "Allow seeking", "When revisiting"],
+            );
+            form.row(ui, "Name", |ui, width| {
+                let name = ui.add(TextEdit::singleline(&mut state.name).desired_width(width));
                 state.name_rect = Some(name.rect);
             });
 
-            ui.horizontal(|ui| {
-                ui.label("Duration");
+            form.row(ui, "Duration", |ui, _| {
                 let duration = ui.add(
                     DragValue::new(&mut state.duration_ms)
                         .speed(50.0)
@@ -1135,8 +1134,7 @@ pub fn show_layer_settings_window(editor: &mut crate::Editor, ctx: &egui::Contex
                     .strong()
                     .color(coursecraft_render::palette(ui.ctx()).text_secondary),
             );
-            ui.horizontal(|ui| {
-                ui.label("Allow seeking");
+            form.row(ui, "Allow seeking", |ui, _| {
                 let combo = egui::ComboBox::from_id_salt("layer_allow_seek")
                     .selected_text(seek_label(state.allow_seek))
                     .show_ui(ui, |ui| {
@@ -1157,8 +1155,7 @@ pub fn show_layer_settings_window(editor: &mut crate::Editor, ctx: &egui::Contex
                     .strong()
                     .color(coursecraft_render::palette(ui.ctx()).text_secondary),
             );
-            ui.horizontal(|ui| {
-                ui.label("When revisiting");
+            form.row(ui, "When revisiting", |ui, _| {
                 let combo = egui::ComboBox::from_id_salt("layer_revisit")
                     .selected_text(revisit_label(state.revisit))
                     .show_ui(ui, |ui| {
