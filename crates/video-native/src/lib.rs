@@ -67,6 +67,7 @@ pub struct Pcm {
 
 /// Scale `(width, height)` so the width is at most `max_width`, keeping the
 /// aspect ratio, rejecting zero or over-`MAX_DIMENSION` dimensions.
+#[cfg_attr(not(any(target_os = "macos", windows)), allow(dead_code))]
 fn scaled_size(width: u32, height: u32, max_width: u32) -> Result<(u32, u32), VideoError> {
     if width == 0 || height == 0 {
         return Err(VideoError(format!("empty frame {width}x{height}")));
@@ -2000,6 +2001,8 @@ pub mod mp4 {
     }
 
     impl Drop for Mp4Writer {
+        // On other systems nothing follows the early return.
+        #[cfg_attr(not(any(target_os = "macos", windows)), allow(clippy::needless_return))]
         fn drop(&mut self) {
             if self.finished {
                 return;
