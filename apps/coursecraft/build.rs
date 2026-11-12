@@ -2,6 +2,8 @@
 //!
 //! A build made without `cargo xtask build-player` still compiles: the generated
 //! list is empty, and the Publish dialog explains what is missing.
+//!
+//! On Windows it also embeds the app icon in the .exe.
 
 use std::env;
 use std::fmt::Write as _;
@@ -9,6 +11,7 @@ use std::path::{Component, Path, PathBuf};
 
 fn main() {
     let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap_or_default());
+    embed_windows_icon(&manifest);
     let Some(root) = manifest
         .parent()
         .and_then(Path::parent)
@@ -45,6 +48,25 @@ fn main() {
         }
     }
     write_bundle(&files);
+}
+
+/// Puts the app icon in the Windows .exe, so File Explorer and the taskbar show it.
+/// The build script runs on the build machine, so this checks the target, not `cfg`.
+fn embed_windows_icon(manifest: &Path) {
+    let icon = manifest.join("icons").join("coursecraft.ico");
+    println!("cargo:rerun-if-changed={}", icon.display());
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
+        return;
+    }
+    let Some(icon) = icon.to_str() else {
+        println!("cargo:warning=windows icon: the icon path is not UTF-8");
+        return;
+    };
+    let mut resource = winresource::WindowsResource::new();
+    resource.set_icon(icon);
+    if let Err(err) = resource.compile() {
+        println!("cargo:warning=windows icon: {err}");
+    }
 }
 
 fn collect_files(base: &Path, current: &Path) -> Result<Vec<(String, PathBuf)>, String> {

@@ -40,5 +40,9 @@ coursecraft-xapi.workspace = true
 wasm-bindgen-futures.workspace = true
 web-sys = { workspace = true, features = ["Window", "Document", "Element", "HtmlCanvasElement", "console", "Location"] }
 
+# Embeds the icon in the Windows .exe; build.rs only calls it when the target is Windows.
+[build-dependencies]
+winresource = "0.1"
+
 [lints]
 workspace = true
