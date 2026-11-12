@@ -2830,10 +2830,18 @@ fn run_editor_window() -> eframe::Result {
 
     let course = initial_course(blank);
 
+    #[cfg_attr(target_os = "macos", allow(unused_mut))]
+    let mut viewport = egui::ViewportBuilder::default()
+        .with_title("CourseCraft")
+        .with_inner_size([1440.0, 900.0]);
+    // The window and taskbar icon on Windows and Linux. macOS takes the Dock icon from
+    // the bundle's .icns, which has the system's padding; setting this would replace it.
+    #[cfg(not(target_os = "macos"))]
+    if let Ok(icon) = eframe::icon_data::from_png_bytes(include_bytes!("../icons/window-256.png")) {
+        viewport = viewport.with_icon(icon);
+    }
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_title("CourseCraft")
-            .with_inner_size([1440.0, 900.0]),
+        viewport,
         ..Default::default()
     };
     eframe::run_native(

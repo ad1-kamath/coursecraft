@@ -1,3 +1,5 @@
+<img src="apps/coursecraft/icons/coursecraft-1024.png" alt="" width="96" align="right">
+
 # CourseCraft
 
 An open-source, clean-room alternative to Articulate Storyline 360, written in pure Rust. You build interactive eLearning with slides, layers, states, triggers, variables and quizzes, and publish it to any LMS.
