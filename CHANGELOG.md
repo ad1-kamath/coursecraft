@@ -4,7 +4,9 @@ What changed in each release, newest first. Versions follow [semantic versioning
 
 ## Unreleased
 
-- CourseCraft has an app icon: a "C" around a play button, in the ArtCraft family style. It shows in the Mac Dock and Finder, and on the window and taskbar on Windows and Linux.
+## 0.1.2
+
+- CourseCraft has an app icon: a "C" around a play button, in the ArtCraft family style. It shows in the Mac Dock and Finder, on the Windows .exe and taskbar, and on the Linux window.
 
 ## 0.1.1
 
