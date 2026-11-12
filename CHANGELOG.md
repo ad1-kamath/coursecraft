@@ -4,6 +4,19 @@ What changed in each release, newest first. Versions follow [semantic versioning
 
 ## Unreleased
 
+## 0.1.1
+
+The first release with downloads. The v0.1.0 tag never finished building, so its fixes are included here too.
+
+**Cleaner layout**
+- Dialogs open centred below the toolbar, stay on screen, and scroll when the window is small, with their action buttons always visible.
+- Form fields in dialogs line up, and labels in the properties panel show in full.
+- Fixed controls running past the properties panel's edge, timeline names running into their icons, and other overlaps and margins.
+- An automatic check now catches overlapping or cut-off text, off-screen dialogs and clipped buttons at three window sizes, in dark and light.
+
+**Builds**
+- The Mac download is built on a current macOS build machine.
+
 ## 0.1.0 (first public release)
 
 The first public release. CourseCraft is early: it is tested with automated tests and local mock servers, not yet certified against commercial LMSs. Try a package in your LMS before relying on it.

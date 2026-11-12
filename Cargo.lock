@@ -759,7 +759,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "coursecraft-ai",
  "coursecraft-cli",
@@ -786,7 +786,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-ai"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "coursecraft-media",
  "serde",
@@ -795,7 +795,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "clap",
  "coursecraft-control",
@@ -816,7 +816,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-control"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "coursecraft-course",
  "coursecraft-engine",
@@ -830,7 +830,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-course"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -838,7 +838,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-engine"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "coursecraft-course",
  "coursecraft-format",
@@ -849,7 +849,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-export"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "coursecraft-course",
  "coursecraft-logic",
@@ -867,7 +867,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-format"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "coursecraft-course",
  "quick-xml",
@@ -878,7 +878,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-lms"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "coursecraft-course",
  "coursecraft-logic",
@@ -889,7 +889,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-logic"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "coursecraft-course",
  "serde",
@@ -898,7 +898,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-lti"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64",
  "ring",
@@ -909,7 +909,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-lti-server"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64",
  "clap",
@@ -924,7 +924,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-mcp"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "clap",
  "coursecraft-control",
@@ -938,7 +938,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-media"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "image",
  "resvg",
@@ -948,7 +948,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-playback"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "coursecraft-video-native",
  "cpal",
@@ -961,7 +961,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-player"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "coursecraft-course",
  "coursecraft-format",
@@ -982,7 +982,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-pptx"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "coursecraft-course",
  "coursecraft-media",
@@ -994,7 +994,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-publish"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "coursecraft-course",
  "coursecraft-format",
@@ -1007,7 +1007,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-render"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "coursecraft-course",
  "coursecraft-logic",
@@ -1024,14 +1024,14 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-scorm"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "coursecraft-ui-egui"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "coursecraft-ai",
  "coursecraft-course",
@@ -1047,7 +1047,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-video-native"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "block2 0.6.2",
  "log",
@@ -1065,7 +1065,7 @@ dependencies = [
 
 [[package]]
 name = "coursecraft-xapi"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde_json",
 ]
@@ -4898,7 +4898,7 @@ checksum = "e450f9b2ed1dff33c94c12589a87338689467b9c4f5d8a5710bd09a847d2c8a7"
 
 [[package]]
 name = "xtask"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde_json",
 ]
