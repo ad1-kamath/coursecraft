@@ -31,5 +31,5 @@ cargo run -p coursecraft-cli -- simulate examples/feature-tour/course.json examp
 ## Media
 
 - The pictures came from Gemini (through the Antigravity CLI).
-- `intro.mp4` (7 seconds, 640×360, H.264 and AAC) is cut from `media.jpg`, `layers.jpg` and `done.jpg` with ffmpeg: a slow zoom on each picture, a fade and a slide between them, and a quiet three-note chord. `intro.vtt` holds its captions.
+- `intro.mp4` (7 seconds, 640×360, H.264 and AAC) is cut with ffmpeg from `media.jpg` (also the video's poster), `layers.jpg` and `done.jpg`: a slow zoom on each picture, a fade and a slide between them, and a quiet three-note chord. `intro.vtt` holds its captions.
 - `chime.wav` and `chime.vtt` are the same files as in `examples/showcase`.

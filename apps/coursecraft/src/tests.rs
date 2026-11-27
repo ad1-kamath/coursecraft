@@ -954,9 +954,47 @@ fn app_explore_example_feature_showcase_loads_with_media() {
     );
 
     assert!(!app.editor.is_welcome());
-    assert_eq!(app.editor.session.course.id, "showcase");
-    assert_eq!(app.editor.media().len(), 4);
-    assert!(app.editor.media().iter().any(|(s, _)| s == "banner.png"));
+    assert_eq!(app.editor.session.course.id, "coursecraft-feature-tour");
+    assert_eq!(app.editor.media().len(), 10);
+    assert!(app.editor.media().iter().any(|(s, _)| s == "intro.mp4"));
+}
+
+/// Every example is valid, embeds every file it uses and nothing it does not use.
+#[test]
+fn every_example_embeds_exactly_the_media_it_uses() {
+    use coursecraft_ui_egui::ExampleId;
+    for id in [
+        ExampleId::HealthyHabits,
+        ExampleId::HelloCourse,
+        ExampleId::FeatureShowcase,
+    ] {
+        let (course, media) =
+            coursecraft_ui_egui::example_course_and_media(id).expect("example loads");
+        assert!(
+            course.validate().is_empty(),
+            "{}: {:?}",
+            id.name(),
+            course.validate()
+        );
+        let names: std::collections::HashSet<&str> =
+            media.iter().map(|(n, _)| n.as_str()).collect();
+        let referenced = coursecraft_ui_egui::referenced_media_srcs(&course);
+        for src in &referenced {
+            assert!(
+                names.contains(src.as_str()),
+                "{}: {src} is used but not embedded",
+                id.name()
+            );
+        }
+        for name in &names {
+            assert!(
+                referenced.contains(*name) || name.ends_with(".vtt"),
+                "{}: {name} is embedded but never used",
+                id.name()
+            );
+        }
+        assert!(media.iter().all(|(_, bytes)| !bytes.is_empty()));
+    }
 }
 
 #[test]

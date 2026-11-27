@@ -311,7 +311,7 @@ fn t12_4_welcome_example_popup_clamping_and_template_contrast() {
         h.idle_frame();
 
         let hc_pos = h
-            .find_text("Hello course")
+            .find_text("Workplace Safety Basics")
             .expect("example popup menu should open");
         assert!(
             h.screen_rect.contains(hc_pos),

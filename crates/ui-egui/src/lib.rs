@@ -2289,7 +2289,7 @@ impl Editor {
         self.check_revision();
     }
 
-    /// Open one of the built-in example courses (Hello course or Feature showcase).
+    /// Open one of the built-in example courses (Healthy Habits, Workplace Safety Basics or the Feature Tour).
     pub fn open_example(&mut self, id: ExampleId) {
         if let Ok((course, media)) = welcome::example_course_and_media(id) {
             self.replace_course(course);

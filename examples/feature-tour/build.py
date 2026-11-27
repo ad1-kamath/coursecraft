@@ -118,7 +118,7 @@ head(s, "md", "STOP 1  ·  MEDIA", "Video and sound")
 frame = add(s, shape("md-frame", F(80, 166, 624, 358), P["deep"], name="Video frame", adjust=[0.04], decorative=True))
 frame["shadow"] = shadow("33", 14, 34)
 ent(frame, ZOOM, 600, 200, "overshoot")
-vid = add(s, obj("md-video", "Tour video", {"type": "video", "src": "intro.mp4", "autoplay": False, "captions": "intro.vtt"},
+vid = add(s, obj("md-video", "Tour video", {"type": "video", "src": "intro.mp4", "autoplay": False, "captions": "intro.vtt", "poster": "media.jpg"},
                  F(88, 174, 608, 342)))
 ent(vid, FADE, 500, 500)
 add(s, obj("md-chime", "Chime", {"type": "audio", "src": "chime.wav", "autoplay": False, "captions": "chime.vtt"}, F(0, 0, 0, 0)))
@@ -336,7 +336,7 @@ for n, (sid, kind, prompt, extra, ok, no) in enumerate(QUIZ, 1):
 s = new_slide(sc, "results", "Your result", master=False, bg=P["lav"], transition=T("zoom", 700),
               notes="Submits the quiz, then shows the passed or failed layer.")
 done = add(s, picture("r-pic", "done.jpg", "A happy learner raises both arms next to a big trophy and confetti.",
-                      F(660, 0, 620, 720), x=0.47, mask="rectangle", src_ratio=SRC))
+                      F(660, 0, 620, 720), x=0.47, mask="rectangle", name="Trophy picture", src_ratio=SRC))
 ent(done, FADE, 800, 0)
 eyebrow(s, "r-eyebrow", "TOUR COMPLETE", 88, 150, start=200)
 score = add(s, text("r-score", "%Course.ScorePercent%%", F(84, 184, 400, 120), 104, P["primary"], True, "Score"))
