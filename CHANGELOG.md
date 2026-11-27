@@ -2,6 +2,14 @@
 
 What changed in each release, newest first. Versions follow [semantic versioning](https://semver.org): until 1.0, a minor version (0.x) may change things, but a project saved by an older CourseCraft always opens in a newer one.
 
+## Unreleased
+
+**Validation**
+- Check Course and `validate` now warn when text uses an unknown `%variable%` reference.
+
+**Authoring**
+- Button labels on light fills now use dark text so they stay readable and pass contrast checks.
+
 ## 0.6.4
 
 A fix for videos crashing the app on Windows, EMF and WMF clip art, and clearer player settings.

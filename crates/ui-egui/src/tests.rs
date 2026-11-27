@@ -21477,3 +21477,23 @@ fn tr_15_tracking_ui_custom_and_missing_quiz_slide_labels() {
         "missing slide id must show inline warning"
     );
 }
+
+#[test]
+fn inline_button_label_edit_uses_the_painted_label_colour() {
+    let mut button: coursecraft_course::Object = serde_json::from_str(
+        r##"{"id":"b","name":"b","kind":{"type":"button","label":"Go","fill":"#1F4E8C"},"frame":{"x":0,"y":0,"w":100,"h":40}}"##,
+    )
+    .expect("button json");
+    assert_eq!(
+        crate::canvas::inline_button_label_color_for_test(&button).as_deref(),
+        Some("#ffffff")
+    );
+    if let coursecraft_course::ObjectKind::Button { fill, .. } = &mut button.kind {
+        *fill = coursecraft_course::Color("#F2B705".into());
+    }
+    assert_ne!(
+        crate::canvas::inline_button_label_color_for_test(&button).as_deref(),
+        Some("#ffffff"),
+        "a light fill must not get white text while editing"
+    );
+}
