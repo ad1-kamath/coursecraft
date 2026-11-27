@@ -651,7 +651,7 @@ vid = add(s, obj("v_video", "Stretch video", {"type": "video", "src": "stretch.m
     {"id": "c_neck", "at_ms": 300, "name": "Neck stretch"}, {"id": "c_shoulder", "at_ms": 4700, "name": "Shoulder stretch"},
     {"id": "c_twist", "at_ms": 9100, "name": "Seated twist"}]}, F(88, 160, 712, 400)))
 vid["shadow"] = SOFT
-ent(vid, EXPAND, 700, 300)
+ent(vid, EXPAND, 700, 0)
 add(s, ent(button("v_play", "Play", F(88, 584, 120, 48), CORAL), POP, 400, 700, "overshoot"))
 add(s, ent(button("v_pause", "Pause", F(218, 584, 120, 48), DEEP), POP, 400, 800, "overshoot"))
 add(s, ent(text("v_cc", "Captions: use the CC button in the player bar.", F(356, 598, 440, 24), 15, MUTED, False, "Captions hint"), FADE, 400, 900))
@@ -1262,7 +1262,7 @@ for oid in ("title1", "learner1", "course1"):
     find(s, oid)["kind"]["style"]["bold"] = False
 find(s, "learner1")["kind"]["style"]["size"] = 56
 find(s, "learner1")["frame"] = F(128, 256, 1024, 80)
-ent(find(s, "learner1"), RISE, 1000, 600, "overshoot", "by_letter")
+ent(find(s, "learner1"), RISE, 1000, 600, "overshoot")
 for k, oid in enumerate(("title1", "certifies1", "completed1", "course1", "score1", "date1")):
     ent(find(s, oid), FADE, 500, 300 + k * 150)
 seal = add(s, image("ce_seal", "badge.jpg", "A rosette seal", F(1030, 470, 130, 130), crop={"x": 0.22, "y": 0.0, "w": 0.558, "h": 1.0}, name="Seal", mask="ellipse"))

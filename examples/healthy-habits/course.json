@@ -5008,7 +5008,7 @@
         "easing": "ease_out"
        },
        "timing": {
-        "start_ms": 300
+        "start_ms": 0
        }
       },
       {
@@ -24657,8 +24657,7 @@
          "type": "rise"
         },
         "duration_ms": 1000,
-        "easing": "overshoot",
-        "sequence": "by_letter"
+        "easing": "overshoot"
        }
       },
       {

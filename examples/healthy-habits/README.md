@@ -2,45 +2,39 @@
 
 The sample course CourseCraft opens on a fresh launch. It is a short wellbeing module, and every slide shows off a different part of the app, so a new author can open it, press F12 and see what CourseCraft can do.
 
-36 slides in 7 scenes: Welcome, Move, Breathe, Connect, Check your knowledge, Reflect and finish, and Extras.
+35 slides in 7 scenes: Welcome, Lesson 1: Move, Lesson 2: Breathe, Lesson 3: Connect, Final quiz, Reflect and finish, and Extras. Each lesson opens on a chapter slide and ends on a quick check.
 
 ## What it shows
 
 | Area | Where to look |
 |---|---|
 | Custom font (DM Serif Display from Google Fonts, SIL OFL) | Every heading. Course Settings ▸ Fonts; the file is `media/fonts/` with its licence |
-| Background music across the whole course | Course Settings ▸ Background audio (`music.mp3`, 12% volume, loops) |
-| Theme, palette, named text styles, slide master | Every slide. Course Settings ▸ Theme; the Heading, Eyebrow and Body styles; the `Content` master's accent strip |
-| Entrance and exit animations (fade, fly in, zoom, wipe, float) | Welcome, Three small habits, Three quick resets, Well done; the desk hint leaves on its own (`timing.end_ms` plus an exit animation) |
-| Objects timed to narration (staggered timeline) | Welcome, Three small habits and each habit's layer, Set up your desk, Rest your eyes, A healthy day, Your results. Open the Timeline panel to see each object start on its spoken words |
-| Slide transitions (fade, push, cover) | Every slide |
-| Hover states and custom states | Every button; the habit cards; the stretch checklist; the sort cards |
-| Layers (modal, toast, feedback) | Three small habits, Three desk stretches, Rest your eyes, every question |
-| Variables, `%var%` text, conditions | Your name everywhere; habits explored; tips opened; cards sorted; stress and sleep check-in |
-| Text entry, slider, dial, checkbox, radio group | Nice to meet you, How are you today?, Make your plan, Question 9 |
-| Progress meter (ring and bar) | Three small habits, How are you today? |
+| Background music across the whole course | Course Settings ▸ Background audio (`music.mp3`, 10% volume, loops) |
+| Theme, palette, slide template | Every slide. Course Settings ▸ Theme; Lesson page (New slide ▸ Your templates) |
+| Entrance and exit effects (fade, rise, fly in, float, wipe, split, peek, shape reveal, wheel, strips, flip, zoom, grow, spin and grow, pop) with easings (overshoot, elastic, bounce) | Every slide; the chapter slides use the most |
+| Text that plays in by letter or by paragraph | The Welcome title, chapter titles, Well done |
+| Emphasis effects (pulse, heartbeat, jump, shake, teeter, spin, grow and shrink, color pulse) | Chapter rings spin slowly; desk markers pulse; quiz feedback jumps or shakes; the results badge |
+| Motion paths and `move_on_path` | The drifting Welcome hero, the dots on each chapter slide, Breathe with the circle |
+| Slide transitions (fade, push, cover, wipe, circle and diamond shapes, clock, zoom, dissolve) | Every slide; each lesson opens with a different one |
+| Objects timed to narration | Most content slides. Open the Timeline panel to see each line start on its spoken words |
+| Audio narration with captions, plus a Pause voice button | 29 clips, one voice throughout |
+| Hover states and custom states | Every button; habit cards; the eye-rest timer; the sort cards |
+| Layers (feedback, modal, celebration) | Three small habits, Rest your eyes, Helps or hurts?, every question, Your results |
+| Variables, `%var%` text, conditions | Your name everywhere; habits explored; stress and energy check-in; plan choices |
+| Text entry, sliders, checkbox, radio group, progress meters | Nice to meet you, How are you today?, Make your plan |
+| Picture fills, gradient fills, image masks, shadows, glows | Chapter slides, quiz picture cards, the certificate seal |
 | Markers | Set up your desk |
 | Video with cue points and captions | Three desk stretches |
-| Audio narration with captions | 12 short clips: Welcome, Three small habits (and audio inside each habit layer), desk, eyes, day, breathing, results (passed and failed layers), Well done |
-| Lottie animation | Breathe with the circle |
-| Motion paths and `animation_completes` | Breathe with the circle (the floating dot) |
-| `timeline_reaches`, `timeline_ends`, pause and resume timeline | Breathe with the circle |
-| Layer that pauses the base timeline, layer that hides when its timeline ends | Habit layers; the Rest your eyes toast |
+| Lottie animation, `timeline_reaches`, pause and resume timeline | Breathe with the circle |
 | Timer with start, pause and reset | Rest your eyes |
-| Lightbox | Rest your eyes ▸ Why 20-20-20? |
-| Draggable objects, `dropped_on`, object intersections | Helps or hurts? |
-| Key presses | Enter on the Welcome slide, Escape on the habit cards |
-| Ready-made interactions | Flip cards, process steps, tabs, scenario, timeline, accordion, reveal grid, hotspot reveal |
+| Draggable objects and `dropped_on`, with a confetti layer | Helps or hurts? |
+| Ready-made interactions | Flip cards (Myth or fact?), process steps, scenario, timeline, reveal grid |
 | Table | Make your plan |
-| Scrolling panel, web object, Open URL, slide link | Read more |
-| Picture fill on a shape, image crops, opacity, shadows, glow, rotation, groups, paths | Explore a healthy office, Welcome, Rest your eyes, Well done |
-| All 12 question types | Questions 1 to 9 (graded) and Reflections 1 to 3 (not scored): multiple choice, multiple response, true/false, fill-in, sequence, matching, hotspot, drag and drop, freeform, Likert, short answer, essay |
-| Question bank and random draw | Quick checks bank (3 questions); one is drawn after Question 9 |
+| Lightbox, Open URL | Bonus slide |
+| All 12 question types | Lesson quick checks (multiple choice, multiple response, true/false), Final quiz (fill-in, sequence, matching, hotspot, drag and drop, freeform slider), Reflections (Likert, short answer, essay; not scored) |
+| Question bank and random draw | Quick checks bank (3 questions); one is drawn after Question 6 |
 | Results, retry, review and certificate | Your results, Your certificate (with print) |
-| Per-slide player rules | No seekbar on graded questions; Next waits for the welcome narration |
-| Slide template | Lesson page (New slide ▸ Your templates) |
-| Keyboard focus order, text that shrinks to fit | Welcome; the flip cards |
-| Glossary, resources, transcript (slide notes), captions | The player menu |
+| Per-slide player rules | No seekbar on graded questions |
 
 ## Checks
 
@@ -54,7 +48,7 @@ cargo run -p coursecraft-cli -- simulate examples/healthy-habits/course.json exa
 
 ## Media
 
-The background music was made with CassetteAI on fal.ai. The pictures were made with an AI image generator, the narration with ElevenLabs (twelve clips of 2 to 7 seconds), and `stretch.mp4` with ffmpeg from three of the pictures (Google Flow prompts for real clips are in `flow/prompts.md`). `breathe-circle.json` is a hand-written Lottie file. Captions are WebVTT files next to their media.
+The pictures were made with Gemini through the Antigravity CLI in one soft editorial style. The narration was made with Gemini text-to-speech (one voice, Sulafat, for all 29 clips) and the background music with Lyria, both through `gemini-api`. `stretch.mp4` was made with ffmpeg. `breathe-circle.json` is a hand-written Lottie file. Captions are WebVTT files next to their media; `media/narration.json` holds the sentence timings `build.py` uses to time objects and write the captions.
 
 ## Rebuilding
 
