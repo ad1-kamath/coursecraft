@@ -1351,6 +1351,7 @@ impl SlideView {
                 Highlight::default(),
                 media.as_mut().map(|(c, s)| (&mut **c, *s)),
                 theme,
+                self.lightbox_base_bg.as_ref(),
                 (0.0, 0.0),
             );
 
@@ -1391,6 +1392,7 @@ impl SlideView {
                 self.pointer.highlight(),
                 media,
                 theme,
+                slide_bg,
                 (0.0, 0.0),
             );
         } else {
@@ -1404,6 +1406,7 @@ impl SlideView {
                 self.pointer.highlight(),
                 media,
                 theme,
+                slide_bg,
                 (0.0, 0.0),
             );
         }
@@ -2254,12 +2257,12 @@ fn paint_transition_slide(
     }
     if look.only_moves() {
         paint::paint_background(painter, t, theme, bg, look.offset);
-        paint::paint_items(painter, t, items, highlight, media, theme, look.offset);
+        paint::paint_items(painter, t, items, highlight, media, theme, bg, look.offset);
         return;
     }
     let marker = painter.add(egui::Shape::Noop);
     paint::paint_background(painter, t, theme, bg, look.offset);
-    paint::paint_items(painter, t, items, highlight, media, theme, look.offset);
+    paint::paint_items(painter, t, items, highlight, media, theme, bg, look.offset);
     let k = t.scale();
     let slide = t
         .slide_rect()

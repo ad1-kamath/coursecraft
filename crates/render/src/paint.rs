@@ -2496,7 +2496,7 @@ fn effect_margin(item: &DrawItem, scale: f32) -> f32 {
 }
 
 /// Paint slide draw items through a [`SlideTransform`], optionally shifted by `offset`.
-#[allow(clippy::cognitive_complexity)]
+#[allow(clippy::cognitive_complexity, clippy::too_many_arguments)]
 pub fn paint_items(
     painter: &Painter,
     t: &SlideTransform,
@@ -2504,11 +2504,24 @@ pub fn paint_items(
     highlight: Highlight,
     mut media: Option<(&mut MediaCache, &dyn MediaSource)>,
     theme: Option<&Theme>,
+    slide_bg: Option<&Color>,
     offset: (f32, f32),
 ) {
     let slide_rect = t.slide_rect();
     let slide_painter = painter.with_clip_rect(slide_rect);
     let scale = t.scale();
+
+    let slide_bg_rgba = slide_bg
+        .and_then(coursecraft_course::parse_color)
+        .or_else(|| theme.and_then(|th| coursecraft_course::parse_color(&th.background)))
+        .map(|bg| {
+            bg.over(coursecraft_course::Rgba {
+                r: 255,
+                g: 255,
+                b: 255,
+                a: 255,
+            })
+        });
 
     let theme_text_color = theme
         .and_then(|th| crate::color::parse_color(&th.text))
@@ -2844,7 +2857,18 @@ pub fn paint_items(
 
                 let font_size = (20.0 * scale).max(1.0);
                 let font_id = crate::font::slide_font(item_painter.ctx(), false, false, font_size);
-                let text_color = apply_dim(Color32::WHITE, item.dimmed, op);
+                let [r, g, b, a] = effective_fill.to_srgba_unmultiplied();
+                let label_rgba = coursecraft_course::button_label_color(
+                    coursecraft_course::Rgba { r, g, b, a },
+                    slide_bg_rgba,
+                );
+                let label_color = Color32::from_rgba_unmultiplied(
+                    label_rgba.r,
+                    label_rgba.g,
+                    label_rgba.b,
+                    label_rgba.a,
+                );
+                let text_color = apply_dim(label_color, item.dimmed, op);
                 let galley = item_painter.layout(
                     label.clone(),
                     font_id,
@@ -4908,7 +4932,16 @@ pub fn paint(
         cache.set_animation_time(None);
     }
     paint_background(painter, t, theme, slide_bg, (0.0, 0.0));
-    paint_items(painter, t, items, highlight, media, theme, (0.0, 0.0));
+    paint_items(
+        painter,
+        t,
+        items,
+        highlight,
+        media,
+        theme,
+        slide_bg,
+        (0.0, 0.0),
+    );
 }
 
 #[cfg(test)]

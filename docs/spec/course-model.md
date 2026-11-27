@@ -91,6 +91,8 @@ Colours are `#RRGGBB` or `#RRGGBBAA`. `style.font`, a run's `font` and `theme.fo
 
 `point_text` on `text` objects (and state-extra `text` items) is an optional boolean (default `false`, omitted when `false`). A point-text box uses `style.wrap: false` and `autofit: none`, auto-fits its frame width and height to its content on text or style edits, and converts to fixed-width area text (`point_text: false`) when wrap is turned on or its width is resized.
 
+`button` labels are drawn at 20 px in either white (`#FFFFFF`) or dark ink (`#1F1F1F`), whichever gives the higher WCAG contrast ratio against the effective button fill (composited over the slide background when translucent, or white if the background is unknown).
+
 Audio and video may set `captions` to a WebVTT file path relative to `media/`, for example `"captions": "intro.vtt"`. The path follows the same safe-relative-path rule as `src` and must end in `.vtt` (case-insensitive); validation rejects anything else and names the object. The field is omitted when unset, so existing courses stay byte-identical. Captions are presentational: they are never part of `coursecraft-logic` state and never send inputs.
 
 ### Trim and volume

@@ -1083,3 +1083,74 @@ fn shape_text_contrast_uses_the_shape_fill_or_the_slide_when_unfilled() {
         findings(&course)
     );
 }
+
+#[test]
+fn m47_s2_button_label_color_picks_white_on_dark_and_dark_ink_on_light() {
+    let parse = |hex: &str| parse_color(&Color(hex.to_owned())).expect("valid color");
+    assert_eq!(button_label_color(parse("#1F4E8C"), None), WHITE);
+    assert_eq!(button_label_color(parse("#2F6FEB"), None), WHITE);
+    assert_eq!(button_label_color(parse("#F2B705"), None), BUTTON_DARK_INK);
+    assert_eq!(button_label_color(parse("#FFFFFF"), None), BUTTON_DARK_INK);
+}
+
+#[test]
+fn m47_s2_button_label_color_handles_transparent_fills() {
+    let parse = |hex: &str| parse_color(&Color(hex.to_owned())).expect("valid color");
+    let transparent = parse("#00000000");
+    let white = parse("#FFFFFF");
+    let navy = parse("#1F4E8C");
+    let yellow_half = parse("#F2B70580");
+
+    assert_eq!(
+        button_label_color(transparent, Some(white)),
+        BUTTON_DARK_INK
+    );
+    assert_eq!(button_label_color(transparent, Some(navy)), WHITE);
+    assert_eq!(button_label_color(transparent, None), WHITE);
+    assert_eq!(
+        button_label_color(yellow_half, Some(white)),
+        BUTTON_DARK_INK
+    );
+}
+
+#[test]
+fn m47_s2_audit_yellow_button_passes_and_mid_grey_button_fails_contrast() {
+    let make_button = |id: &str, fill: &str| {
+        object(
+            id,
+            ObjectKind::Button {
+                label: "Continue".to_owned(),
+                fill: Color(fill.to_owned()),
+                fill_style: None,
+            },
+            (100.0, 100.0, 180.0, 48.0),
+        )
+    };
+
+    let mut yellow_course = empty_course();
+    slide(&mut yellow_course)
+        .objects
+        .push(make_button("yellow-btn", "#F2B705"));
+    assert!(
+        !findings(&yellow_course)
+            .iter()
+            .any(|f| f.check == "contrast" && f.object.as_deref() == Some("yellow-btn")),
+        "{:#?}",
+        findings(&yellow_course)
+    );
+
+    let mut grey_course = empty_course();
+    slide(&mut grey_course)
+        .objects
+        .push(make_button("grey-btn", "#7D7D7D"));
+    let grey_findings = findings(&grey_course);
+    assert!(
+        grey_findings.iter().any(|f| {
+            f.check == "contrast"
+                && f.object.as_deref() == Some("grey-btn")
+                && f.severity == AuditSeverity::Error
+                && f.criterion == "WCAG 1.4.3"
+        }),
+        "{grey_findings:#?}"
+    );
+}
