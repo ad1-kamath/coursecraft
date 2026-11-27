@@ -46,7 +46,7 @@ Top to bottom:
 
 ✅ exists (`course_map.rs`). Parity items: scene cards with a header menu ▾ ⛔, start-section flag ⛔,
 Ctrl+wheel zoom 🟡, double-click to rename scene and slide titles 🟡, double-click a slide opens and pins a
-slide tab ✅ (single-click or Enter opens in the preview tab). In the Course Map the right panel shows **Slide Properties**:
+slide tab ✅ (Enter opens it in the preview tab; single-click selects it). In the Course Map the right panel shows **Slide Properties**:
 
 | Field | Values | Action | Status |
 |---|---|---|---|

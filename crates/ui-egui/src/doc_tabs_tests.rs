@@ -186,8 +186,9 @@ fn no_tab_row_without_the_ribbon() {
 
 #[test]
 fn m48_s2_01_clicking_ten_slides_in_list_leaves_one_preview_tab() {
-    let mut h = with_many_slides(12, (1600.0, 1200.0));
+    let mut h = with_many_slides(12, (1600.0, 2000.0));
     let ids = slide_ids(&h);
+    let list_region = Rect::from_min_max(pos2(0.0, 120.0), pos2(260.0, 2000.0));
     for (idx, sid) in ids.iter().enumerate().take(10) {
         let title = h
             .editor
@@ -197,24 +198,26 @@ fn m48_s2_01_clicking_ten_slides_in_list_leaves_one_preview_tab() {
             .expect("slide")
             .title
             .clone();
-        if let Some(pos) = h.find_text(&title) {
-            h.click_at(pos);
-            h.idle_frame();
-        } else {
-            // Fallback if list scrolled past viewport in test window.
-            doc_tabs::open_slide(&mut h.editor, sid);
-            h.idle_frame();
-        }
+        let pos = h
+            .find_text_in(&title, list_region)
+            .unwrap_or_else(|| panic!("slide {idx} ({title}) visible in slide list"));
+        h.click_at(pos);
+        h.idle_frame();
+        assert_eq!(
+            h.editor.selection.slide, *sid,
+            "clicking slide {idx} selects it"
+        );
         assert!(
             h.editor.ui.doc_tabs.open.is_empty(),
             "clicking slide {idx} must not pin"
         );
+        assert_eq!(
+            h.editor.ui.doc_tabs.preview.as_deref(),
+            Some(sid.as_str()),
+            "slide {idx} replaces preview tab"
+        );
     }
     let last_id = &ids[9];
-    assert_eq!(
-        h.editor.ui.doc_tabs.preview.as_deref(),
-        Some(last_id.as_str())
-    );
     let tab_label = doc_tabs::slide_tab_label(&h.editor.session.course, last_id);
     assert!(
         tab_is_italic(&mut h, &tab_label),
@@ -276,6 +279,7 @@ fn m48_s2_03_double_click_pins_from_list_map_and_tab() {
     let title_pos = h.find_text(&s1_title).expect("slide 1 title in list");
     h.double_click_at(pos2(title_pos.x, title_pos.y - 30.0));
     h.idle_frame();
+    assert_eq!(h.editor.selection.slide, ids[1]);
     assert!(
         h.editor.ui.doc_tabs.open.contains(&ids[1]),
         "list double-click pins"
@@ -285,7 +289,37 @@ fn m48_s2_03_double_click_pins_from_list_map_and_tab() {
         Some(ids[1].as_str())
     );
 
-    // 2. Double-click slide 2 in Course Map opens and pins it.
+    // 2. Single-click + Enter in Course Map opens slide 0 in preview (not pinned);
+    //    double-click on slide 2 in Course Map opens and pins it.
+    h.advance_time(1.0);
+    doc_tabs::open_map(&mut h.editor);
+    h.idle_frame();
+    let map_rect_s0 = h
+        .editor
+        .ui
+        .course_map
+        .thumb_rects
+        .iter()
+        .find(|(id, _)| id == &ids[0])
+        .map(|(_, r)| *r)
+        .expect("slide 0 in course map");
+    h.click_at(map_rect_s0.center());
+    h.idle_frame();
+    assert!(
+        h.editor.ui.story_view,
+        "single-click in map stays in Course Map"
+    );
+    assert_eq!(h.editor.selection.slide, ids[0]);
+    h.press(Key::Enter, Modifiers::NONE);
+    h.idle_frame();
+    assert!(!h.editor.ui.story_view, "Enter in map opens slide");
+    assert!(!h.editor.ui.doc_tabs.open.contains(&ids[0]));
+    assert_eq!(
+        h.editor.ui.doc_tabs.preview.as_deref(),
+        Some(ids[0].as_str()),
+        "Enter in map opens in preview tab"
+    );
+
     h.advance_time(1.0);
     doc_tabs::open_map(&mut h.editor);
     h.idle_frame();
@@ -327,6 +361,10 @@ fn m48_s2_03_double_click_pins_from_list_map_and_tab() {
         "tab double-click pins"
     );
     assert_eq!(h.editor.ui.doc_tabs.preview, None);
+    assert!(
+        !tab_is_italic(&mut h, &tab_label),
+        "pinned tab is no longer italic"
+    );
 }
 
 #[test]
@@ -363,18 +401,50 @@ fn m48_s2_04_edit_pins_but_undo_redo_and_new_slide_do_not() {
         h.editor.ui.doc_tabs.preview.as_deref(),
         Some(ids[1].as_str())
     );
-    h.editor.run("edit.undo", serde_json::json!({}));
+    let rev_before_undo = h.editor.session.revision;
+    assert!(
+        h.editor.run("edit.undo", serde_json::json!({})).is_some(),
+        "undo succeeds"
+    );
+    assert_ne!(h.editor.session.revision, rev_before_undo);
     h.idle_frame();
     assert!(
         !h.editor.ui.doc_tabs.open.contains(&ids[1]),
         "undo must not pin"
     );
-    h.editor.run("edit.redo", serde_json::json!({}));
+    let rev_before_redo = h.editor.session.revision;
+    assert!(
+        h.editor.run("edit.redo", serde_json::json!({})).is_some(),
+        "redo succeeds"
+    );
+    assert_ne!(h.editor.session.revision, rev_before_redo);
     h.idle_frame();
     assert!(
         !h.editor.ui.doc_tabs.open.contains(&ids[1]),
         "redo must not pin"
     );
+
+    // Editing via run_batch also pins the previewed slide.
+    doc_tabs::open_slide(&mut h.editor, &ids[2]);
+    h.idle_frame();
+    assert_eq!(
+        h.editor.ui.doc_tabs.preview.as_deref(),
+        Some(ids[2].as_str())
+    );
+    assert!(
+        h.editor
+            .run_batch(&[(
+                "layer.add".to_owned(),
+                serde_json::json!({ "slide": ids[2], "name": "Notes" }),
+            )])
+            .is_some()
+    );
+    h.idle_frame();
+    assert!(
+        h.editor.ui.doc_tabs.open.contains(&ids[2]),
+        "run_batch edit pins previewed slide"
+    );
+    assert_eq!(h.editor.ui.doc_tabs.preview, None);
 
     // slide.add and slide.duplicate show the new slide in preview without pinning.
     let res = h
@@ -532,13 +602,38 @@ fn m48_s2_07_overflow_tabs_scroll_and_keep_readable_width() {
     for _ in 0..20 {
         h.idle_frame();
     }
-    let _ = right_btn;
     let (first_pos, first_clip) = h
         .find_text_clipped(&first_label)
         .expect("first tab painted");
     assert!(
         first_clip.contains(first_pos),
         "clicking ‹ scrolls first tab back into view: pos={first_pos:?} clip={first_clip:?}"
+    );
+
+    // Clicking › scrolls right again so the 15th tab comes back into view.
+    for _ in 0..12 {
+        h.click_at(right_btn);
+        h.idle_frame();
+    }
+    for _ in 0..20 {
+        h.idle_frame();
+    }
+    let (last_pos2, last_clip2) = h.find_text_clipped(&last_label).expect("15th tab painted");
+    assert!(
+        last_clip2.contains(last_pos2),
+        "clicking › scrolls 15th tab back into view: pos={last_pos2:?} clip={last_clip2:?}"
+    );
+
+    // Closing tabs until they fit clears the overflow buttons cleanly.
+    for sid in ids.iter().take(15).skip(3) {
+        doc_tabs::close(&mut h.editor, sid);
+    }
+    for _ in 0..4 {
+        h.idle_frame();
+    }
+    assert!(
+        h.find_text("‹").is_none() && h.find_text("›").is_none(),
+        "overflow scroll buttons disappear once tabs fit"
     );
 }
 
@@ -548,7 +643,9 @@ fn m48_s2_08_300_slide_course_tab_sync_uses_cache() {
     let ids = slide_ids(&h);
     assert_eq!(ids.len(), 300);
     let cached_rev = h.editor.ui.doc_tabs.cached_revision;
+    let rebuilds_before = h.editor.ui.doc_tabs.cache_rebuilds;
     assert!(cached_rev.is_some());
+    assert!(rebuilds_before >= 1);
 
     for sid in ids.iter().step_by(15) {
         doc_tabs::open_slide(&mut h.editor, sid);
@@ -558,6 +655,10 @@ fn m48_s2_08_300_slide_course_tab_sync_uses_cache() {
         assert_eq!(
             h.editor.ui.doc_tabs.cached_revision, cached_rev,
             "cache must not rebuild on slide selection"
+        );
+        assert_eq!(
+            h.editor.ui.doc_tabs.cache_rebuilds, rebuilds_before,
+            "ensure_cache must not rebuild label map on slide selection"
         );
     }
 }

@@ -2455,6 +2455,10 @@ fn show_slides_content(editor: &mut Editor, ui: &mut Ui, panel_rect: Rect) {
                     editor.ui.last_active_area = crate::ActiveArea::Navigator;
                     slide_to_select = Some(SlideClick::Single(slide.id.clone()));
                 }
+                if row_resp.double_clicked() {
+                    editor.ui.last_active_area = crate::ActiveArea::Navigator;
+                    slide_to_pin = Some(slide.id.clone());
+                }
                 row_resp.context_menu(|ui| {
                     if ui.button("Delete").clicked() {
                         action_to_run = Some((

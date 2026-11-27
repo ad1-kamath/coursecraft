@@ -31,6 +31,8 @@ pub struct DocTabs {
     pub open: Vec<String>,
     pub preview: Option<String>,
     pub cached_revision: Option<u64>,
+    #[cfg(test)]
+    pub(crate) cache_rebuilds: u64,
     labels: HashMap<String, String>,
     last_active_tab: Option<String>,
     overflows: bool,
@@ -90,6 +92,10 @@ fn ensure_cache(editor: &mut Editor) {
     }
     editor.ui.doc_tabs.labels = labels;
     editor.ui.doc_tabs.cached_revision = Some(rev);
+    #[cfg(test)]
+    {
+        editor.ui.doc_tabs.cache_rebuilds += 1;
+    }
 
     let labels = &editor.ui.doc_tabs.labels;
     editor.ui.doc_tabs.open.retain(|id| labels.contains_key(id));
@@ -273,8 +279,9 @@ pub fn show(editor: &mut Editor, ui: &mut Ui) {
         0.0
     };
 
+    let full_avail_w = ui.available_width();
     let arrow_w = if overflows { 22.0 } else { 0.0 };
-    let scroll_w = (ui.available_width() - arrow_w * 2.0).max(40.0);
+    let scroll_w = (full_avail_w - arrow_w * 2.0).max(40.0);
 
     let mut scroll_output = None;
     ui.horizontal_centered(|ui| {
@@ -350,7 +357,7 @@ pub fn show(editor: &mut Editor, ui: &mut Ui) {
                     })
             })
             .inner;
-        scroll_output = Some((out.content_size.x, out.inner_rect.width()));
+        scroll_output = Some(out.content_size.x);
 
         if overflows
             && ui
@@ -362,11 +369,16 @@ pub fn show(editor: &mut Editor, ui: &mut Ui) {
         }
     });
 
-    if let Some((content_w, view_w)) = scroll_output {
-        editor.ui.doc_tabs.overflows = content_w > view_w + 1.0;
+    if let Some(content_w) = scroll_output {
+        let now_overflows = content_w > full_avail_w + 1.0;
+        if now_overflows != overflows {
+            editor.ui.doc_tabs.overflows = now_overflows;
+            ui.ctx().request_repaint();
+        }
     }
     if click_scroll_delta != 0.0 {
         editor.ui.doc_tabs.pending_scroll_delta += click_scroll_delta;
+        ui.ctx().request_repaint();
     }
 
     ui.painter().hline(
