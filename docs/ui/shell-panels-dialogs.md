@@ -10,8 +10,7 @@ Top to bottom:
    `<course name>* - CourseCraft`. The asterisk marks unsaved changes.
 2. **Tab strip** (File + tabs + contextual tabs; help `?` at the far right).
 3. **Ribbon** (one row of groups, about 95 px; can be collapsed to the tab strip).
-4. **View tabs row**: Course Map tab, then one tab per open slide (closable ×), and breadcrumb
-   tabs for sub-editors. Right side: preview device toggles and a settings gear.
+4. **View tabs row**: Course Map tab, pinned slide tabs (closable ×), at most one italic preview tab for the currently selected slide (pinned on double-click or edit, not undo/redo or new/duplicated slides), horizontal scroll with ‹ › buttons on overflow, and breadcrumb tabs for sub-editors. Right side: preview device toggles and a settings gear.
 5. **Work area**: Scenes panel (left), canvas (centre), Timeline/States/Notes (bottom of centre),
    right panel (Triggers above, Slide Layers below).
 6. **Status bar**.
@@ -25,7 +24,7 @@ Top to bottom:
 | Collapse ribbon (Ctrl+F1, double-click a tab) | double-click the open tab, Ctrl+F1 (not while a dialog or text field has focus); a click opens a tab and never collapses | ✅ | |
 | File page = start screen (left action column, Recent with thumbnails, news) | `file_page.rs` from the File tab and on launch (accent column, Start with the welcome screen's content, Recent with first-slide thumbnails, Import, Export, Translation, Fonts) | 🟡 | news |
 | Tooltips: name, shortcut, one sentence | partial | 🟡 | every ribbon control, from the registry |
-| View tabs row with open slides | `doc_tabs.rs`: Course Map tab, then each opened slide (× closes; closing the shown one shows its neighbour, the last one the map) | ✅ | breadcrumb tabs for sub-editors |
+| View tabs row with open slides | `doc_tabs.rs`: Course Map tab, pinned slide tabs, and one italic preview tab (pinned on double-click or edit; × closes; closing the shown one shows its neighbour, the last one the map; horizontal scroll with ‹ › buttons on overflow) | ✅ | breadcrumb tabs for sub-editors |
 | Device toggles in view row | — | ⛔ | they set the preview device |
 | Panels undock / float / dock back | docked by default (`dock.rs`); View › Panels closes and reopens; saved in prefs; Timeline, States, Triggers, Variables, Question and Notes are dock panels of their own, and Slide Layers sits beside them; a floating panel can be dragged out of the app window into its own OS window (desktop; off on Wayland, which reports no window positions), and keys typed there reach the editor's shortcuts. The layout is plain splits with craft-ui's side-edge zones (no dock columns): dropping a panel on the thin band along the window's bottom or top edge gives it a row across the whole width (the Timeline under Slides, canvas and Inspector), on the left or right edge a full-height column; layouts saved with dock columns are converted on load | ✅ | — |
 | Status bar: Slide n of m, size, theme | `status.rs` | 🟡 | add size and theme name |
@@ -46,8 +45,8 @@ Top to bottom:
 ### Course Map
 
 ✅ exists (`course_map.rs`). Parity items: scene cards with a header menu ▾ ⛔, start-section flag ⛔,
-Ctrl+wheel zoom 🟡, double-click to rename scene and slide titles 🟡, double-click a slide opens a
-slide tab ⛔ (needs view tabs). In the Course Map the right panel shows **Slide Properties**:
+Ctrl+wheel zoom 🟡, double-click to rename scene and slide titles 🟡, double-click a slide opens and pins a
+slide tab ✅ (single-click or Enter opens in the preview tab). In the Course Map the right panel shows **Slide Properties**:
 
 | Field | Values | Action | Status |
 |---|---|---|---|
