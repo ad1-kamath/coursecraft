@@ -2,13 +2,26 @@
 
 What changed in each release, newest first. Versions follow [semantic versioning](https://semver.org): until 1.0, a minor version (0.x) may change things, but a project saved by an older CourseCraft always opens in a newer one.
 
-## Unreleased
+## 0.6.5
+
+Two new sample courses, redesigned templates, and fixes for triggers, question banks and variable text.
+
+**Sample courses and templates**
+- Two new sample courses on the welcome screen: Workplace Safety Basics (tabs, a spot-the-hazard question, a quiz with results) and Feature tour (video with captions, states, motion paths, a map with markers and every question type).
+- The Quick Knowledge Check, Lesson, Branching scenario and Blank templates are redesigned with real layouts instead of plain text and buttons.
+- The Quick Knowledge Check results slide no longer shows raw variable names to learners.
 
 **Validation**
 - Check Course and `validate` now warn when text uses an unknown `%variable%` reference.
+- Validation warns when a question bank slide uses a slide master that no longer exists.
 
 **Authoring**
-- Button labels on light fills now use dark text so they stay readable and pass contrast checks.
+- Button labels on light fills now use dark text so they stay readable and pass contrast checks, on the slide, in Preview and while you type a label.
+- The trigger editor no longer saves over a different trigger after Undo or Redo; it tells you the trigger changed instead.
+- A question bank slide's master can be changed or cleared, and deleting a master clears it from bank slides.
+
+**Privacy**
+- AI error messages now hide API keys that sit next to punctuation, such as in quotes or after a colon.
 
 ## 0.6.4
 
