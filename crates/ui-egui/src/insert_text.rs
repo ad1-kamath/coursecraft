@@ -364,6 +364,7 @@ pub fn show_symbol_window(editor: &mut crate::Editor, ctx: &egui::Context) {
     };
     let response = Dialog::new(tl!("Symbol"))
         .id(Id::unique("insert_symbol_window"))
+        .pinned_top()
         .open(&mut open)
         .width(420.0)
         .show_with_footer(ctx, |dialog| {
@@ -448,7 +449,9 @@ fn symbol_grid(
             let button = egui::Button::new(RichText::new(c.to_string()).size(18.0))
                 .min_size(Vec2::splat(32.0))
                 .selected(is_selected);
-            let response = ui.add(button);
+            let response = ui
+                .add(button)
+                .on_hover_text(format!("U+{:04X}", u32::from(c)));
             if response.clicked() {
                 *selected = Some(c);
             }

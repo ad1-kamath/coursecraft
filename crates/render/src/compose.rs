@@ -81,6 +81,44 @@ pub struct ResolvedLinkRect {
     pub text: String,
 }
 
+/// The screen rect of the `index`th link in `item`, in the order the runtime
+/// lists links (`Player::object_links`).
+///
+/// A link that wraps lays out one rect per line, so consecutive rects that
+/// share a target belong to one link and the result is their union. `None` when
+/// the item has no such link.
+#[must_use]
+pub fn link_group_rect(item: &DrawItem, index: usize) -> Option<egui::Rect> {
+    let mut group = 0usize;
+    let mut previous: Option<&Link> = None;
+    let mut union: Option<egui::Rect> = None;
+    for link in &item.links {
+        if previous.is_some_and(|previous| previous != &link.link) {
+            group += 1;
+        }
+        previous = Some(&link.link);
+        if group > index {
+            break;
+        }
+        if group != index {
+            continue;
+        }
+        let (width, height) = (item.rect.width(), item.rect.height());
+        let rect = egui::Rect::from_min_max(
+            egui::pos2(
+                item.rect.min.x + link.rect.min.x * width,
+                item.rect.min.y + link.rect.min.y * height,
+            ),
+            egui::pos2(
+                item.rect.min.x + link.rect.max.x * width,
+                item.rect.min.y + link.rect.max.y * height,
+            ),
+        );
+        union = Some(union.map_or(rect, |union| union.union(rect)));
+    }
+    union
+}
+
 /// Resolved outline of a shape.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResolvedOutline {
@@ -186,6 +224,8 @@ pub enum ResolvedFill {
     Picture {
         src: String,
         tile: bool,
+        /// Cover the shape keeping the picture's proportions, centred (mode `fill`).
+        cover: bool,
         tile_scale: [f32; 2],
     },
     /// A repeating preset pattern fill with foreground and background colours.
@@ -804,6 +844,7 @@ fn resolve_fill_style(style: &FillStyle) -> Option<ResolvedFill> {
             Some(ResolvedFill::Picture {
                 src: src.clone(),
                 tile: *mode == PictureFillMode::Tile,
+                cover: *mode == PictureFillMode::Fill,
                 tile_scale: *tile_scale,
             })
         }
@@ -1105,6 +1146,33 @@ pub fn item_bounds(item: &DrawItem) -> egui::Rect {
     egui::Rect::from_min_max(min, max)
 }
 
+/// Where a DOM overlay (web video or iframe) for `item` goes: its frame in screen
+/// pixels as `[x, y, w, h]`, or `None` while the overlay must hide.
+///
+/// An overlay cannot be cut to a scroll panel's viewport, so an item that is not
+/// wholly inside its `clip_rect` hides, and the canvas poster, which is clipped,
+/// shows instead.
+#[must_use]
+pub fn overlay_screen_rect(
+    transform: &crate::layout::SlideTransform,
+    item: &DrawItem,
+) -> Option<[f32; 4]> {
+    if let Some(clip) = item.clip_rect
+        && clip.is_positive()
+    {
+        let tolerance = 0.5;
+        let inside = item.rect.min.x >= clip.min.x - tolerance
+            && item.rect.min.y >= clip.min.y - tolerance
+            && item.rect.max.x <= clip.max.x + tolerance
+            && item.rect.max.y <= clip.max.y + tolerance;
+        if !inside {
+            return None;
+        }
+    }
+    let r = transform.to_screen_rect(item.rect);
+    Some([r.min.x, r.min.y, r.width(), r.height()])
+}
+
 /// The link under `point` in slide coordinates, if any.
 #[must_use]
 pub fn item_link_at(item: &DrawItem, point: egui::Pos2) -> Option<&ResolvedLinkRect> {
@@ -1120,7 +1188,18 @@ pub fn item_link_at(item: &DrawItem, point: egui::Pos2) -> Option<&ResolvedLinkR
     {
         return None;
     }
-    let point = item_local_point(item, point);
+    // Text is not mirrored horizontally (the painter turns it by the opposite
+    // angle instead), so undo exactly that transform, not the object's own.
+    let point = if item.flip_h {
+        let centre = item.rect.center();
+        rotate_point(
+            flip_point(point, centre, false, item.flip_v),
+            centre,
+            item.rotation,
+        )
+    } else {
+        item_local_point(item, point)
+    };
     let width = item.rect.width();
     let height = item.rect.height();
     if !(width.is_finite() && height.is_finite() && width > 0.0 && height > 0.0) {
@@ -1172,28 +1251,43 @@ pub fn item_hit_test_scaled(item: &DrawItem, point: egui::Pos2, scale: f32) -> b
     let Visual::Path(path) = &item.visual else {
         return item.rect.contains(point);
     };
-    let points: Vec<crate::path_geometry::Pt> = path
-        .points
-        .iter()
-        .map(|p| {
-            (
-                item.rect.min.x + p.x * item.rect.width(),
-                item.rect.min.y + p.y * item.rect.height(),
-            )
-        })
-        .collect();
-    let flat = crate::path_geometry::flatten(&points, path.style, path.connector, path.closed);
+    let to_slide = |points: &[PathPoint]| -> Vec<crate::path_geometry::Pt> {
+        points
+            .iter()
+            .map(|p| {
+                (
+                    item.rect.min.x + p.x * item.rect.width(),
+                    item.rect.min.y + p.y * item.rect.height(),
+                )
+            })
+            .collect()
+    };
     let half_stroke = path
         .outline
         .as_ref()
         .map_or(0.0, |outline| outline.width * 0.5);
     let threshold = (half_stroke + 2.0).max(6.0 / scale);
-    if crate::path_geometry::path_distance(&flat, (point.x, point.y)) <= threshold {
-        return true;
+    let target = (point.x, point.y);
+    // The main contour, then every subpath. Closed contours fill together with
+    // even-odd winding, as they draw, so a hole is not a hit.
+    let mut crossings = 0usize;
+    let contours = std::iter::once((to_slide(&path.points), path.closed, path.connector)).chain(
+        path.subpaths
+            .iter()
+            .map(|sub| (to_slide(&sub.points), sub.closed, None)),
+    );
+    for (points, closed, connector) in contours {
+        let flat = crate::path_geometry::flatten(&points, path.style, connector, closed);
+        if crate::path_geometry::path_distance(&flat, target) <= threshold {
+            return true;
+        }
+        if closed && crate::path_geometry::path_contains(&flat, target) {
+            crossings += 1;
+        }
     }
-    path.closed
-        && path.fill.is_some()
-        && crate::path_geometry::path_contains(&flat, (point.x, point.y))
+    // A path with a colour fill or a gradient or picture fill style has a fill.
+    let has_fill = path.fill.is_some() || path.fill_style.is_some();
+    has_fill && crossings % 2 == 1
 }
 
 ///
@@ -2254,14 +2348,14 @@ fn compose_state_extra(
     })
 }
 
-/// Row height and stride (height plus gap) so `count` rows stay on the slide when they can.
-fn row_metrics(slide_h: f32, count: usize) -> (f32, f32) {
+/// Row height and stride (height plus gap) so `count` rows fit the grid's height when they can.
+fn row_metrics(grid: &QuestionGrid, count: usize) -> (f32, f32) {
     const DEFAULT_H: f32 = 56.0;
     const DEFAULT_GAP: f32 = 16.0;
     const MIN_H: f32 = 28.0;
     const MIN_GAP: f32 = 4.0;
     let n = count.max(1) as f32;
-    let available = (slide_h - 160.0 - 24.0).max(0.0);
+    let available = grid.available;
     let default_stride = DEFAULT_H + DEFAULT_GAP;
     if n * default_stride <= available {
         return (DEFAULT_H, default_stride);
@@ -2289,12 +2383,80 @@ fn finite_slide(slide_w: f32, slide_h: f32) -> (f32, f32) {
     (w, h)
 }
 
-fn row_rect(index: usize, row_w: f32, row_h: f32, stride: f32) -> egui::Rect {
-    let y = 160.0 + stride * index as f32;
+fn row_rect(grid: &QuestionGrid, index: usize, row_h: f32, stride: f32) -> egui::Rect {
+    let y = grid.row_top + stride * index as f32;
     egui::Rect::from_min_size(
-        egui::pos2(80.0, y),
-        egui::vec2(row_w.max(0.0), row_h.max(0.0)),
+        egui::pos2(grid.row_x, y),
+        egui::vec2(grid.row_w.max(0.0), row_h.max(0.0)),
     )
+}
+
+/// Where a question's prompt and answer rows go, in slide coordinates.
+///
+/// Without a frame this is the original full-width layout: the prompt at the top, the rows
+/// from y = 160 down to 24 px above the slide's bottom edge. With a frame the prompt sits at
+/// the frame's top, the rows follow it, and everything stays inside the frame.
+#[derive(Debug, Clone, Copy)]
+struct QuestionGrid {
+    prompt: egui::Rect,
+    row_x: f32,
+    row_top: f32,
+    row_w: f32,
+    /// The lowest y a row may reach.
+    bottom: f32,
+    /// Height the rows may use (`bottom - row_top`).
+    available: f32,
+}
+
+/// A question frame the layout can use: finite, with a positive size.
+fn usable_question_frame(frame: Option<&coursecraft_course::Rect>) -> Option<egui::Rect> {
+    let f = frame?;
+    let ok = [f.x, f.y, f.w, f.h].iter().all(|v| v.is_finite()) && f.w > 0.0 && f.h > 0.0;
+    ok.then(|| egui::Rect::from_min_size(egui::pos2(f.x, f.y), egui::vec2(f.w, f.h)))
+}
+
+fn question_grid(
+    slide_w: f32,
+    slide_h: f32,
+    frame: Option<&coursecraft_course::Rect>,
+) -> QuestionGrid {
+    let (slide_w, slide_h) = finite_slide(slide_w, slide_h);
+    let Some(frame) = usable_question_frame(frame) else {
+        let prompt = question_prompt_rect(slide_w, slide_h);
+        let bottom = slide_h - 24.0;
+        return QuestionGrid {
+            prompt,
+            row_x: 80.0,
+            row_top: 160.0,
+            row_w: 900.0f32.min(prompt.width()),
+            bottom,
+            available: (bottom - 160.0).max(0.0),
+        };
+    };
+    let prompt_h = (frame.height() * 0.3).clamp(0.0, 80.0);
+    let prompt = egui::Rect::from_min_size(frame.min, egui::vec2(frame.width(), prompt_h));
+    let row_top = (prompt.max.y + 20.0).min(frame.max.y);
+    QuestionGrid {
+        prompt,
+        row_x: frame.min.x,
+        row_top,
+        row_w: 900.0f32.min(frame.width()),
+        bottom: frame.max.y,
+        available: (frame.max.y - row_top).max(0.0),
+    }
+}
+
+/// The rect the question prompt occupies, honouring the question's own frame.
+///
+/// Like [`question_prompt_rect`], this is the one layout function for the prompt. A question
+/// without a frame gives the same rect as [`question_prompt_rect`].
+#[must_use]
+pub fn question_prompt_rect_in(
+    slide_w: f32,
+    slide_h: f32,
+    frame: Option<&coursecraft_course::Rect>,
+) -> egui::Rect {
+    question_grid(slide_w, slide_h, frame).prompt
 }
 
 fn sequence_button_rects(row: egui::Rect) -> (egui::Rect, egui::Rect) {
@@ -2375,8 +2537,9 @@ pub fn question_prompt_rect(slide_w: f32, slide_h: f32) -> egui::Rect {
 
 fn compose_question(view: &QuestionCompose<'_>, items: &mut Vec<DrawItem>) {
     let (slide_w, slide_h) = finite_slide(view.slide_w, view.slide_h);
-    let prompt_rect = question_prompt_rect(slide_w, slide_h);
     let question = view.question;
+    let grid = question_grid(slide_w, slide_h, question.frame.as_ref());
+    let prompt_rect = grid.prompt;
     if question.kind != QuestionKind::Freeform || !question.prompt.is_empty() {
         push_item(
             items,
@@ -2389,13 +2552,12 @@ fn compose_question(view: &QuestionCompose<'_>, items: &mut Vec<DrawItem>) {
         );
     }
 
-    let row_w = 900.0f32.min(prompt_rect.width());
     match question.kind {
         QuestionKind::MultipleChoice
         | QuestionKind::MultipleResponse
         | QuestionKind::TrueFalse
         | QuestionKind::Likert => {
-            let (row_h, stride) = row_metrics(slide_h, question.choices.len());
+            let (row_h, stride) = row_metrics(&grid, question.choices.len());
             let multiple = question.kind == QuestionKind::MultipleResponse;
             let likert = question.kind == QuestionKind::Likert;
             for (i, choice) in question.choices.iter().enumerate() {
@@ -2418,7 +2580,7 @@ fn compose_question(view: &QuestionCompose<'_>, items: &mut Vec<DrawItem>) {
                     } else {
                         Hit::Choice(choice.id.clone())
                     },
-                    row_rect(i, row_w, row_h, stride),
+                    row_rect(&grid, i, row_h, stride),
                     Visual::ChoiceRow {
                         text: choice.text.clone(),
                         multiple,
@@ -2430,11 +2592,11 @@ fn compose_question(view: &QuestionCompose<'_>, items: &mut Vec<DrawItem>) {
             }
         }
         QuestionKind::FillIn | QuestionKind::ShortAnswer | QuestionKind::Essay => {
-            let (row_h, stride) = row_metrics(slide_h, 1);
+            let (row_h, stride) = row_metrics(&grid, 1);
             let multiline = question.kind == QuestionKind::Essay;
-            let mut rect = row_rect(0, row_w, row_h, stride);
+            let mut rect = row_rect(&grid, 0, row_h, stride);
             if multiline {
-                let height = (row_h * 4.0).min((slide_h - 24.0 - rect.min.y).max(0.0));
+                let height = (row_h * 4.0).min((grid.bottom - rect.min.y).max(0.0));
                 rect = egui::Rect::from_min_size(rect.min, egui::vec2(rect.width(), height));
             }
             let mark = if view.reviewing && question.kind == QuestionKind::FillIn {
@@ -2481,7 +2643,7 @@ fn compose_question(view: &QuestionCompose<'_>, items: &mut Vec<DrawItem>) {
             } else {
                 authored
             };
-            let (row_h, stride) = row_metrics(slide_h, order.len());
+            let (row_h, stride) = row_metrics(&grid, order.len());
             let last = order.len().saturating_sub(1);
             for (i, id) in order.iter().enumerate() {
                 let text = question
@@ -2490,7 +2652,7 @@ fn compose_question(view: &QuestionCompose<'_>, items: &mut Vec<DrawItem>) {
                     .find(|c| c.id == *id)
                     .map(|c| c.text.clone())
                     .unwrap_or_default();
-                let rect = row_rect(i, row_w, row_h, stride);
+                let rect = row_rect(&grid, i, row_h, stride);
                 let mark = view.reviewing.then(|| {
                     if view
                         .sequence
@@ -2553,7 +2715,7 @@ fn compose_question(view: &QuestionCompose<'_>, items: &mut Vec<DrawItem>) {
             }
         }
         QuestionKind::Matching => {
-            let (row_h, stride) = row_metrics(slide_h, question.pairs.len());
+            let (row_h, stride) = row_metrics(&grid, question.pairs.len());
             for (i, pair) in question.pairs.iter().enumerate() {
                 let value = view
                     .matches
@@ -2568,7 +2730,7 @@ fn compose_question(view: &QuestionCompose<'_>, items: &mut Vec<DrawItem>) {
                         ReviewMark::Incorrect
                     }
                 });
-                let rect = row_rect(i, row_w, row_h, stride);
+                let rect = row_rect(&grid, i, row_h, stride);
                 push_item(
                     items,
                     Hit::QuestionChrome(pair.id.clone()),
@@ -2693,6 +2855,7 @@ fn course_input_value<'a>(course: &'a Course, obj: &Object) -> Option<&'a Value>
 /// timing and animation and are shown unless their initial state is hidden.
 fn push_master_items(
     course: &Course,
+    player: Option<&Player<'_>>,
     slide: &Slide,
     theme: Option<&coursecraft_course::Theme>,
     authoring: bool,
@@ -2714,13 +2877,12 @@ fn push_master_items(
                 course_input_value(course, obj),
             )
         } else {
-            compose_object_with_runtime(
-                obj,
-                &obj.initial_state,
-                theme,
-                course_input_value(course, obj),
-                false,
-            )
+            // At play time read the live variable, not its authored default.
+            let value = match player {
+                Some(player) => player_input_value(player, obj),
+                None => course_input_value(course, obj),
+            };
+            compose_object_with_runtime(obj, &obj.initial_state, theme, value, false)
         }) else {
             continue;
         };
@@ -2741,6 +2903,7 @@ fn push_base_items(
     hovered: Option<&str>,
     pressed: Option<&str>,
     items: &mut Vec<DrawItem>,
+    filled: &mut Vec<std::ops::Range<usize>>,
 ) {
     if base_hidden {
         return;
@@ -2786,6 +2949,11 @@ fn push_base_items(
             .first()
             .is_some_and(|item| !matches!(item.visual, Visual::Audio { .. }))
         {
+            // Fill in %variables% first: a by-letter or by-word entrance splits the text, and
+            // a token split across parts could not be found any more.
+            for item in &mut obj_items {
+                fill_item_variables(player, item);
+            }
             crate::sequence::apply_object_samples(
                 &mut obj_items,
                 coursecraft_logic::plays_in_parts(obj),
@@ -2795,6 +2963,7 @@ fn push_base_items(
             if let Some(parent) = obj_items.first_mut() {
                 apply_runtime_media_state(parent, player, &obj.id);
             }
+            filled.push(items.len()..items.len() + obj_items.len());
             items.extend(obj_items);
         }
     }
@@ -2820,8 +2989,10 @@ pub fn apply_sample_to_items(items: &mut [DrawItem], sample: &coursecraft_logic:
     first.rect = egui::Rect::from_center_size(parent_center, first.rect.size() * scale);
     first.opacity = (first.opacity * opacity).clamp(0.0, 1.0);
     first.clip = sample.clip;
-    first.rotation += turn;
     let mirrored = first.flip_h != first.flip_v;
+    // The mesh pass rotates first and mirrors after, so a mirrored item needs the
+    // opposite sign to turn clockwise on screen, like its orbiting state extras.
+    first.rotation += if mirrored { -turn } else { turn };
     let look = AnimLook {
         scale: (scale.x, scale.y),
         tint: sample.tint,
@@ -2918,10 +3089,27 @@ pub fn compose_with_pointer(
     // are always shown except when their initial state is `hidden`, and never
     // take a press.
     let theme = Some(&player.course().theme);
-    push_master_items(player.course(), slide, theme, false, false, &mut items);
+    push_master_items(
+        player.course(),
+        Some(player),
+        slide,
+        theme,
+        false,
+        false,
+        &mut items,
+    );
 
     // 2. Base objects
-    push_base_items(player, slide, base_hidden, hovered, pressed, &mut items);
+    let mut filled: Vec<std::ops::Range<usize>> = Vec::new();
+    push_base_items(
+        player,
+        slide,
+        base_hidden,
+        hovered,
+        pressed,
+        &mut items,
+        &mut filled,
+    );
 
     // Drag items sit above every other base object (drop targets included), so a
     // dropped item is never hidden behind the target it landed on. When a target's
@@ -3022,6 +3210,7 @@ pub fn compose_with_pointer(
     push_question_items(player, slide, base_hidden, &mut items);
 
     // 3. Visible layers in order
+    let layers_start = items.len();
     for layer_id in &player.state().visible_layers {
         if let Some(layer) = slide.layer(layer_id) {
             let layer_clock_ms = player
@@ -3068,6 +3257,9 @@ pub fn compose_with_pointer(
                     .first()
                     .is_some_and(|item| !matches!(item.visual, Visual::Audio { .. }))
                 {
+                    for item in &mut obj_items {
+                        fill_item_variables(player, item);
+                    }
                     crate::sequence::apply_object_samples(
                         &mut obj_items,
                         coursecraft_logic::plays_in_parts(obj),
@@ -3077,52 +3269,17 @@ pub fn compose_with_pointer(
                     if let Some(parent) = obj_items.first_mut() {
                         apply_runtime_media_state(parent, player, &obj.id);
                     }
+                    filled.push(items.len()..items.len() + obj_items.len());
                     items.extend(obj_items);
                 }
             }
         }
     }
 
-    for item in &mut items {
-        match &mut item.visual {
-            Visual::Text { runs, .. } => {
-                for run in runs {
-                    run.text = player.display_text(&run.text);
-                }
-            }
-            Visual::Button { label, .. } => *label = player.display_text(label),
-            Visual::Shape {
-                text: Some(text), ..
-            } => {
-                for run in &mut text.runs {
-                    run.text = player.display_text(&run.text);
-                }
-            }
-            Visual::Table(table) => {
-                for row in &mut table.rows {
-                    for cell in &mut row.cells {
-                        for run in &mut cell.text.runs {
-                            run.text = player.display_text(&run.text);
-                        }
-                    }
-                }
-            }
-            Visual::Prompt { text } => *text = player.display_text(text),
-            Visual::ChoiceRow { text, .. } => *text = player.display_text(text),
-            Visual::SequenceRow { text, .. } => *text = player.display_text(text),
-            Visual::CorrectAnswer { text } => *text = player.display_text(text),
-            Visual::Marker { title, body, .. } => {
-                *title = player.display_text(title);
-                for run in body {
-                    run.text = player.display_text(&run.text);
-                }
-            }
-            Visual::MatchRow { left, value, .. } => {
-                *left = player.display_text(left);
-                *value = player.display_text(value);
-            }
-            // Fill-in keeps the learner's raw entry. Sequence buttons have no text.
-            _ => {}
+    for (at, item) in items.iter_mut().enumerate() {
+        // Objects' items were filled in before their animation sequence split them.
+        if !filled.iter().any(|range| range.contains(&at)) {
+            fill_item_variables(player, item);
         }
     }
 
@@ -3131,9 +3288,60 @@ pub fn compose_with_pointer(
     if !base_hidden {
         push_hotspot_markers(player, &mut items);
     }
-    apply_panels(player, slide, &mut items);
+    apply_panels(player, slide, &mut items, layers_start);
     remap_interactive_group_hits(player, &mut items);
     items
+}
+
+/// Replace `%Name%` tokens in every text a draw item carries with the variable's value.
+fn fill_item_variables(player: &Player<'_>, item: &mut DrawItem) {
+    match &mut item.visual {
+        Visual::Text { runs, .. } => {
+            for run in runs {
+                run.text = player.display_text(&run.text);
+            }
+        }
+        Visual::Button { label, .. } => *label = player.display_text(label),
+        Visual::Shape {
+            text: Some(text), ..
+        } => {
+            for run in &mut text.runs {
+                run.text = player.display_text(&run.text);
+            }
+        }
+        Visual::Path(path) => {
+            if let Some(text) = &mut path.text {
+                for run in &mut text.runs {
+                    run.text = player.display_text(&run.text);
+                }
+            }
+        }
+        Visual::Table(table) => {
+            for row in &mut table.rows {
+                for cell in &mut row.cells {
+                    for run in &mut cell.text.runs {
+                        run.text = player.display_text(&run.text);
+                    }
+                }
+            }
+        }
+        Visual::Prompt { text } => *text = player.display_text(text),
+        Visual::ChoiceRow { text, .. } => *text = player.display_text(text),
+        Visual::SequenceRow { text, .. } => *text = player.display_text(text),
+        Visual::CorrectAnswer { text } => *text = player.display_text(text),
+        Visual::Marker { title, body, .. } => {
+            *title = player.display_text(title);
+            for run in body {
+                run.text = player.display_text(&run.text);
+            }
+        }
+        Visual::MatchRow { left, value, .. } => {
+            *left = player.display_text(left);
+            *value = player.display_text(value);
+        }
+        // Fill-in keeps the learner's raw entry. Sequence buttons have no text.
+        _ => {}
+    }
 }
 
 /// Remap member hits to their owning interactive group id so pointer hover,
@@ -3150,7 +3358,15 @@ fn remap_interactive_group_hits(player: &Player<'_>, items: &mut [DrawItem]) {
 
 /// Shift and clip scrolling-panel children, update panel scrollbars, and put
 /// open markers above everything else.
-fn apply_panels(player: &Player<'_>, slide: &Slide, items: &mut Vec<DrawItem>) {
+///
+/// `layers_start` is the index of the first layer item: an open base marker draws
+/// above the base objects but below the layers.
+fn apply_panels(
+    player: &Player<'_>,
+    slide: &Slide,
+    items: &mut Vec<DrawItem>,
+    layers_start: usize,
+) {
     for item in items.iter_mut() {
         let Hit::Object(id) = &item.hit else {
             continue;
@@ -3170,6 +3386,10 @@ fn apply_panels(player: &Player<'_>, slide: &Slide, items: &mut Vec<DrawItem>) {
         let offset = player.panel_offset(panel_id);
         if offset.abs() > f32::EPSILON {
             item.rect = item.rect.translate(egui::vec2(0.0, -offset));
+            // A shaped reveal is placed on the frame, so it scrolls with it.
+            if let Some(mask) = &mut item.anim.mask {
+                mask.frame = mask.frame.translate(egui::vec2(0.0, -offset));
+            }
         }
         item.clip_rect = Some(match item.clip_rect {
             Some(existing) => existing.intersect(panel_rect),
@@ -3206,33 +3426,52 @@ fn apply_panels(player: &Player<'_>, slide: &Slide, items: &mut Vec<DrawItem>) {
         }
     }
 
-    // A panel's scrollbar is chrome: draw a copy above its children so they
-    // cannot cover it. The copy takes no hits; the panel item behind it keeps
-    // the wheel and drag targets.
-    let mut scrollbars = Vec::new();
-    for item in items.iter() {
-        if matches!(&item.visual, Visual::ScrollPanel { thumb: Some(_), .. })
-            && matches!(&item.hit, Hit::Object(_))
-        {
-            let mut chrome = item.clone();
-            chrome.hit = Hit::None;
-            scrollbars.push(chrome);
+    // Open marker labels draw above every other object of their own layer: a base
+    // marker stays below the layers, a layer's marker above that layer.
+    let (mut head, mut base_open, mut tail, mut layer_open) =
+        (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    for (at, item) in items.drain(..).enumerate() {
+        let open = matches!(&item.visual, Visual::Marker { open: true, .. });
+        match (at < layers_start, open) {
+            (true, true) => base_open.push(item),
+            (true, false) => head.push(item),
+            (false, true) => layer_open.push(item),
+            (false, false) => tail.push(item),
         }
     }
-    items.extend(scrollbars);
+    head.append(&mut base_open);
+    head.append(&mut tail);
+    head.append(&mut layer_open);
+    *items = head;
 
-    // Open marker labels draw above every other object.
-    let mut open = Vec::new();
-    let mut rest = Vec::with_capacity(items.len());
-    for item in items.drain(..) {
-        if matches!(&item.visual, Visual::Marker { open: true, .. }) {
-            open.push(item);
-        } else {
-            rest.push(item);
-        }
+    // A panel's scrollbar is chrome: draw a copy right above the panel's last child
+    // so the children cannot cover it, and whatever lies above the panel (a layer,
+    // say) still covers it. The copy takes no hits; the panel item behind it keeps
+    // the wheel and drag targets.
+    let mut scrollbars: Vec<(usize, DrawItem)> = Vec::new();
+    for (at, item) in items.iter().enumerate() {
+        let (Visual::ScrollPanel { thumb: Some(_), .. }, Hit::Object(panel_id)) =
+            (&item.visual, &item.hit)
+        else {
+            continue;
+        };
+        let last_child = items
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, other)| {
+                matches!(&other.hit, Hit::Object(id)
+                    if slide.object(id).is_some_and(|(object, _)| object.panel.as_deref() == Some(panel_id.as_str())))
+            })
+            .map_or(at, |(index, _)| index.max(at));
+        let mut chrome = item.clone();
+        chrome.hit = Hit::None;
+        scrollbars.push((last_child + 1, chrome));
     }
-    rest.append(&mut open);
-    *items = rest;
+    // Insert from the back so earlier positions stay valid.
+    for (position, chrome) in scrollbars.into_iter().rev() {
+        items.insert(position.min(items.len()), chrome);
+    }
 }
 
 /// The pill rect for a target label moved out of its target's way: directly above
@@ -3425,7 +3664,7 @@ pub fn compose_authoring_layers_opts(
     // 1. Master objects, under everything. They dim with the base objects when
     // a layer is focused and never take a press.
     if show_base {
-        push_master_items(course, slide, theme, true, dim_base, &mut items);
+        push_master_items(course, None, slide, theme, true, dim_base, &mut items);
     }
 
     // 2. Base objects

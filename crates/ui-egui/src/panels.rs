@@ -153,9 +153,20 @@ pub fn open_at(editor: &mut Editor, panel: Panel, section: Option<Section>) {
     editor.ui.panels.focus_tries = 0;
     if editor.ui.dock.enabled {
         crate::dock::reveal(editor, panel);
-    } else if panel.inspector().is_none() && !editor.ui.panels.floating.contains(&panel) {
+    } else if let Some(tab) = panel.bottom_tab() {
+        // A bottom panel is a tab of the fixed bottom area, never a floating window (`N88`).
+        editor.ui.bottom_tab = tab;
+    } else if has_floating_body(panel) && !editor.ui.panels.floating.contains(&panel) {
         editor.ui.panels.floating.push(panel);
     }
+}
+
+/// Whether [`body`] draws `panel`, so that it can open as a floating window.
+fn has_floating_body(panel: Panel) -> bool {
+    matches!(
+        panel,
+        Panel::Text | Panel::GridGuides | Panel::SizePosition | Panel::ShapeStyle
+    )
 }
 
 /// Close `panel` (View › Panels, a floating window's ×).

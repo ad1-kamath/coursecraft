@@ -17,6 +17,9 @@ const PAGE_HEIGHT: f32 = 595.0;
 const MARGIN: f32 = 36.0;
 /// Width available to text and pictures.
 const CONTENT_WIDTH: f32 = PAGE_WIDTH - 2.0 * MARGIN;
+/// The tallest slide picture, so a portrait slide leaves room for its heading
+/// and the page margin. A 16:9 picture at full width is about 433 pt tall.
+const MAX_IMAGE_HEIGHT: f32 = 440.0;
 const HEADING_SIZE: f32 = 16.0;
 const NOTES_SIZE: f32 = 10.0;
 const NOTES_LEADING: f32 = 12.0;
@@ -283,6 +286,20 @@ fn content_object(page: &PdfPage) -> Vec<u8> {
     object
 }
 
+/// The picture size in points: full text width, or narrower when the slide is
+/// so tall that the full-width picture would run off the page.
+pub(crate) fn image_size(pixel_width: u32, pixel_height: u32) -> (f32, f32) {
+    let height = CONTENT_WIDTH * pixel_height as f32 / pixel_width.max(1) as f32;
+    if height > MAX_IMAGE_HEIGHT {
+        (
+            MAX_IMAGE_HEIGHT * pixel_width as f32 / pixel_height.max(1) as f32,
+            MAX_IMAGE_HEIGHT,
+        )
+    } else {
+        (CONTENT_WIDTH, height)
+    }
+}
+
 /// Lay out every review page, adding continuation pages where text overflows.
 fn layout_pages(pages: &[ReviewPage]) -> Vec<PdfPage> {
     let top = PAGE_HEIGHT - MARGIN;
@@ -293,10 +310,11 @@ fn layout_pages(pages: &[ReviewPage]) -> Vec<PdfPage> {
         push_heading(&mut current, &mut cursor, &page.heading);
 
         if page.width > 0 && page.height > 0 {
-            let height = CONTENT_WIDTH * page.height as f32 / page.width as f32;
+            let (width, height) = image_size(page.width, page.height);
             if height.is_finite() && height > 0.0 {
                 current.image = Some(index);
-                current.image_rect = Some((MARGIN, cursor - height, CONTENT_WIDTH, height));
+                let x = MARGIN + (CONTENT_WIDTH - width) / 2.0;
+                current.image_rect = Some((x, cursor - height, width, height));
                 cursor = cursor - height - 12.0;
             }
         }

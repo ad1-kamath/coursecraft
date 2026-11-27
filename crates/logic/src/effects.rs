@@ -769,8 +769,9 @@ fn pop(_: &AnimEffect, ctx: &EffectCtx) -> ObjectSample {
 // Emphasis (M46 phase 6)
 // ---------------------------------------------------------------------------
 
-/// One emphasis's sample function: `t` is the eased progress of one pass in `[0, 1]`, `frame`
-/// the object's frame. Every function returns the resting look at 0 and 1.
+/// One emphasis's sample function: `t` is the eased progress of one pass (in `[0, 1]`, or a
+/// little outside it for overshoot and elastic easings), `frame` the object's frame. Every
+/// function returns the resting look at 0 and 1.
 pub type EmphasisFn = fn(f32, Rect) -> ObjectSample;
 
 /// One emphasis id and its sample function.
@@ -802,9 +803,10 @@ emphasis_impls! {
     "color_pulse" => e_color_pulse,
 }
 
-/// 0 at both ends, 1 in the middle.
+/// 0 at both ends, 1 in the middle. Beyond the ends (an overshoot or elastic easing) it
+/// swings the other way, so the effect springs past its rest and back.
 fn hump(t: f32) -> f32 {
-    (t * std::f32::consts::PI).sin().max(0.0)
+    (t * std::f32::consts::PI).sin()
 }
 
 fn e_pulse(t: f32, _: Rect) -> ObjectSample {
@@ -907,6 +909,14 @@ fn e_color_pulse(t: f32, _: Rect) -> ObjectSample {
     wash([242, 177, 58], 0.7 * hump(t))
 }
 
+/// Whether emphasis `id` changes colour or opacity only (no movement, scale, turn or
+/// flashing), so it may still play once when the learner prefers reduced motion. An unknown id
+/// plays as [`coursecraft_course::FALLBACK_EMPHASIS`] (a pulse), so it does not.
+#[must_use]
+pub fn emphasis_is_motion_free(id: &str) -> bool {
+    matches!(id, "transparency" | "darken" | "lighten" | "color_pulse")
+}
+
 fn emphasis_sampler(id: &str) -> Option<EmphasisFn> {
     EMPHASIS_IMPLS.iter().find(|i| i.id == id).map(|i| i.sample)
 }
@@ -915,13 +925,26 @@ fn emphasis_sampler(id: &str) -> Option<EmphasisFn> {
 /// unknown id plays as [`coursecraft_course::FALLBACK_EMPHASIS`].
 #[must_use]
 pub fn sample_emphasis(effect: &EmphasisEffect, t: f32, frame: Rect) -> ObjectSample {
-    if !t.is_finite() || t <= 0.0 || t >= 1.0 {
+    sample_emphasis_eased(effect, t, t, frame)
+}
+
+/// [`sample_emphasis`] with the pass's raw (un-eased) progress `raw` and its eased progress
+/// `eased`. The pass is at rest when `raw` is outside `(0, 1)`; while it runs, `eased` may lie
+/// outside `[0, 1]` (overshoot and elastic easings) and the effect follows it.
+#[must_use]
+pub fn sample_emphasis_eased(
+    effect: &EmphasisEffect,
+    raw: f32,
+    eased: f32,
+    frame: Rect,
+) -> ObjectSample {
+    if !raw.is_finite() || raw <= 0.0 || raw >= 1.0 || !eased.is_finite() {
         return ObjectSample::IDENTITY;
     }
     let sample = emphasis_sampler(&effect.id)
         .or_else(|| emphasis_sampler(FALLBACK_EMPHASIS))
         .unwrap_or(e_pulse);
-    sample(t, frame).sanitized()
+    sample(eased, frame).sanitized()
 }
 
 #[cfg(test)]

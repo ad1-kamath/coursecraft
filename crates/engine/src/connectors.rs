@@ -8,8 +8,8 @@
 use std::collections::HashMap;
 
 use coursecraft_course::{
-    Course, Glue, Object, ObjectKind, Point, Rect, Slide, connector_site, path_frame_and_points,
-    route_connector,
+    Course, Glue, MAX_OBJECT_FRAME_SIZE, Object, ObjectKind, Point, Rect, Slide, connector_site,
+    path_frame_and_points, route_connector,
 };
 
 /// How close a routed end must already be to its site before it is left alone.
@@ -167,6 +167,11 @@ fn reroute_owner(objects: &mut [Object]) {
         let Some((new_frame, fractions)) = path_frame_and_points(&routed) else {
             continue;
         };
+        // The reroute runs after validation, so it must not make a frame the
+        // validator refuses. A connector that would be too large stays as it is.
+        if new_frame.w > MAX_OBJECT_FRAME_SIZE || new_frame.h > MAX_OBJECT_FRAME_SIZE {
+            continue;
+        }
         path.points = fractions;
         object.frame = new_frame;
     }

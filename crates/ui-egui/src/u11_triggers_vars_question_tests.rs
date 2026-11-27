@@ -633,6 +633,7 @@ fn t8_5_drag_drop_combos_fit_long_names_and_twelve_item_popup() {
         return_if_wrong: false,
         one_per_target: false,
         correct_when: None,
+        frame: None,
     });
 
     let mut h = TestHarness::new_with_size(course, (1280.0, 800.0));

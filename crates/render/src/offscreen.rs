@@ -44,7 +44,8 @@ pub struct RenderOptions {
     pub width: u32,
     /// Rendering mode (authoring or player).
     pub mode: RenderMode,
-    /// Additional layer IDs to compose on top.
+    /// Layer IDs to compose on top of the base layer. In player mode, when this list is not
+    /// empty, layers that the slide's own triggers opened are left out unless named here.
     pub layers: Vec<String>,
     /// Milliseconds to tick to in player mode (default: slide duration).
     pub at_ms: Option<u32>,
@@ -641,7 +642,19 @@ pub fn render_slide_rgba(
                 }
             }
         }
-        return render_player_rgba_with(&player, opts.width, &[], extra_items, media, None);
+        // `--layer` names the layers to show on top of the base layer. A layer that the slide's
+        // own triggers opened (for example at timeline start) stays out unless it is named.
+        let hidden: Vec<String> = if opts.layers.is_empty() {
+            Vec::new()
+        } else {
+            slide
+                .layers
+                .iter()
+                .filter(|layer| !opts.layers.contains(&layer.id))
+                .flat_map(|layer| layer.objects.iter().map(|obj| obj.id.clone()))
+                .collect()
+        };
+        return render_player_rgba_with(&player, opts.width, &hidden, extra_items, media, None);
     }
 
     let mut items = compose_authoring(course, slide, None);

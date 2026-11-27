@@ -107,6 +107,11 @@ pub fn add(editor: &mut Editor) -> bool {
         editor.ui.outline_last_first_slide = Some(first);
     }
     close(editor);
+    // Imported from the Start or File page: the slides are the course now, so leave that
+    // page instead of stranding the author behind it (`N87`).
+    editor.ui.show_welcome = false;
+    editor.ui.file_page.open = false;
+    editor.ui.has_loaded_course = true;
     editor.set_status(format!(
         "Added {} in {}",
         plural(slides, "slide", "slides"),

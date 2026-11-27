@@ -1861,3 +1861,235 @@ fn gb_09_interactive_group_single_button_access_node() {
         "layer interactive group members must not emit standalone content nodes"
     );
 }
+
+// ---- Neon accessibility verification (N112, N114, N117) ----
+
+fn course_with_vars(slides: Value) -> Course {
+    let text = json!({
+        "schema_version": 1,
+        "id": "access-test",
+        "title": "Access Test",
+        "variables": [{ "name": "v", "value": "" }, { "name": "w", "value": "" }],
+        "scenes": [{ "id": "sc", "title": "Scene", "slides": slides }]
+    })
+    .to_string();
+    Course::from_json(&text).expect("valid course")
+}
+
+#[test]
+fn n112_off_timing_text_link_is_not_offered() {
+    let c = course(json!([{
+        "id": "s1",
+        "title": "S",
+        "objects": [{
+            "id": "late",
+            "timing": { "start_ms": 60000, "end_ms": 70000 },
+            "kind": { "type": "text", "text": "Late", "runs": [
+                { "text": "Late", "link": { "type": "url", "url": "https://x.invalid" } }
+            ] },
+            "frame": { "x": 0.0, "y": 0.0, "w": 200.0, "h": 40.0 }
+        }]
+    }]));
+    let tree = tree_for(&player(&c), true, true);
+    assert!(
+        !tree.nodes.iter().any(|n| n.role == AccessRole::Link),
+        "{:?}",
+        tree.nodes
+    );
+}
+
+#[test]
+fn n112_ended_card_is_read_and_hides_the_slide() {
+    let c = course_with_vars(json!([{ "id": "s1", "title": "S", "objects": [
+        { "id": "entry", "kind": { "type": "text_entry", "variable": "v" },
+          "frame": { "x": 0.0, "y": 0.0, "w": 200.0, "h": 40.0 } }
+    ] }]));
+    let p = player(&c);
+    let mut frame = PlayerFrame::new();
+    frame.ended = true;
+    let items = compose(&p);
+    let tree = build_access_tree(&p, &frame, &items, true, true);
+    assert!(
+        tree.nodes.iter().any(|n| n.label == "Course complete"),
+        "{:?}",
+        tree.nodes
+    );
+    assert!(
+        !tree.nodes.iter().any(|n| n.role == AccessRole::TextBox),
+        "{:?}",
+        tree.nodes
+    );
+}
+
+#[test]
+fn n112_disabled_text_entry_is_marked_as_a_disabled_input() {
+    let c = course_with_vars(json!([{ "id": "s1", "title": "S", "objects": [
+        { "id": "off", "initial_state": "disabled", "states": [{ "name": "disabled" }],
+          "kind": { "type": "text_entry", "variable": "v" },
+          "frame": { "x": 0.0, "y": 0.0, "w": 200.0, "h": 40.0 } },
+        { "id": "on", "kind": { "type": "text_entry", "variable": "w" },
+          "frame": { "x": 0.0, "y": 60.0, "w": 200.0, "h": 40.0 } }
+    ] }]));
+    let tree = tree_for(&player(&c), true, true);
+    let boxes: Vec<_> = tree
+        .nodes
+        .iter()
+        .filter(|n| n.role == AccessRole::TextBox)
+        .collect();
+    assert_eq!(boxes.len(), 2, "{:?}", tree.nodes);
+    assert!(
+        boxes
+            .iter()
+            .any(|n| n.is_disabled_input() && n.key.ends_with(":off")),
+        "{boxes:?}"
+    );
+    assert!(
+        boxes
+            .iter()
+            .any(|n| !n.is_disabled_input() && n.key.ends_with(":on")),
+        "{boxes:?}"
+    );
+}
+
+#[test]
+fn n114_drag_held_ignores_toggle_buttons_that_use_pressed() {
+    use super::{AccessRole, drag_is_held};
+    let node = |key: &str, pressed: Option<bool>| AccessNode {
+        key: key.to_owned(),
+        role: AccessRole::Button,
+        label: String::new(),
+        value: None,
+        options: Vec::new(),
+        checked: None,
+        pressed,
+        expanded: None,
+        hint: None,
+        target: None,
+        rect: egui::Rect::NOTHING,
+        screen: false,
+    };
+    let tree = |nodes| AccessTree {
+        title: String::new(),
+        nodes,
+    };
+    assert!(!drag_is_held(&tree(vec![node(
+        "chrome:captions",
+        Some(true)
+    )])));
+    assert!(drag_is_held(&tree(vec![node("drag:s1:d1", Some(true))])));
+    assert!(!drag_is_held(&tree(vec![node("drag:s1:d1", Some(false))])));
+}
+
+#[test]
+fn n114_dom_keys_reach_links_lists_scroll_panels_and_key_triggers() {
+    use super::{DomKeyAction, dom_key_action, map_dom_key};
+    use egui::Key;
+    let obj = FocusTarget::Object("o".into());
+    let link = FocusTarget::Link {
+        object: "o".into(),
+        index: 0,
+        link: coursecraft_course::Link::Url { url: String::new() },
+    };
+    assert_eq!(map_dom_key("k"), Some(Key::K));
+    assert_eq!(map_dom_key("K"), Some(Key::K));
+    assert_eq!(map_dom_key("7"), Some(Key::Num7));
+    assert_eq!(map_dom_key("PageDown"), Some(Key::PageDown));
+    assert_eq!(map_dom_key("F5"), None);
+    // A link has no native Enter, so the layer activates it.
+    assert_eq!(
+        dom_key_action(
+            AccessRole::Link,
+            "link:s:o:0",
+            &link,
+            Key::Enter,
+            false,
+            false
+        ),
+        DomKeyAction::Activate
+    );
+    assert_eq!(
+        dom_key_action(AccessRole::ListItem, "x", &obj, Key::Space, false, false),
+        DomKeyAction::Activate
+    );
+    // A scroll panel gets arrows and paging.
+    assert_eq!(
+        dom_key_action(
+            AccessRole::Button,
+            "scroll:s:o",
+            &obj,
+            Key::PageDown,
+            false,
+            false
+        ),
+        DomKeyAction::Forward
+    );
+    assert_eq!(
+        dom_key_action(
+            AccessRole::Button,
+            "object:s:o",
+            &obj,
+            Key::PageDown,
+            false,
+            false
+        ),
+        DomKeyAction::Ignore
+    );
+    // A draggable object is picked up with Space, like a drag item.
+    assert_eq!(
+        dom_key_action(
+            AccessRole::Button,
+            "drag:s:o",
+            &obj,
+            Key::Space,
+            false,
+            false
+        ),
+        DomKeyAction::Forward
+    );
+    // Letters reach key triggers, but never while typing or with a shortcut.
+    assert_eq!(
+        dom_key_action(AccessRole::Button, "object:s:o", &obj, Key::K, false, false),
+        DomKeyAction::Forward
+    );
+    assert_eq!(
+        dom_key_action(AccessRole::TextBox, "k", &obj, Key::K, false, false),
+        DomKeyAction::Ignore
+    );
+    assert_eq!(
+        dom_key_action(AccessRole::Button, "object:s:o", &obj, Key::K, false, true),
+        DomKeyAction::Ignore
+    );
+}
+
+#[test]
+fn n117_drag_item_label_includes_state_badge_text() {
+    let c = course(json!([{
+        "id": "s1",
+        "title": "S",
+        "objects": [
+            { "id": "d1", "initial_state": "done",
+              "kind": { "type": "shape", "shape": "rectangle", "fill": "#2266CC",
+                        "text": { "text": "Piece" } },
+              "frame": { "x": 20.0, "y": 20.0, "w": 80.0, "h": 40.0 },
+              "states": [{ "name": "done", "extras": [{
+                  "id": "badge",
+                  "frame": { "x": 60.0, "y": -8.0, "w": 24.0, "h": 24.0 },
+                  "kind": { "type": "text", "text": "Placed" }
+              }] }] },
+            { "id": "t1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#EEEEEE" },
+              "frame": { "x": 300.0, "y": 20.0, "w": 120.0, "h": 80.0 } }
+        ],
+        "question": {
+            "kind": "drag_drop", "prompt": "Drag", "choices": [],
+            "drag_items": [{ "item": "d1", "target": "t1" }],
+            "drop_targets": ["t1"]
+        }
+    }]));
+    let tree = tree_for(&player(&c), true, true);
+    let node = tree
+        .nodes
+        .iter()
+        .find(|n| n.target == Some(FocusTarget::DragItem("d1".into())))
+        .expect("drag node");
+    assert!(node.label.contains("Placed"), "{:?}", node.label);
+}

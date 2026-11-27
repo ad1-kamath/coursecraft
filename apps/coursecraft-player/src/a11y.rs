@@ -15,6 +15,7 @@ use coursecraft_render::{
     AccessNode, AccessRole, AccessTree, DrawItem, ExternalFocus, FocusManager, FocusTarget,
     PlayerFrame, SlideTransform, announcement, build_access_tree,
 };
+use coursecraft_render::{DomKeyAction, dom_key_action, drag_is_held, map_dom_key};
 use eframe::wasm_bindgen::{JsCast as _, JsValue, closure::Closure};
 use web_sys::{
     Element, Event, FocusEvent, HtmlCanvasElement, HtmlElement, HtmlInputElement,
@@ -492,67 +493,27 @@ impl AccessLayer {
             let Some(target) = target else {
                 return;
             };
-            let Some(mapped) = map_key(&keyboard.key()) else {
+            let Some(mapped) = map_dom_key(&keyboard.key()) else {
                 return;
             };
-            let hotspot_or_drag = matches!(target, FocusTarget::Hotspot | FocusTarget::DragItem(_));
-            let control_key = matches!(
-                mapped,
-                egui::Key::ArrowUp
-                    | egui::Key::ArrowDown
-                    | egui::Key::ArrowLeft
-                    | egui::Key::ArrowRight
-                    | egui::Key::Enter
-                    | egui::Key::Space
-                    | egui::Key::Escape
-            ) || (mapped == egui::Key::Tab && drag_held.get());
-            // A native select opens a popup on arrows on macOS, and that popup hangs
-            // off an invisible control. Up and down cycle the match the same way
-            // everywhere, and the canvas shows the result.
-            let match_key = matches!(target, FocusTarget::MatchRow(_))
-                && matches!(mapped, egui::Key::ArrowUp | egui::Key::ArrowDown);
-            let chrome_key = !matches!(
-                role,
-                AccessRole::TextBox | AccessRole::TextArea | AccessRole::Select
-            ) && matches!(
-                mapped,
-                egui::Key::ArrowLeft
-                    | egui::Key::ArrowRight
-                    | egui::Key::Home
-                    | egui::Key::End
-                    | egui::Key::M
-                    | egui::Key::C
-                    | egui::Key::Escape
-            );
-            let text_key = role == AccessRole::TextBox && mapped == egui::Key::Enter;
-            let input_key = matches!(
-                role,
-                AccessRole::Slider | AccessRole::Checkbox | AccessRole::RadioGroup
-            ) && matches!(
-                mapped,
-                egui::Key::ArrowUp
-                    | egui::Key::ArrowDown
-                    | egui::Key::ArrowLeft
-                    | egui::Key::ArrowRight
-                    | egui::Key::Home
-                    | egui::Key::End
-                    | egui::Key::Enter
-                    | egui::Key::Space
-            );
-            if !(hotspot_or_drag && control_key)
-                && !match_key
-                && !chrome_key
-                && !text_key
-                && !input_key
-            {
-                return;
-            }
-            keyboard.prevent_default();
-            if let Ok(mut queue) = events.try_borrow_mut() {
-                queue.push(ExternalFocus::Key {
-                    key: mapped,
-                    shift: keyboard.shift_key(),
-                });
+            let command = keyboard.ctrl_key() || keyboard.alt_key() || keyboard.meta_key();
+            match dom_key_action(role, &key, &target, mapped, drag_held.get(), command) {
+                DomKeyAction::Ignore => {}
+                DomKeyAction::Forward => {
+                    keyboard.prevent_default();
+                    if let Ok(mut queue) = events.try_borrow_mut() {
+                        queue.push(ExternalFocus::Key {
+                            key: mapped,
+                            shift: keyboard.shift_key(),
+                        });
+                    }
+                }
+                DomKeyAction::Activate => {
+                    keyboard.prevent_default();
+                    if let Ok(mut queue) = events.try_borrow_mut() {
+                        queue.push(ExternalFocus::Activated(target));
+                    }
+                }
             }
         });
         add(&target, "keydown", keydown, &mut self.listeners);
@@ -603,8 +564,7 @@ impl AccessLayer {
         if let Ok(mut map) = self.roles.try_borrow_mut() {
             *map = roles;
         }
-        let held = tree.nodes.iter().any(|node| node.pressed == Some(true));
-        self.drag_held.set(held);
+        self.drag_held.set(drag_is_held(tree));
     }
 
     /// The parent a new node belongs under: rows inside their table, cells
@@ -681,7 +641,9 @@ impl AccessLayer {
                 let _ = element.set_attribute("aria-label", &node.label);
             }
             AccessRole::Link => {
+                // An anchor without `href` is not in the tab order by itself.
                 let _ = element.set_attribute("role", "link");
+                let _ = element.set_attribute("tabindex", "0");
             }
             AccessRole::Button => {
                 let _ = element.set_attribute("type", "button");
@@ -713,7 +675,9 @@ impl AccessLayer {
             }
             AccessRole::TextArea => {}
             AccessRole::RadioGroup => {
+                // A fieldset is not focusable by itself.
                 let _ = element.set_attribute("role", "radiogroup");
+                let _ = element.set_attribute("tabindex", "0");
             }
             AccessRole::Table => {
                 let _ = element.set_attribute("role", "table");
@@ -852,6 +816,21 @@ impl AccessLayer {
                 }
             }
             AccessRole::Table | AccessRole::Row => {}
+        }
+        // An input with no keyboard target is disabled, behind a modal layer or
+        // out of reach: draw it disabled instead of live and focusable.
+        if node.is_disabled_input() {
+            let _ = element.set_attribute("disabled", "");
+            let _ = element.set_attribute("aria-disabled", "true");
+            let _ = element.set_attribute("tabindex", "-1");
+        } else {
+            let _ = element.remove_attribute("disabled");
+            let _ = element.remove_attribute("aria-disabled");
+            if node.role == AccessRole::RadioGroup {
+                let _ = element.set_attribute("tabindex", "0");
+            } else if element.get_attribute("tabindex").as_deref() == Some("-1") {
+                let _ = element.remove_attribute("tabindex");
+            }
         }
         if let Some(pressed) = node.pressed {
             let _ = element.set_attribute("aria-pressed", if pressed { "true" } else { "false" });
@@ -1106,24 +1085,6 @@ fn apply_rect(element: &Element, node: &AccessNode, transform: Option<SlideTrans
     let _ = style.set_property("top", &format!("{}px", rect.min.y));
     let _ = style.set_property("width", &format!("{}px", rect.width()));
     let _ = style.set_property("height", &format!("{}px", rect.height()));
-}
-
-fn map_key(key: &str) -> Option<egui::Key> {
-    match key {
-        "ArrowUp" => Some(egui::Key::ArrowUp),
-        "ArrowDown" => Some(egui::Key::ArrowDown),
-        "ArrowLeft" => Some(egui::Key::ArrowLeft),
-        "ArrowRight" => Some(egui::Key::ArrowRight),
-        "Home" => Some(egui::Key::Home),
-        "End" => Some(egui::Key::End),
-        "Enter" => Some(egui::Key::Enter),
-        " " | "Spacebar" => Some(egui::Key::Space),
-        "Escape" | "Esc" => Some(egui::Key::Escape),
-        "Tab" => Some(egui::Key::Tab),
-        "m" | "M" => Some(egui::Key::M),
-        "c" | "C" => Some(egui::Key::C),
-        _ => None,
-    }
 }
 
 /// Read an `<input>`/`<textarea>`'s `value` without the textarea web-sys type.

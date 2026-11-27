@@ -1040,6 +1040,9 @@ fn marker_for(
     }
 }
 
+/// Largest number written as a Roman numeral.
+const ROMAN_MAX: u32 = 3999;
+
 fn format_number_scheme(number: u32, scheme: NumberScheme) -> String {
     let value = number.max(1);
     match scheme {
@@ -1048,6 +1051,11 @@ fn format_number_scheme(number: u32, scheme: NumberScheme) -> String {
         NumberScheme::AlphaLcPeriod => format!("{}.", alpha(value)),
         NumberScheme::AlphaLcParenR => format!("{})", alpha(value)),
         NumberScheme::AlphaUcPeriod => format!("{}.", alpha(value).to_ascii_uppercase()),
+        // Roman numerals stop at 3999; larger values fall back to digits so a
+        // hostile `start_at` cannot build a megabyte of `m` (N77).
+        NumberScheme::RomanLcPeriod | NumberScheme::RomanUcPeriod if value > ROMAN_MAX => {
+            format!("{value}.")
+        }
         NumberScheme::RomanLcPeriod => format!("{}.", roman(value)),
         NumberScheme::RomanUcPeriod => format!("{}.", roman(value).to_ascii_uppercase()),
     }
@@ -1856,6 +1864,100 @@ fn flush_link(
     }
 }
 
+/// Where the text of a box goes: the inset text rect, the rect the text is laid out in
+/// (the inset rect turned on its side for vertical text) and the quarter turn to
+/// draw it with. The painter, the text effects and the link regions all use this,
+/// so they agree. `None` when the inset rect is empty.
+pub(crate) fn text_box_layout(
+    frame: Rect,
+    scale: f32,
+    insets: Option<coursecraft_course::TextInsets>,
+    direction: coursecraft_course::TextDirection,
+) -> Option<(Rect, Rect, f32)> {
+    let text_rect = if let Some(ins) = insets {
+        let l = (ins.left.max(0.0) * scale).min(frame.width() * 0.45);
+        let r = (ins.right.max(0.0) * scale).min(frame.width() * 0.45);
+        let t = (ins.top.max(0.0) * scale).min(frame.height() * 0.45);
+        let b = (ins.bottom.max(0.0) * scale).min(frame.height() * 0.45);
+        Rect::from_min_max(
+            pos2(frame.min.x + l, frame.min.y + t),
+            pos2(frame.max.x - r, frame.max.y - b),
+        )
+    } else {
+        frame
+    };
+    if !text_rect.is_positive() {
+        return None;
+    }
+    let (layout_rect, rot_deg) = match direction {
+        coursecraft_course::TextDirection::Horizontal => (text_rect, 0.0f32),
+        coursecraft_course::TextDirection::Vertical => (
+            Rect::from_center_size(
+                text_rect.center(),
+                egui::vec2(text_rect.height(), text_rect.width()),
+            ),
+            90.0,
+        ),
+        coursecraft_course::TextDirection::Vertical270 => (
+            Rect::from_center_size(
+                text_rect.center(),
+                egui::vec2(text_rect.height(), text_rect.width()),
+            ),
+            270.0,
+        ),
+    };
+    Some((text_rect, layout_rect, rot_deg))
+}
+
+/// The link regions of one text box, in slide coordinates (`scale` 1), laid out with
+/// the box's wrap, insets and direction exactly as it is painted.
+#[allow(clippy::too_many_arguments)]
+fn box_links(
+    ctx: &Context,
+    frame: Rect,
+    runs: &[ResolvedTextRun],
+    paragraphs: &[Paragraph],
+    (align, valign, autofit): (Align, VAlign, Autofit),
+    (wrap, insets, direction): (
+        bool,
+        Option<coursecraft_course::TextInsets>,
+        coursecraft_course::TextDirection,
+    ),
+) -> Vec<LaidLink> {
+    let Some((text_rect, layout_rect, rot_deg)) = text_box_layout(frame, 1.0, insets, direction)
+    else {
+        return Vec::new();
+    };
+    let laid = layout_text_with_wrap(
+        ctx,
+        layout_rect,
+        1.0,
+        runs,
+        paragraphs,
+        align,
+        valign,
+        autofit,
+        wrap,
+    );
+    let centre = text_rect.center();
+    laid.links
+        .into_iter()
+        .map(|mut link| {
+            if rot_deg != 0.0 {
+                let corners = [
+                    link.rect.left_top(),
+                    link.rect.right_top(),
+                    link.rect.right_bottom(),
+                    link.rect.left_bottom(),
+                ]
+                .map(|corner| crate::compose::rotate_point(corner, centre, rot_deg));
+                link.rect = Rect::from_points(&corners);
+            }
+            link
+        })
+        .collect()
+}
+
 /// Fill each text item's link regions from the same layout the painter uses.
 ///
 /// Runs in slide coordinates with `scale = 1`, then converts the screen-space
@@ -1886,11 +1988,34 @@ pub fn fill_item_links(ctx: &Context, items: &mut [DrawItem]) {
                 valign,
                 paragraphs,
                 autofit,
+                wrap,
+                insets,
+                direction,
                 ..
             } => {
-                let laid =
-                    layout_text(ctx, frame, 1.0, runs, paragraphs, *align, *valign, *autofit);
-                found.extend(to_fractions(frame, laid.links));
+                let links = box_links(
+                    ctx,
+                    frame,
+                    runs,
+                    paragraphs,
+                    (*align, *valign, *autofit),
+                    (*wrap, *insets, *direction),
+                );
+                found.extend(to_fractions(frame, links));
+            }
+            Visual::Path(path) if path.text.is_some() => {
+                if let Some(text) = &path.text {
+                    let inner = frame.shrink((4.0f32).min(frame.width() * 0.25));
+                    let links = box_links(
+                        ctx,
+                        inner,
+                        &text.runs,
+                        &text.paragraphs,
+                        (text.align, text.valign, text.autofit),
+                        (text.wrap, text.insets, text.direction),
+                    );
+                    found.extend(to_fractions(frame, links));
+                }
             }
             Visual::Shape {
                 shape,
@@ -1909,17 +2034,15 @@ pub fn fill_item_links(ctx: &Context, items: &mut [DrawItem]) {
                     egui::vec2(tw, th),
                 );
                 if text_rect.is_positive() {
-                    let laid = layout_text(
+                    let links = box_links(
                         ctx,
                         text_rect,
-                        1.0,
                         &text.runs,
                         &text.paragraphs,
-                        text.align,
-                        text.valign,
-                        text.autofit,
+                        (text.align, text.valign, text.autofit),
+                        (text.wrap, text.insets, text.direction),
                     );
-                    found.extend(to_fractions(frame, laid.links));
+                    found.extend(to_fractions(frame, links));
                 }
             }
             _ => {}

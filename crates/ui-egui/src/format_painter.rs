@@ -88,7 +88,13 @@ impl Editor {
         let Some(painter) = self.ui.format_painter.clone() else {
             return;
         };
-        let targets: Vec<&String> = targets.iter().filter(|id| **id != painter.source).collect();
+        // Only the source itself is skipped: a duplicated slide holds objects with the same id
+        // (`N91`).
+        let same_slide = self.selection.slide == painter.source_slide;
+        let targets: Vec<&String> = targets
+            .iter()
+            .filter(|id| !(same_slide && **id == painter.source))
+            .collect();
         if !targets.is_empty() {
             match painter.kind {
                 PainterKind::Format => self.run(
@@ -133,6 +139,11 @@ impl Editor {
 
     /// Cmd/Ctrl+Alt+C and +V.
     pub fn handle_format_painter_shortcuts(&mut self, ctx: &egui::Context) {
+        // The painter styles slide objects: not in a slide master, in Edit-State Mode or
+        // behind a window or the Start page (`N91`).
+        if self.ui.master_view || self.ui.editing_state.is_some() || self.edit_keys_blocked() {
+            return;
+        }
         if ctx.input_mut(|i| i.consume_shortcut(&ARM_SHORTCUT)) {
             self.arm_format_painter(false);
         }

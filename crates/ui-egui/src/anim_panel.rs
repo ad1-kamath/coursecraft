@@ -551,42 +551,56 @@ fn emphasis_row(
             }
         });
     });
-    let mut changed = e.clone();
-    let mut commit = false;
-    let mut seconds_row = |ui: &mut Ui, name: &str, ms: &mut u32, min: f64| {
+    // While a field is dragged or typed in, the draft lives in egui's memory: the course holds
+    // the old value until the edit ends, and a fresh copy every frame would undo each step of
+    // the drag (`N96`).
+    let draft_id = ui.make_persistent_id(("emphasis_draft", i));
+    let stored = ui.data(|d| d.get_temp::<(u32, u32, u8)>(draft_id));
+    let (mut start_ms, mut duration_ms, mut repeat) =
+        stored.unwrap_or((e.start_ms, e.duration_ms, e.repeat));
+    let mut editing = false;
+    let mut done = false;
+    let mut seconds_row = |ui: &mut Ui, name: &str, ms: &mut u32, range: (f64, f64)| {
         crate::properties::inspector_row(ui, tl!(name), |ui| {
             let mut s = f64::from(*ms) / 1000.0;
             let r = ui.add(
                 egui::DragValue::new(&mut s)
                     .speed(0.05)
-                    .range(min..=600.0)
+                    .range(range.0..=range.1)
                     .fixed_decimals(2)
                     .suffix(" s"),
             );
             *ms = (s * 1000.0).round().clamp(0.0, 600_000.0) as u32;
             let enter = r.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-            if r.drag_stopped() || r.lost_focus() || enter {
-                commit = true;
-            }
+            editing |= r.dragged() || r.has_focus();
+            done |= r.drag_stopped() || r.lost_focus() || enter;
         });
     };
-    seconds_row(ui, "Start", &mut changed.start_ms, 0.0);
-    seconds_row(ui, "Duration", &mut changed.duration_ms, 0.05);
-    changed.duration_ms = changed.duration_ms.clamp(1, 60_000);
+    seconds_row(ui, "Start", &mut start_ms, (0.0, 600.0));
+    // The duration is held to 60 s, so the field stops there too.
+    seconds_row(ui, "Duration", &mut duration_ms, (0.05, 60.0));
     crate::properties::inspector_row(ui, tl!("Repeat"), |ui| {
-        let mut n = changed.repeat;
+        let mut n = repeat;
         let r = ui.add(
             egui::DragValue::new(&mut n)
                 .speed(0.1)
                 .range(1..=coursecraft_course::MAX_EMPHASIS_REPEAT)
                 .suffix("×"),
         );
-        changed.repeat = n;
-        if r.drag_stopped() || r.lost_focus() || (r.changed() && !r.dragged()) {
-            commit = true;
-        }
+        repeat = n;
+        editing |= r.dragged() || r.has_focus();
+        done |= r.drag_stopped() || r.lost_focus() || (r.changed() && !r.dragged());
     });
-    if commit && changed != *e {
+    let mut changed = e.clone();
+    changed.start_ms = start_ms;
+    changed.duration_ms = duration_ms.clamp(1, 60_000);
+    changed.repeat = repeat;
+    if done || !editing {
+        ui.data_mut(|d| d.remove::<(u32, u32, u8)>(draft_id));
+    } else {
+        ui.data_mut(|d| d.insert_temp(draft_id, (start_ms, duration_ms, repeat)));
+    }
+    if done && changed != *e {
         out.push(EmphasisRequest::Set(i, changed));
     }
 }

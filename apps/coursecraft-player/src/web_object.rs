@@ -118,10 +118,7 @@ impl WebObjects {
             let rect = transform.filter(|_| !transitioning).and_then(|t| {
                 items.iter().find_map(|item| match &item.hit {
                     Hit::Object(object) if *object == id => match item.visual {
-                        Visual::Web { .. } => {
-                            let r = t.to_screen_rect(item.rect);
-                            Some([r.min.x, r.min.y, r.width(), r.height()])
-                        }
+                        Visual::Web { .. } => coursecraft_render::overlay_screen_rect(&t, item),
                         _ => None,
                     },
                     _ => None,
@@ -201,16 +198,40 @@ fn set_helper(
     helper: &js_sys::Object,
     name: &str,
     function: &Closure<dyn FnMut(JsValue) -> JsValue>,
+    revokers: &mut Vec<js_sys::Function>,
 ) {
-    let _ = js_sys::Reflect::set(helper, &JsValue::from_str(name), function.as_ref());
+    install_guarded(helper, name, function.as_ref(), revokers);
 }
 
 fn set_helper2(
     helper: &js_sys::Object,
     name: &str,
     function: &Closure<dyn FnMut(JsValue, JsValue) -> JsValue>,
+    revokers: &mut Vec<js_sys::Function>,
 ) {
-    let _ = js_sys::Reflect::set(helper, &JsValue::from_str(name), function.as_ref());
+    install_guarded(helper, name, function.as_ref(), revokers);
+}
+
+/// Put `function` on `helper` behind a guard and keep the guard's switch-off.
+fn install_guarded(
+    helper: &js_sys::Object,
+    name: &str,
+    function: &JsValue,
+    revokers: &mut Vec<js_sys::Function>,
+) {
+    let make = js_sys::Function::new_with_args(
+        "f",
+        "let live = f; return [function () { return live ? live.apply(null, arguments) : undefined; }, function () { live = null; }];",
+    );
+    let Ok(pair) = make.call1(&JsValue::NULL, function) else {
+        let _ = js_sys::Reflect::set(helper, &JsValue::from_str(name), function);
+        return;
+    };
+    let pair = js_sys::Array::from(&pair);
+    let _ = js_sys::Reflect::set(helper, &JsValue::from_str(name), &pair.get(0));
+    if let Ok(revoke) = pair.get(1).dyn_into::<js_sys::Function>() {
+        revokers.push(revoke);
+    }
 }
 
 /// Run author JavaScript with the `CourseCraft` helper and return the variable
@@ -226,16 +247,39 @@ pub fn run_javascript(player: &Player<'_>, code: &str) -> Vec<Input> {
         .iter()
         .map(|variable| (variable.name.clone(), variable.value.kind()))
         .collect();
+    // `getVar` reads this snapshot: the user variables, the built-in ones
+    // (`Course.Progress`, `Learner.Name`, ...) and the current slide's timers.
     let mut values: HashMap<String, Value> = HashMap::new();
-    for variable in &course.variables {
-        if let Some(value) = player.variable(&variable.name) {
-            values.insert(variable.name.clone(), value.clone());
+    let mut names: Vec<String> = course.variables.iter().map(|v| v.name.clone()).collect();
+    names.extend(
+        coursecraft_course::BUILTIN_VARIABLES
+            .iter()
+            .map(|(name, _)| (*name).to_owned()),
+    );
+    if let Some(slide) = player.current_slide() {
+        for object in slide
+            .objects
+            .iter()
+            .chain(slide.layers.iter().flat_map(|layer| layer.objects.iter()))
+        {
+            if matches!(object.kind, ObjectKind::Timer { .. }) {
+                names.push(coursecraft_course::timer_remaining_variable(&object.id));
+            }
+        }
+    }
+    for name in names {
+        if let Some(value) = player.value(&name) {
+            values.insert(name, value);
         }
     }
 
     let inputs = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
     let values = std::rc::Rc::new(std::cell::RefCell::new(values));
     let helper = js_sys::Object::new();
+    // Each helper function is a guard around a Rust closure. When the code has
+    // run, the guards are switched off, so a call made later (`setTimeout`, a
+    // promise) does nothing instead of throwing a dropped-closure error.
+    let mut revokers: Vec<js_sys::Function> = Vec::new();
 
     let values_get = std::rc::Rc::clone(&values);
     let get_var = Closure::<dyn FnMut(JsValue) -> JsValue>::new(move |name: JsValue| {
@@ -247,7 +291,7 @@ pub fn run_javascript(player: &Player<'_>, code: &str) -> Vec<Input> {
             .get(&name)
             .map_or(JsValue::UNDEFINED, to_js)
     });
-    set_helper(&helper, "getVar", &get_var);
+    set_helper(&helper, "getVar", &get_var, &mut revokers);
 
     let values_set = std::rc::Rc::clone(&values);
     let inputs_set = std::rc::Rc::clone(&inputs);
@@ -284,7 +328,7 @@ pub fn run_javascript(player: &Player<'_>, code: &str) -> Vec<Input> {
             JsValue::UNDEFINED
         },
     );
-    set_helper2(&helper, "setVar", &set_var);
+    set_helper2(&helper, "setVar", &set_var, &mut revokers);
 
     let inputs_jump = std::rc::Rc::clone(&inputs);
     let jump = Closure::<dyn FnMut(JsValue) -> JsValue>::new(move |slide: JsValue| {
@@ -295,7 +339,7 @@ pub fn run_javascript(player: &Player<'_>, code: &str) -> Vec<Input> {
         }
         JsValue::UNDEFINED
     });
-    set_helper(&helper, "jump", &jump);
+    set_helper(&helper, "jump", &jump, &mut revokers);
 
     // Build the function through `Reflect::construct` so a syntax error comes
     // back as an `Err` instead of throwing through the player.
@@ -308,6 +352,9 @@ pub fn run_javascript(player: &Player<'_>, code: &str) -> Vec<Input> {
         Err(error) => warn(&format!("JavaScript has an error: {error:?}")),
     }
 
+    for revoke in &revokers {
+        let _ = revoke.call0(&JsValue::NULL);
+    }
     drop(get_var);
     drop(set_var);
     drop(jump);

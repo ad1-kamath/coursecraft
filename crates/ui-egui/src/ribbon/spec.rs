@@ -198,11 +198,11 @@ impl TextOp {
         )
     }
 
-    /// A click on the main part opens the menu too. Numbering toggles on the main
-    /// part and keeps its menu behind the ▾.
+    /// A click on the main part opens the menu too. Numbering toggles on the main part, and
+    /// Font Color and Highlight apply their last colour there; their menus stay behind the ▾.
     #[must_use]
     pub fn main_opens(self) -> bool {
-        self.has_menu() && self != TextOp::Numbering
+        self.has_menu() && !matches!(self, TextOp::Numbering | TextOp::Color | TextOp::Highlight)
     }
 }
 
@@ -300,6 +300,8 @@ pub enum UiAction {
     // Design, Transitions, Animations
     SlideSize,
     Themes,
+    /// Design › Fonts (the main part): the Create New Theme Fonts window.
+    ThemeFonts,
     SlideInspector,
     AnimateInspector,
     AddMotionPath,
@@ -781,14 +783,14 @@ const HOME_SLIDE: &[Group] = &[
                 "font.highlight",
                 "Highlight",
                 Icon::PaintBrush,
-                Toggle,
+                ToggleSplit,
                 Text(TextOp::Highlight),
             ),
             item(
                 "font.color",
                 "Font Color",
                 Icon::Palette,
-                Toggle,
+                ToggleSplit,
                 Text(TextOp::Color),
             ),
             helped(
@@ -1931,7 +1933,7 @@ const DESIGN: &[Group] = &[
                 "Fonts",
                 Icon::TextAa,
                 SmallSplit,
-                Ui(UiAction::Themes),
+                Ui(UiAction::ThemeFonts),
                 Menu::Ui(UiMenu::ThemeFonts),
             ),
         ],
@@ -2618,7 +2620,9 @@ const BUTTON_FORMAT: &[Group] = &[
     Group {
         id: "button_styles",
         label: "Button Styles",
-        launcher: SHAPE_STYLE_LAUNCHER,
+        // A button's label and fill live in the Format inspector: Shape Style only styles
+        // shapes (`N94`).
+        launcher: Some(Ui(UiAction::PanelAt(crate::dock::Panel::Format, None))),
         items: &[
             item(
                 "button_fmt.styles",
@@ -2632,14 +2636,14 @@ const BUTTON_FORMAT: &[Group] = &[
                 "Button Fill",
                 Icon::PaintBrush,
                 Small,
-                SHAPE_FILL,
+                Ui(UiAction::FormatInspector),
             ),
             item(
                 "button_fmt.border",
                 "Button Border",
                 Icon::Square,
                 Small,
-                SHAPE_OUTLINE,
+                NotYet("button borders"),
             ),
             item(
                 "button_fmt.effects",
@@ -3282,7 +3286,7 @@ const SLIDE_MASTER: &[Group] = &[
                 "Fonts",
                 Icon::TextAa,
                 Small,
-                Ui(UiAction::Themes),
+                Ui(UiAction::ThemeFonts),
             ),
         ],
     },

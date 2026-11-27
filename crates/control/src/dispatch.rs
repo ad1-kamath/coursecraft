@@ -557,6 +557,13 @@ fn course_pointer_value(course: &Course, ptr: &str) -> Result<Option<Json>, serd
             Some(q) => serialize_pointer_tail(q, tail),
             None => Ok(None),
         },
+        "tracking" => {
+            if course.tracking.is_default() {
+                Ok(None)
+            } else {
+                serialize_pointer_tail(&course.tracking, tail)
+            }
+        }
         "player" => serialize_pointer_tail(&course.player, tail),
         "theme" => {
             if course.theme == Theme::default() {

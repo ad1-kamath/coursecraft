@@ -797,7 +797,7 @@ pub fn show_compact_states_section(
             .add(egui::Button::new(open_label).min_size(vec2(0.0, 24.0)))
             .clicked()
         {
-            editor.ui.bottom_tab = crate::BottomTab::States;
+            crate::dock::request_bottom_tab(editor, crate::BottomTab::States);
         }
     });
 }

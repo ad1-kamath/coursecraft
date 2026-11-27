@@ -247,7 +247,7 @@ pub fn show(editor: &mut Editor, ui: &Ui, painter: &Painter, t: &SlideTransform,
                     "view.guides.move",
                     serde_json::json!({ "index": index, "at": drag.at.round() }),
                 );
-            } else {
+            } else if new_guide_wanted(editor, &drag) {
                 editor.run(
                     "view.guides.add",
                     serde_json::json!({ "vertical": drag.vertical, "at": drag.at.round() }),
@@ -257,6 +257,14 @@ pub fn show(editor: &mut Editor, ui: &Ui, painter: &Painter, t: &SlideTransform,
     }
 
     paint(editor, painter, t, canvas);
+}
+
+/// A new guide is added only when it was dragged off the ruler and ends on the slide: a plain
+/// click on the ruler adds nothing (`N107`).
+fn new_guide_wanted(editor: &Editor, drag: &GuideDrag) -> bool {
+    let size = editor.session.course.slide_size;
+    let limit = if drag.vertical { size.w } else { size.h };
+    drag.left_ruler && drag.at >= 0.0 && drag.at <= limit as f32
 }
 
 fn paint(editor: &Editor, painter: &Painter, t: &SlideTransform, canvas: Rect) {
@@ -360,5 +368,37 @@ fn paint(editor: &Editor, painter: &Painter, t: &SlideTransform, canvas: Rect) {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod neon_tests {
+    use super::*;
+    use crate::test_harness::TestHarness;
+
+    /// `N107`: a click on the ruler, or a drop off the slide, adds no guide.
+    #[test]
+    fn n107_a_plain_ruler_click_adds_no_guide() {
+        let json = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../examples/hello-course/course.json"
+        ))
+        .expect("hello course");
+        let h = TestHarness::new(coursecraft_course::Course::from_json(&json).expect("course"));
+        let drag = |left_ruler: bool, at: f32| GuideDrag {
+            existing: None,
+            vertical: true,
+            at,
+            left_ruler,
+        };
+        assert!(!new_guide_wanted(&h.editor, &drag(false, 100.0)), "a click");
+        assert!(
+            !new_guide_wanted(&h.editor, &drag(true, -20.0)),
+            "off the slide"
+        );
+        assert!(
+            new_guide_wanted(&h.editor, &drag(true, 100.0)),
+            "a real drag"
+        );
     }
 }

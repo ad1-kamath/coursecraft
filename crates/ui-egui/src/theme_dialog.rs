@@ -18,6 +18,8 @@ pub struct ThemeDialogState {
     pub bar_text: String,
     /// The Create New Theme Fonts dialog is open.
     pub fonts_open: bool,
+    /// The Theme window opened that dialog, so closing the Theme window closes it too.
+    pub fonts_from_theme_window: bool,
     /// Heading and body font chosen in that dialog, not yet saved.
     pub fonts_heading: String,
     pub fonts_body: String,
@@ -67,6 +69,7 @@ pub fn open_theme_fonts_dialog(editor: &mut crate::Editor) {
     editor.ui.theme_dialog.fonts_heading = theme.heading_font_or_body().to_owned();
     editor.ui.theme_dialog.fonts_body = theme.font.clone();
     editor.ui.theme_dialog.fonts_open = true;
+    editor.ui.theme_dialog.fonts_from_theme_window = false;
 }
 
 /// Design › Fonts ▾: the built-in pairs and Create New Theme Fonts….
@@ -115,6 +118,7 @@ pub fn show_theme_fonts_window(editor: &mut crate::Editor, ctx: &egui::Context) 
     let mut close = false;
     let mut save = false;
     Dialog::new(tl!("Create New Theme Fonts"))
+        .id(egui::Id::unique("theme_fonts_dialog"))
         .open(&mut open)
         .width(420.0)
         .show_with_footer(ctx, |dialog| {
@@ -241,6 +245,11 @@ impl ThemeDialogState {
 
 /// Render the Theme modal window dialog.
 pub fn show_theme_dialog_window(editor: &mut crate::Editor, ctx: &egui::Context) {
+    if editor.ui.theme_dialog.fonts_from_theme_window && !editor.ui.show_theme_window {
+        // A child window never outlives the Theme window that opened it.
+        editor.ui.theme_dialog.fonts_open = false;
+        editor.ui.theme_dialog.fonts_from_theme_window = false;
+    }
     show_theme_fonts_window(editor, ctx);
     if !editor.ui.show_theme_window {
         return;
@@ -262,16 +271,18 @@ pub fn show_theme_dialog_window(editor: &mut crate::Editor, ctx: &egui::Context)
     let mut palette_actions = Vec::new();
     let mut open_fonts = false;
 
-    Dialog::new("Theme")
+    // The id stays English, so a changed language keeps the window where it was.
+    Dialog::new(tl!("Theme"))
+        .id(egui::Id::unique("theme_dialog"))
         .open(&mut open)
         .width(420.0)
         .show_with_footer(ctx, |dialog| {
             dialog.body(|ui| {
-                ui.heading("Colors");
+                ui.heading(tl!("Colors"));
 
                 let (cr_acc, valid_acc) = show_color_field(
                     ui,
-                    "Accent",
+                    tl!("Accent"),
                     &mut editor.ui.theme_dialog.accent,
                     "theme_accent",
                 );
@@ -286,7 +297,7 @@ pub fn show_theme_dialog_window(editor: &mut crate::Editor, ctx: &egui::Context)
 
                 let (cr_bg, valid_bg) = show_color_field(
                     ui,
-                    "Slide background",
+                    tl!("Slide background"),
                     &mut editor.ui.theme_dialog.background,
                     "theme_bg",
                 );
@@ -302,7 +313,7 @@ pub fn show_theme_dialog_window(editor: &mut crate::Editor, ctx: &egui::Context)
 
                 let (cr_txt, valid_txt) = show_color_field(
                     ui,
-                    "Text color",
+                    tl!("Text color"),
                     &mut editor.ui.theme_dialog.text,
                     "theme_text",
                 );
@@ -317,10 +328,14 @@ pub fn show_theme_dialog_window(editor: &mut crate::Editor, ctx: &egui::Context)
 
                 ui.add_space(8.0);
                 ui.separator();
-                ui.heading("Player chrome");
+                ui.heading(tl!("Player chrome"));
 
-                let (cr_bar, valid_bar) =
-                    show_color_field(ui, "Bar fill", &mut editor.ui.theme_dialog.bar, "theme_bar");
+                let (cr_bar, valid_bar) = show_color_field(
+                    ui,
+                    tl!("Bar fill"),
+                    &mut editor.ui.theme_dialog.bar,
+                    "theme_bar",
+                );
                 if is_committed(&cr_bar, ui)
                     && valid_bar
                     && editor.ui.theme_dialog.bar.trim() != editor.session.course.theme.player.bar.0
@@ -332,7 +347,7 @@ pub fn show_theme_dialog_window(editor: &mut crate::Editor, ctx: &egui::Context)
 
                 let (cr_bar_txt, valid_bar_txt) = show_color_field(
                     ui,
-                    "Bar text",
+                    tl!("Bar text"),
                     &mut editor.ui.theme_dialog.bar_text,
                     "theme_bar_text",
                 );
@@ -398,7 +413,7 @@ pub fn show_theme_dialog_window(editor: &mut crate::Editor, ctx: &egui::Context)
             });
             dialog.footer(|ui| {
                 ui.horizontal(|ui| {
-                    if ui.button("Reset to defaults").clicked() {
+                    if ui.button(tl!("Reset to defaults")).clicked() {
                         let def = Theme::default();
                         editor.ui.theme_dialog.accent = def.accent.0.clone();
                         editor.ui.theme_dialog.background = def.background.0.clone();
@@ -417,7 +432,7 @@ pub fn show_theme_dialog_window(editor: &mut crate::Editor, ctx: &egui::Context)
                         }));
                     }
 
-                    if crate::primary_button(ui, "Close").clicked() {
+                    if crate::primary_button(ui, tl!("Close")).clicked() {
                         close = true;
                     }
                 });
@@ -426,6 +441,7 @@ pub fn show_theme_dialog_window(editor: &mut crate::Editor, ctx: &egui::Context)
 
     if open_fonts {
         open_theme_fonts_dialog(editor);
+        editor.ui.theme_dialog.fonts_from_theme_window = true;
     }
     if let Some(params) = update_theme {
         editor.run("course.set_theme", params);
@@ -437,5 +453,7 @@ pub fn show_theme_dialog_window(editor: &mut crate::Editor, ctx: &egui::Context)
 
     if close || !open {
         editor.ui.show_theme_window = false;
+        // Draft edits that were never applied must not come back on the next open (`N103`).
+        editor.ui.theme_dialog.last_synced_revision = crate::SyncRevision::default();
     }
 }

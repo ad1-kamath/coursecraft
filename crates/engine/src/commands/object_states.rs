@@ -803,6 +803,9 @@ pub(super) fn object_delete(s: &mut Session, p: &Json) -> Result<Json> {
     let is_panel = slide
         .object(&oid)
         .is_some_and(|(object, _)| matches!(object.kind, ObjectKind::ScrollPanel { .. }));
+    let is_timer = slide
+        .object(&oid)
+        .is_some_and(|(object, _)| matches!(object.kind, ObjectKind::Timer { .. }));
     let before = slide.local_ids().count();
     slide.objects.retain(|o| o.id != oid);
     for l in &mut slide.layers {
@@ -814,6 +817,16 @@ pub(super) fn object_delete(s: &mut Session, p: &Json) -> Result<Json> {
         )));
     }
     let removed_groups = super::remove_empty_group_records(slide);
+    // A draggable object no longer lists the deleted object as a drop target.
+    for object in slide
+        .objects
+        .iter_mut()
+        .chain(slide.layers.iter_mut().flat_map(|l| l.objects.iter_mut()))
+    {
+        if let Some(drag) = object.drag.as_mut() {
+            drag.targets.retain(|target| target != &oid);
+        }
+    }
     // Deleting a panel releases every child in the same undo step.
     if is_panel {
         for object in &mut slide.objects {
@@ -838,6 +851,12 @@ pub(super) fn object_delete(s: &mut Session, p: &Json) -> Result<Json> {
         if was_valid {
             needles.push(format!("object {oid:?} is not on slide"));
             needles.push(format!("target {oid:?} is not on slide"));
+            if is_timer {
+                needles.push(format!(
+                    "variable {:?} does not exist",
+                    coursecraft_course::timer_remaining_variable(&oid)
+                ));
+            }
         }
         for gid in &removed_groups {
             needles.push(format!("object {gid:?} is not on slide"));
@@ -1105,6 +1124,26 @@ pub(super) fn object_remove_emphasis(s: &mut Session, p: &Json) -> Result<Json> 
     Ok(Json::Null)
 }
 
+/// Start of a copied emphasis on the target. It keeps its offset from the source object's start
+/// (an old file may hold one before that start; it counts as offset 0). The whole pass then
+/// clamps into the target's window: not before its start, and, when the target has an end, not
+/// so late that the pass runs past it.
+fn copied_emphasis_start(
+    e: &coursecraft_course::Emphasis,
+    source_start: u32,
+    target_start: u32,
+    target_end: Option<u32>,
+) -> u32 {
+    let start = target_start.saturating_add(e.start_ms.saturating_sub(source_start));
+    match target_end {
+        Some(end) => {
+            let pass = e.end_ms().saturating_sub(e.start_ms);
+            start.min(end.saturating_sub(pass).max(target_start))
+        }
+        None => start,
+    }
+}
+
 /// `object.copy_animation` (Animation Painter): give `objects` the entrance, exit and emphasis
 /// of `from`. Emphasis keeps its offset from the object's start, so it lands at the same moment
 /// of each target's timing. Motion paths stay where they are.
@@ -1138,13 +1177,11 @@ pub(super) fn object_copy_animation(s: &mut Session, p: &Json) -> Result<Json> {
         let o = find_object_mut(slide, id)?;
         o.entrance = entrance.clone();
         o.exit = exit.clone();
+        let (t_start, t_end) = (o.timing.start_ms, o.timing.end_ms);
         o.emphasis = emphasis
             .iter()
             .map(|e| coursecraft_course::Emphasis {
-                start_ms: o
-                    .timing
-                    .start_ms
-                    .saturating_add(e.start_ms.saturating_sub(start)),
+                start_ms: copied_emphasis_start(e, start, t_start, t_end),
                 ..e.clone()
             })
             .collect();

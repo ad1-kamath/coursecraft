@@ -13915,3 +13915,111 @@ fn audio_mid_bar_seek_uses_trim_start_offset_and_after_bar_plays_nothing() {
     )));
     assert!(!p.is_media_playing("aud_auto"));
 }
+
+fn neon_modal_course() -> Course {
+    Course::from_json(
+        &serde_json::json!({
+            "schema_version": 1,
+            "id": "neon-modal",
+            "title": "Neon Modal",
+            "variables": [
+                { "name": "t", "value": "" },
+                { "name": "hit", "value": 0.0 }
+            ],
+            "scenes": [{ "id": "sc", "title": "Scene", "slides": [{
+                "id": "s1", "title": "One",
+                "objects": [
+                    { "id": "open", "kind": { "type": "button", "label": "Open" },
+                      "frame": { "x": 0.0, "y": 0.0, "w": 40.0, "h": 40.0 } },
+                    { "id": "entry", "kind": { "type": "text_entry", "variable": "t" },
+                      "frame": { "x": 0.0, "y": 100.0, "w": 100.0, "h": 40.0 } },
+                    { "id": "card", "kind": { "type": "shape", "shape": "rectangle", "fill": "#112233" },
+                      "frame": { "x": 0.0, "y": 200.0, "w": 40.0, "h": 40.0 },
+                      "drag": { "targets": ["bin"] } },
+                    { "id": "off", "initial_state": "disabled",
+                      "states": [{ "name": "disabled" }],
+                      "kind": { "type": "shape", "shape": "rectangle", "fill": "#112233" },
+                      "frame": { "x": 0.0, "y": 300.0, "w": 40.0, "h": 40.0 },
+                      "drag": { "targets": ["bin"] } },
+                    { "id": "bin", "kind": { "type": "shape", "shape": "rectangle", "fill": "#334455" },
+                      "frame": { "x": 200.0, "y": 0.0, "w": 80.0, "h": 400.0 } }
+                ],
+                "layers": [{ "id": "modal", "name": "Modal", "prevent_base_clicks": true, "objects": [] }],
+                "triggers": [
+                    { "action": { "action": "show_layer", "layer": "modal" },
+                      "when": { "event": "click", "object": "open" } },
+                    { "action": { "action": "set_variable", "variable": "hit", "value": 1 },
+                      "when": { "event": "dropped_on", "object": "card", "target": "bin" } },
+                    { "action": { "action": "set_variable", "variable": "hit", "value": 1 },
+                      "when": { "event": "dropped_on", "object": "off", "target": "bin" } }
+                ]
+            }] }]
+        })
+        .to_string(),
+    )
+    .expect("valid course")
+}
+
+fn neon_set_text(p: &mut Player<'_>) -> Vec<Effect> {
+    p.handle(&Input::SetInputValue {
+        object: "entry".into(),
+        value: Value::Text("Alice".into()),
+    })
+}
+
+fn neon_drop(p: &mut Player<'_>, object: &str, y: f32) -> Vec<Effect> {
+    p.handle(&Input::ObjectDropped {
+        object: object.into(),
+        x: 210.0,
+        y,
+    })
+}
+
+#[test]
+fn n7_a_base_input_ignores_set_input_value_under_a_modal_layer() {
+    let c = neon_modal_course();
+    let mut p = Player::new(&c).expect("player");
+    p.handle(&Input::Start);
+    neon_set_text(&mut p);
+    assert_eq!(p.variable("t"), Some(&Value::Text("Alice".into())));
+
+    p.handle(&click("open"));
+    let effects = p.handle(&Input::SetInputValue {
+        object: "entry".into(),
+        value: Value::Text("Bob".into()),
+    });
+    assert!(
+        effects.is_empty(),
+        "silent, like a blocked click: {effects:?}"
+    );
+    assert_eq!(p.variable("t"), Some(&Value::Text("Alice".into())));
+}
+
+#[test]
+fn n33_a_disabled_or_modal_blocked_object_ignores_a_drop() {
+    let c = neon_modal_course();
+    let mut p = Player::new(&c).expect("player");
+    p.handle(&Input::Start);
+    // A disabled object ignores the drop silently.
+    let effects = neon_drop(&mut p, "off", 300.0);
+    assert!(effects.is_empty(), "{effects:?}");
+    assert_eq!(p.variable("hit"), Some(&Value::Number(0.0)));
+
+    // A live one under no modal still works.
+    let effects = neon_drop(&mut p, "card", 200.0);
+    assert!(has(
+        &effects,
+        &Effect::ObjectDropped {
+            object: "card".into(),
+            target: "bin".into()
+        }
+    ));
+
+    // Under a `prevent_base_clicks` layer the base object ignores the drop.
+    let mut p = Player::new(&c).expect("player");
+    p.handle(&Input::Start);
+    p.handle(&click("open"));
+    let effects = neon_drop(&mut p, "card", 200.0);
+    assert!(effects.is_empty(), "{effects:?}");
+    assert_eq!(p.variable("hit"), Some(&Value::Number(0.0)));
+}

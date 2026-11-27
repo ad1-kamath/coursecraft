@@ -116,7 +116,9 @@ fn valid_relative_path(p: &str) -> bool {
     !p.is_empty()
         && !p.starts_with('/')
         && !p.contains('\\')
-        && !p.contains("://")
+        // A colon makes `javascript:...` or a drive-relative `C:index.html`.
+        && !p.contains(':')
+        && !p.chars().any(char::is_control)
         && p.split('/').all(|seg| !seg.is_empty() && seg != "..")
 }
 
@@ -133,6 +135,8 @@ pub fn xml_escape(s: &str) -> String {
             '\'' => out.push_str("&apos;"),
             // XML 1.0 forbids most C0 controls; drop them rather than emit an invalid file.
             c if (c as u32) < 0x20 && !matches!(c, '\t' | '\n' | '\r') => {}
+            // U+FFFE and U+FFFF are not XML 1.0 characters either.
+            '\u{FFFE}' | '\u{FFFF}' => {}
             c => out.push(c),
         }
     }

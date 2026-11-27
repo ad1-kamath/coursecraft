@@ -439,9 +439,6 @@ impl Playing {
 
     /// Handle a runtime input, emitting and logging each resulting effect.
     pub fn handle_input(&mut self, input: &Input, ctx: Option<&egui::Context>) {
-        if matches!(input, Input::SetSpeed { .. }) {
-            self.media.set_rate(self.player.speed());
-        }
         let media = &mut self.media;
         let media_source = &self.media_source;
         let log = &mut self.log;
@@ -572,6 +569,10 @@ impl Playing {
                 followups
             },
         );
+        // Read the speed after the runtime handled the input, so media never lags a change.
+        if matches!(input, Input::SetSpeed { .. }) {
+            self.media.set_rate(self.player.speed());
+        }
     }
 
     /// Poll media events, resolve pending media fetches, and update video layouts.

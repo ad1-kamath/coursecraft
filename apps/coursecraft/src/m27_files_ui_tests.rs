@@ -554,7 +554,9 @@ fn d13_5_untitled_autosave_write_restore_discard_and_cleanup_on_save() {
         "untitled autosave should be written"
     );
 
-    // Fresh EditorApp startup detects untitled autosave and shows restore_autosave_modal -> Discard.
+    // The window that wrote it ends (its process id is gone); a fresh window then
+    // detects the autosave and shows restore_autosave_modal -> Discard.
+    let untitled_auto = end_session(&untitled_auto, &cfg);
     {
         let mut h_discard = AppHarness::new(initial_course(true), Some(cfg.clone()));
         h_discard.app.startup(None, false);
@@ -575,7 +577,9 @@ fn d13_5_untitled_autosave_write_restore_discard_and_cleanup_on_save() {
     );
     h.idle_frame();
     h.wait_for_autosave();
-    assert!(untitled_auto.is_file());
+    let own_auto = autosave_path_for_project(None, &cfg);
+    assert!(own_auto.is_file());
+    let untitled_auto = end_session(&own_auto, &cfg);
 
     let mut h_restore = AppHarness::new(initial_course(true), Some(cfg));
     h_restore.app.startup(None, false);
@@ -598,6 +602,14 @@ fn d13_5_untitled_autosave_write_restore_discard_and_cleanup_on_save() {
     h_restore.app.test_save_as_path = Some(saved_path);
     assert!(h_restore.app.perform_save_as());
     assert!(!untitled_auto.exists());
+    assert!(!own_auto.exists());
+}
+
+/// Rename an untitled autosave as if the window that wrote it had ended.
+fn end_session(auto: &Path, cfg: &Path) -> PathBuf {
+    let ended = crate::autosave::untitled_autosave_path_for(cfg, 2_000_000_000, 1);
+    std::fs::rename(auto, &ended).unwrap();
+    ended
 }
 
 #[test]

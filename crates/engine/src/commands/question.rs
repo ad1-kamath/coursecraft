@@ -52,6 +52,7 @@ pub(super) fn default_multiple_choice_question() -> Question {
         return_if_wrong: false,
         one_per_target: true,
         correct_when: None,
+        frame: None,
     }
 }
 
@@ -1661,7 +1662,12 @@ fn condition_references_object(c: &Condition, object: &str) -> bool {
             list.iter().any(|c| condition_references_object(c, object))
         }
         Condition::Not(inner) => condition_references_object(inner, object),
-        Condition::Compare { .. } => false,
+        Condition::Compare {
+            variable, value, ..
+        } => [Some(variable.as_str()), value.as_variable()]
+            .into_iter()
+            .flatten()
+            .any(|name| coursecraft_course::timer_id_for_remaining_variable(name) == Some(object)),
         Condition::ObjectState { object: target, .. } => target == object,
     }
 }
@@ -1673,8 +1679,31 @@ fn trigger_references_object(t: &Trigger, object: &str) -> bool {
         | Event::HoverStart { object: target }
         | Event::HoverEnd { object: target }
         | Event::MediaEnds { object: target }
+        | Event::MarkerOpened { object: target }
+        | Event::MarkerClosed { object: target }
+        | Event::CueReached { object: target, .. }
         | Event::StateChanges { object: target, .. }
-        | Event::AnimationCompletes { object: target, .. } => target == object,
+        | Event::AnimationCompletes { object: target, .. }
+        | Event::TimerEnds { timer: target } => target == object,
+        Event::KeyPressed {
+            object: Some(target),
+            ..
+        } => target == object,
+        Event::DroppedOn {
+            object: first,
+            target: second,
+        }
+        | Event::ObjectsIntersect {
+            a: first,
+            b: second,
+        }
+        | Event::ObjectsStopIntersecting {
+            a: first,
+            b: second,
+        } => first == object || second == object,
+        Event::VariableChanges { variable } => {
+            coursecraft_course::timer_id_for_remaining_variable(variable) == Some(object)
+        }
         _ => false,
     };
     let in_action = match &t.action {
@@ -1682,6 +1711,9 @@ fn trigger_references_object(t: &Trigger, object: &str) -> bool {
         | Action::PlayMedia { object: target }
         | Action::PauseMedia { object: target }
         | Action::StopMedia { object: target }
+        | Action::StartTimer { timer: target }
+        | Action::PauseTimer { timer: target }
+        | Action::ResetTimer { timer: target }
         | Action::MoveOnPath { object: target, .. } => target == object,
         _ => false,
     };
@@ -1786,6 +1818,13 @@ pub(super) fn question_delete(s: &mut Session, p: &Json) -> Result<Json> {
                 .any(|t| {
                     matches!(&t.action, Action::ShowLayer { layer } if layer == id)
                         || matches!(&t.action, Action::HideLayer { layer: Some(layer) } if layer == id)
+                        || matches!(
+                            &t.when,
+                            Event::TimelineStarts { layer: Some(layer) }
+                                | Event::TimelineEnds { layer: Some(layer) }
+                                | Event::TimelineReaches { layer: Some(layer), .. }
+                            if layer == id
+                        )
                 })
         })
         .collect();

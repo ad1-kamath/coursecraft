@@ -252,7 +252,15 @@ fn disabled_player_flags_ignore_keyboard_and_buttons() {
     let mut harness = Harness::new(1280.0, 720.0);
     harness.run(&player, Vec::new());
     let output = harness.run(&player, vec![key(egui::Key::M)]);
-    assert!(output.inputs.is_empty());
+    // With the menu off the key is free for a slide's `key_pressed` trigger.
+    assert!(
+        output
+            .inputs
+            .iter()
+            .all(|input| matches!(input, Input::KeyPressed { .. })),
+        "{:?}",
+        output.inputs
+    );
     assert!(!harness.frame.drawer_open());
     let output = harness.run(&player, vec![key(egui::Key::ArrowRight)]);
     assert!(
@@ -2181,6 +2189,7 @@ fn reserved_strip_never_overlaps_slide_across_aspects_and_sizes() {
                     kind: coursecraft_playback::MediaKind::Audio,
                     text: "Sample caption line".to_owned(),
                     rect: None,
+                    dom: false,
                 }));
 
             // Advance past 2.5 s idle to verify default reserved strip does not auto-hide.
@@ -2793,6 +2802,7 @@ fn t14_7_banners_captions_and_lightbox_close_never_collide() {
                 kind: coursecraft_playback::MediaKind::Audio,
                 text: "Sample audio caption text for overlap testing.".into(),
                 rect: None,
+                dom: false,
             }));
         harness.frame.notice = Some("Session notice message".into());
         harness.run(&player, Vec::new());
@@ -2852,7 +2862,15 @@ fn bar_off_uses_full_frame_without_strip_and_ignores_arrow_keys_and_menu() {
         "arrow keys must not navigate when bar is off"
     );
     let output = harness.run(&player, vec![key(egui::Key::M)]);
-    assert!(output.inputs.is_empty());
+    // With the menu off the key is free for a slide's `key_pressed` trigger.
+    assert!(
+        output
+            .inputs
+            .iter()
+            .all(|input| matches!(input, Input::KeyPressed { .. })),
+        "{:?}",
+        output.inputs
+    );
     assert!(!harness.frame.drawer_open());
 
     // A trigger with Next still advances.
@@ -3035,4 +3053,381 @@ fn m31_11_slider_value_handles_inverted_and_nan_bounds() {
     assert!(v.is_finite());
     let nan_bound = super::slider_value(normal, 50.0, f32::NAN, 10.0, 4.0);
     assert!(nan_bound.is_finite());
+}
+
+// ---- Neon player verification (N6, N18, N29, N30, N31, N34, N40) ----
+
+fn neon_course(slides: serde_json::Value, variables: serde_json::Value) -> &'static Course {
+    let course = Course::from_json(
+        &serde_json::json!({
+            "schema_version": 1,
+            "id": "neon-frame",
+            "title": "Neon Frame",
+            "variables": variables,
+            "quiz": { "passing_percent": 50 },
+            "scenes": [{ "id": "sc", "title": "Scene", "slides": slides }]
+        })
+        .to_string(),
+    )
+    .expect("valid course");
+    Box::leak(Box::new(course))
+}
+
+fn neon_player(course: &'static Course) -> Player<'static> {
+    let mut player = Player::new(course).expect("valid player");
+    player.handle(&Input::Start);
+    player
+}
+
+#[test]
+fn n6_tab_out_of_a_text_entry_commits_the_typed_text() {
+    let course = neon_course(
+        serde_json::json!([{ "id": "s1", "title": "S", "objects": [
+            { "id": "entry", "kind": { "type": "text_entry", "variable": "name" },
+              "frame": { "x": 100.0, "y": 100.0, "w": 300.0, "h": 40.0 } },
+            { "id": "other", "kind": { "type": "button", "label": "Other" },
+              "frame": { "x": 100.0, "y": 300.0, "w": 100.0, "h": 40.0 } }
+        ] }]),
+        serde_json::json!([{ "name": "name", "value": "" }]),
+    );
+    let mut player = neon_player(course);
+    let mut harness = Harness::new(1280.0, 720.0);
+    harness.run(&player, Vec::new());
+    harness.run(&player, Vec::new());
+    let t = harness.view.last_transform().expect("transform");
+    let centre = t.to_screen_pos(pos2(250.0, 120.0));
+    harness.run(&player, click(centre));
+    harness.run(&player, vec![Event::Text("Alice".to_owned())]);
+    harness.run(&player, Vec::new());
+    let mut seen = Vec::new();
+    for _ in 0..3 {
+        let output = harness.run(&player, vec![key(egui::Key::Tab)]);
+        seen.extend(output.inputs);
+        harness.run(&player, Vec::new());
+    }
+    let committed = seen.iter().any(|input| {
+        matches!(input, Input::SetInputValue { object, value }
+            if object == "entry" && *value == coursecraft_course::Value::Text("Alice".into()))
+    });
+    assert!(committed, "Tab lost the typed text: {seen:?}");
+    for input in &seen {
+        player.handle(input);
+    }
+    assert_eq!(
+        player.variable("name"),
+        Some(&coursecraft_course::Value::Text("Alice".into()))
+    );
+}
+
+#[test]
+fn n18_slide_show_bar_false_refuses_navigation_keys_and_menu() {
+    let mut course = Course::from_json(HELLO_JSON).expect("valid course");
+    course.player.show_bar = true;
+    course.slide_mut("s-intro").expect("intro").player =
+        Some(coursecraft_course::SlidePlayerOverrides {
+            show_bar: Some(false),
+            ..Default::default()
+        });
+    let boxed: &'static Course = Box::leak(Box::new(course));
+    let player = neon_player(boxed);
+    assert!(!player.effective_player().show_bar);
+
+    let mut harness = Harness::new(1280.0, 720.0);
+    harness.run(&player, Vec::new());
+    assert!(harness.frame.strip_rect().is_none());
+    let output = harness.run(&player, vec![key(egui::Key::ArrowRight)]);
+    assert!(
+        !output
+            .inputs
+            .iter()
+            .any(|i| matches!(i, Input::Next | Input::Previous)),
+        "{:?}",
+        output.inputs
+    );
+    harness.run(&player, vec![key(egui::Key::M)]);
+    assert!(!harness.frame.drawer_open());
+    assert!(
+        harness
+            .frame
+            .chrome_rect(&ChromeButton::Next)
+            .is_none_or(|r| !r.is_positive())
+    );
+}
+
+const REVIEW_SLIDES: &str = r#"[{
+    "id": "q1", "title": "Q1", "duration_ms": 1000,
+    "objects": [
+        { "id": "btn-submit", "kind": { "type": "button", "label": "Submit" }, "frame": { "x": 1000, "y": 600, "w": 200, "h": 60 } },
+        { "id": "btn-review", "kind": { "type": "button", "label": "Review" }, "frame": { "x": 1000, "y": 500, "w": 200, "h": 60 } }
+    ],
+    "question": { "kind": "true_false", "prompt": "One", "points": 10,
+        "choices": [ { "id": "true", "text": "True", "correct": true }, { "id": "false", "text": "False" } ] },
+    "triggers": [
+        { "action": { "action": "submit_question" }, "when": { "event": "click", "object": "btn-submit" } },
+        { "action": { "action": "review_quiz" }, "when": { "event": "click", "object": "btn-review" } }
+    ]
+}]"#;
+
+#[test]
+fn n29_next_stays_enabled_on_the_last_answered_question_in_review() {
+    let slides: serde_json::Value = serde_json::from_str(REVIEW_SLIDES).expect("json");
+    let mut player = neon_player(neon_course(slides, serde_json::json!([])));
+    player.handle(&Input::SelectChoice {
+        choice: "true".to_owned(),
+    });
+    for object in ["btn-submit", "btn-review"] {
+        player.handle(&Input::Click {
+            object: object.to_owned(),
+        });
+    }
+    assert!(player.is_reviewing());
+    let mut harness = Harness::new(1280.0, 720.0);
+    harness.run(&player, Vec::new());
+    harness.run(&player, Vec::new());
+    assert!(
+        harness.frame.chrome_rect(&ChromeButton::Next).is_some(),
+        "the Next button joins the strip so it can exit the review"
+    );
+    let output = harness.run(&player, vec![key(egui::Key::ArrowRight)]);
+    assert!(
+        output.inputs.contains(&Input::Next),
+        "Next must exit the review: {:?}",
+        output.inputs
+    );
+}
+
+#[test]
+fn n30_the_ended_card_takes_no_keys_and_no_slide_input() {
+    let (_course, player) = hello();
+    let mut harness = Harness::new(1280.0, 720.0);
+    harness.run(&player, Vec::new());
+    harness.frame.ended = true;
+    harness.run(&player, Vec::new());
+    let output = harness.run(&player, vec![key(egui::Key::M)]);
+    assert!(output.inputs.is_empty());
+    assert!(
+        !harness.frame.drawer_open(),
+        "M opened the drawer over the card"
+    );
+    let slide = harness.frame.slide_rect().expect("slide rect");
+    let output = harness.run(&player, click(slide.center()));
+    assert!(output.inputs.is_empty(), "{:?}", output.inputs);
+}
+
+#[test]
+fn n31_unused_m_and_c_keys_still_reach_key_triggers() {
+    let course = neon_course(
+        serde_json::json!([{ "id": "s1", "title": "S",
+            "player": { "show_menu": false },
+            "objects": [],
+            "triggers": [
+                { "when": { "event": "key_pressed", "key": "m" },
+                  "action": { "action": "set_variable", "variable": "v", "value": true } },
+                { "when": { "event": "key_pressed", "key": "c" },
+                  "action": { "action": "set_variable", "variable": "v", "value": true } }
+            ] }]),
+        serde_json::json!([{ "name": "v", "value": false }]),
+    );
+    let player = neon_player(course);
+    let mut harness = Harness::new(1280.0, 720.0);
+    harness.run(&player, Vec::new());
+    for name in ["m", "c"] {
+        let key_code = if name == "m" {
+            egui::Key::M
+        } else {
+            egui::Key::C
+        };
+        let output = harness.run(&player, vec![key(key_code)]);
+        assert!(
+            output.inputs.contains(&Input::KeyPressed {
+                key: name.to_owned()
+            }),
+            "{name} did not reach its trigger: {:?}",
+            output.inputs
+        );
+    }
+    assert!(!harness.frame.drawer_open());
+    assert!(
+        !harness.frame.captions_on(),
+        "C toggled captions with none to show"
+    );
+}
+
+#[test]
+fn n34_a_click_on_the_speed_popup_does_not_reach_the_slide() {
+    let course = neon_course(
+        serde_json::json!([{ "id": "s1", "title": "S", "objects": [
+            { "id": "big", "kind": { "type": "button", "label": "Big" },
+              "frame": { "x": 0.0, "y": 0.0, "w": 1280.0, "h": 720.0 } }
+        ] }]),
+        serde_json::json!([]),
+    );
+    let player = neon_player(course);
+    let mut harness = Harness::new(1280.0, 720.0);
+    harness.frame.can_speed = true;
+    harness.run(&player, Vec::new());
+    harness.run(&player, Vec::new());
+    let speed = harness
+        .frame
+        .chrome_rect(&ChromeButton::Speed)
+        .expect("speed button")
+        .center();
+    harness.run(&player, click(speed));
+    harness.run(&player, Vec::new());
+    let top = pos2(speed.x, speed.y - 24.0 - 5.0 * 30.0 - 12.0);
+    let output = harness.run(&player, click(top));
+    assert!(
+        output.inputs.contains(&Input::SetSpeed { rate: 2.0 }),
+        "{:?}",
+        output.inputs
+    );
+    assert!(
+        !output
+            .inputs
+            .iter()
+            .any(|i| matches!(i, Input::Click { .. })),
+        "the press also clicked the slide: {:?}",
+        output.inputs
+    );
+}
+
+#[test]
+fn n40_a_new_notice_shows_even_after_an_earlier_one_was_dismissed() {
+    let (_course, player) = hello();
+    let mut harness = Harness::new(1280.0, 720.0);
+    harness.frame.post_notice("First".to_owned());
+    harness.run(&player, Vec::new());
+    harness.run(&player, Vec::new());
+    let close = harness
+        .frame
+        .chrome_rect(&ChromeButton::DismissNotice)
+        .expect("dismiss button");
+    harness.run(&player, click(close.center()));
+    harness.run(&player, Vec::new());
+    assert!(harness.frame.showing_notice().is_none());
+    harness.frame.post_notice("Print blocked".to_owned());
+    assert_eq!(harness.frame.showing_notice(), Some("Print blocked"));
+}
+
+// ---- Neon accessibility verification (N113, N115, N116, N119) ----
+
+fn apply(player: &mut Player<'static>, inputs: &[Input]) {
+    for input in inputs {
+        player.handle(input);
+    }
+}
+
+#[test]
+fn n113_pointer_click_lightbox_returns_focus_to_the_clicked_opener() {
+    let course = neon_course(
+        serde_json::json!([
+            { "id": "s1", "title": "S",
+              "objects": [
+                { "id": "first", "kind": { "type": "button", "label": "First" },
+                  "frame": { "x": 100.0, "y": 100.0, "w": 100.0, "h": 40.0 } },
+                { "id": "open", "kind": { "type": "button", "label": "Open" },
+                  "frame": { "x": 100.0, "y": 300.0, "w": 100.0, "h": 40.0 } }
+              ],
+              "triggers": [{
+                "action": { "action": "lightbox_slide", "slide": "box" },
+                "when": { "event": "click", "object": "open" }
+              }] },
+            { "id": "box", "title": "Box", "objects": [
+                { "id": "box-btn", "kind": { "type": "button", "label": "Box" },
+                  "frame": { "x": 10.0, "y": 10.0, "w": 100.0, "h": 40.0 } }
+            ] }
+        ]),
+        serde_json::json!([]),
+    );
+    let mut player = neon_player(course);
+    let mut harness = Harness::new(1280.0, 720.0);
+    harness.run(&player, Vec::new());
+    harness.run(&player, Vec::new());
+    let t = harness.view.last_transform().expect("transform");
+    let centre = t.to_screen_pos(pos2(150.0, 320.0));
+    let output = harness.run(&player, click(centre));
+    apply(&mut player, &output.inputs);
+    assert!(player.lightbox_open(), "click opened the lightbox");
+    for _ in 0..3 {
+        let output = harness.run(&player, Vec::new());
+        apply(&mut player, &output.inputs);
+    }
+    player.handle(&Input::CloseLightbox);
+    for _ in 0..3 {
+        let output = harness.run(&player, Vec::new());
+        apply(&mut player, &output.inputs);
+    }
+    assert_eq!(
+        harness.frame.focus().focused(),
+        Some(&FocusTarget::Object("open".into())),
+        "focus returns to the object the pointer clicked"
+    );
+}
+
+#[test]
+fn n115_restart_keeps_the_dom_focus_owner_flag() {
+    let mut frame = PlayerFrame::new();
+    frame.focus_mut().set_dom_focus_owner(true);
+    frame.restart();
+    assert!(frame.focus().dom_focus_owner());
+}
+
+#[test]
+fn n116_leaving_keyboard_mode_clears_the_runtime_focus() {
+    let course = neon_course(
+        serde_json::json!([{ "id": "s1", "title": "S", "objects": [
+            { "id": "obj1", "kind": { "type": "button", "label": "One" },
+              "frame": { "x": 100.0, "y": 100.0, "w": 100.0, "h": 40.0 } }
+        ] }]),
+        serde_json::json!([]),
+    );
+    let mut player = neon_player(course);
+    let mut harness = Harness::new(1280.0, 720.0);
+    harness.run(&player, Vec::new());
+    for _ in 0..3 {
+        let output = harness.run(&player, vec![key(egui::Key::Tab)]);
+        apply(&mut player, &output.inputs);
+        if player.state().focused_object.is_some() {
+            break;
+        }
+    }
+    assert_eq!(player.state().focused_object.as_deref(), Some("obj1"));
+    // A pointer press on empty canvas ends keyboard mode.
+    let t = harness.view.last_transform().expect("transform");
+    let output = harness.run(&player, click(t.to_screen_pos(pos2(900.0, 600.0))));
+    assert!(
+        output
+            .inputs
+            .contains(&Input::FocusChanged { object: None }),
+        "runtime was never told focus left: {:?}",
+        output.inputs
+    );
+}
+
+#[test]
+fn n119_exit_full_screen_tooltip_comes_from_the_chrome_strings() {
+    let mut course = Course::from_json(HELLO_JSON).expect("valid course");
+    course
+        .strings
+        .insert("exitFullScreen".to_owned(), "Verlassen".to_owned());
+    let boxed: &'static Course = Box::leak(Box::new(course));
+    let player = neon_player(boxed);
+    let mut harness = Harness::new(1280.0, 720.0);
+    harness
+        .ctx
+        .all_styles_mut(|s| s.interaction.tooltip_delay = 0.0);
+    harness.frame.can_fullscreen = true;
+    harness.frame.fullscreen = true;
+    harness.run(&player, Vec::new());
+    let rect = harness
+        .frame
+        .chrome_rect(&ChromeButton::Fullscreen)
+        .expect("fullscreen button");
+    harness.run(&player, vec![Event::PointerMoved(rect.center())]);
+    harness.time += 1.0;
+    harness.run(&player, vec![Event::PointerMoved(rect.center())]);
+    assert!(
+        has_painted_text(&harness.last_shapes, "Verlassen"),
+        "tooltip stays English"
+    );
 }

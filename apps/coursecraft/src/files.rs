@@ -495,7 +495,7 @@ pub fn open_from(path: &Path) -> Result<LoadedCourse, String> {
             }
         })?;
         let course = Course::from_json(&json_str).map_err(|e| damaged(e.to_string()))?;
-        let media = read_sibling_media(path, &course);
+        let media = read_sibling_media(path, &course)?;
         Ok((course, media))
     } else {
         let file = std::fs::File::open(path).map_err(|e| format!("Failed to read file: {e}"))?;
@@ -505,21 +505,37 @@ pub fn open_from(path: &Path) -> Result<LoadedCourse, String> {
     }
 }
 
-fn read_sibling_media(path: &Path, course: &Course) -> Vec<MediaItem> {
+/// Read the files a bare `course.json` uses from the `media/` folder beside it:
+/// each single file it names, and every file under each web folder it names.
+///
+/// # Errors
+/// Returns a sentence when a web folder is too big, has an unsafe name, or
+/// cannot be read. A single file that is missing is left out, as before.
+fn read_sibling_media(path: &Path, course: &Course) -> Result<Vec<MediaItem>, String> {
     let Some(parent) = path.parent() else {
-        return Vec::new();
+        return Ok(Vec::new());
     };
     let Ok(media_dir) = parent.join("media").canonicalize() else {
-        return Vec::new();
+        return Ok(Vec::new());
     };
 
-    let sources: BTreeSet<_> = media_references(course)
-        .into_iter()
-        .map(|reference| reference.src)
-        .filter(|src| is_safe_relative_path(src))
-        .collect();
+    let mut files = BTreeSet::new();
+    let mut folders = BTreeSet::new();
+    for reference in media_references(course) {
+        match reference.src.strip_suffix('/') {
+            // A web folder is listed with a trailing slash.
+            Some(folder) if is_safe_relative_path(folder) => {
+                folders.insert(folder.to_owned());
+            }
+            Some(_) => {}
+            None if is_safe_relative_path(&reference.src) => {
+                files.insert(reference.src);
+            }
+            None => {}
+        }
+    }
 
-    sources
+    let mut media: Vec<MediaItem> = files
         .into_iter()
         .filter_map(|src| {
             let file = media_dir.join(&src).canonicalize().ok()?;
@@ -530,7 +546,25 @@ fn read_sibling_media(path: &Path, course: &Course) -> Vec<MediaItem> {
             let bytes = std::fs::read(file).ok()?;
             Some((src, bytes))
         })
-        .collect()
+        .collect();
+    for folder in folders {
+        if !media_dir.join(&folder).is_dir() {
+            continue;
+        }
+        let found = coursecraft_format::read_media_folder(
+            &media_dir,
+            &folder,
+            coursecraft_course::WEB_MAX_FILES,
+            coursecraft_course::WEB_MAX_BYTES,
+        )
+        .map_err(|e| format!("The web folder {folder} can't be read: {}", plain_error(&e)))?;
+        for item in found {
+            if !media.iter().any(|(name, _)| name == &item.0) {
+                media.push(item);
+            }
+        }
+    }
+    Ok(media)
 }
 
 /// A folder copied into `media/web/<name>/` for a web object.
@@ -590,7 +624,7 @@ pub fn import_web_folder(folder: &Path, existing: &[String]) -> Result<WebFolder
 
     let mut files = Vec::new();
     let mut bytes: u64 = 0;
-    collect_web_folder(folder, &path, &mut files, &mut bytes)?;
+    collect_web_folder(folder, &path, 0, &mut files, &mut bytes)?;
 
     let entry = "index.html".to_owned();
     if !files
@@ -603,12 +637,21 @@ pub fn import_web_folder(folder: &Path, existing: &[String]) -> Result<WebFolder
     Ok(WebFolderImport { path, entry, files })
 }
 
+/// How deep a web folder may nest before it is refused.
+const WEB_MAX_DEPTH: usize = 32;
+
 fn collect_web_folder(
     dir: &Path,
     prefix: &str,
+    depth: usize,
     files: &mut Vec<MediaItem>,
     bytes: &mut u64,
 ) -> Result<(), String> {
+    if depth > WEB_MAX_DEPTH {
+        return Err(format!(
+            "The folder is nested more than {WEB_MAX_DEPTH} levels deep."
+        ));
+    }
     let entries = std::fs::read_dir(dir)
         .map_err(|e| format!("Couldn't read the folder {}: {e}", dir.display()))?;
     let mut entries: Vec<_> = entries.filter_map(Result::ok).collect();
@@ -630,8 +673,13 @@ fn collect_web_folder(
             continue;
         }
         let next_prefix = format!("{prefix}/{name}");
+        if !is_safe_relative_path(&next_prefix) {
+            return Err(format!(
+                "The name {name:?} can't be used in a project (it has a character such as : or \" in it). Rename it and try again."
+            ));
+        }
         if file_type.is_dir() {
-            collect_web_folder(&entry.path(), &next_prefix, files, bytes)?;
+            collect_web_folder(&entry.path(), &next_prefix, depth + 1, files, bytes)?;
             continue;
         }
         if !file_type.is_file() {
@@ -643,16 +691,20 @@ fn collect_web_folder(
                 coursecraft_course::WEB_MAX_FILES
             ));
         }
-        let data = std::fs::read(entry.path())
-            .map_err(|e| format!("Couldn't read {}: {e}", entry.path().display()))?;
-        let file_bytes = u64::try_from(data.len()).unwrap_or(u64::MAX);
-        *bytes = bytes.saturating_add(file_bytes);
-        if *bytes > coursecraft_course::WEB_MAX_BYTES {
+        // Check the size before the file is read, so one huge file is never held in memory.
+        let declared = entry
+            .metadata()
+            .map_err(|e| format!("Couldn't read {}: {e}", entry.path().display()))?
+            .len();
+        if bytes.saturating_add(declared) > coursecraft_course::WEB_MAX_BYTES {
             return Err(format!(
                 "The folder is larger than {} MiB.",
                 coursecraft_course::WEB_MAX_BYTES / (1024 * 1024)
             ));
         }
+        let data = std::fs::read(entry.path())
+            .map_err(|e| format!("Couldn't read {}: {e}", entry.path().display()))?;
+        *bytes = bytes.saturating_add(u64::try_from(data.len()).unwrap_or(u64::MAX));
         files.push((next_prefix, data));
     }
     Ok(())

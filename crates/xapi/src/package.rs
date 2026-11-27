@@ -154,6 +154,7 @@ fn xml_escape(value: &str) -> String {
             '"' => out.push_str("&quot;"),
             '\'' => out.push_str("&apos;"),
             c if (c as u32) < 0x20 && !matches!(c, '\t' | '\n' | '\r') => {}
+            '\u{FFFE}' | '\u{FFFF}' => {}
             c => out.push(c),
         }
     }

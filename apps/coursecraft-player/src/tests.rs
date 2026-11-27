@@ -2557,3 +2557,16 @@ fn web_player_index_html_has_loading_indicator_and_reduced_motion() {
     assert!(!crate::LOADING_START_ERROR.is_empty());
     assert!(!crate::LOADING_START_ERROR.contains('<'));
 }
+
+#[test]
+fn set_speed_applies_the_new_speed_to_media_at_once() {
+    let raw = include_str!("../../../examples/hello-course/course.json");
+    let course: Course = serde_json::from_str(raw).expect("valid hello-course json");
+    let mut playing = Playing::from_course(course, false).expect("valid course");
+    playing.handle_input(&Input::Start, None);
+
+    playing.handle_input(&Input::SetSpeed { rate: 1.5 }, None);
+    assert!((playing.media.rate() - 1.5).abs() < 1e-6);
+    playing.handle_input(&Input::SetSpeed { rate: 2.0 }, None);
+    assert!((playing.media.rate() - 2.0).abs() < 1e-6);
+}

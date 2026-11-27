@@ -201,6 +201,7 @@ fn question(kind: QuestionKind, prompt: &str, choices: Vec<Choice>) -> Question 
         return_if_wrong: false,
         one_per_target: true,
         correct_when: None,
+        frame: None,
     }
 }
 

@@ -27,7 +27,8 @@ mod folder;
 pub use folder::{
     COURSE_FILE, FOLDER_EXTENSION, FileRecord, FolderRecord, MEDIA_DIR, OpenedFolder, SaveHooks,
     SaveReport, changed_files, fast_hash64, fnv1a64, is_project_folder, open_project_folder,
-    open_project_folder_with_limits, save_project_folder, save_project_folder_with,
+    open_project_folder_with_limits, read_media_folder, save_project_folder,
+    save_project_folder_with,
 };
 
 #[cfg(test)]
@@ -280,24 +281,56 @@ pub fn verify_project_with_limits<R: std::io::Read + std::io::Seek>(
     if archive.len() > limits.max_entries {
         return Err(FormatError::TooManyEntries);
     }
+    if archive.has_duplicate_names() {
+        return Err(FormatError::DuplicateEntry(
+            "duplicate central directory entry".to_string(),
+        ));
+    }
+    let mut seen_entries = HashSet::new();
     let mut course_seen = false;
     let mut sizes = EntrySizes::default();
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i)?;
+        let file = archive.by_index(i)?;
         let name = file.name()?.to_string();
+        if !seen_entries.insert(name.clone()) {
+            return Err(FormatError::DuplicateEntry(name));
+        }
+        // Same path rules as `open_project`, so a file that verifies also opens.
+        if let Some(dir_path) = name.strip_suffix('/') {
+            if !is_safe_relative_path(dir_path) {
+                return Err(FormatError::UnsafePath(name));
+            }
+            continue;
+        }
+        if !is_safe_relative_path(&name) {
+            return Err(FormatError::UnsafePath(name));
+        }
         let stored = file.compression() == zip::CompressionMethod::Stored;
+        let entry_limit = entry_limit(stored, limits);
+        if file.size() > entry_limit {
+            return Err(FormatError::EntryTooLarge(name));
+        }
+        // Read at most one byte past the limit, so a deflate bomb that lies
+        // about its size stops here instead of exhausting memory or time.
+        let mut bounded = file.take(entry_limit.saturating_add(1));
         let size = if name == "course.json" {
-            let mut text = String::new();
-            file.read_to_string(&mut text)
+            let mut bytes = Vec::new();
+            bounded
+                .read_to_end(&mut bytes)
                 .map_err(|e| FormatError::Zip(format!("{name}: {e}")))?;
-            Course::from_json(&text)?;
+            if bytes.len() as u64 > entry_limit {
+                return Err(FormatError::EntryTooLarge(name));
+            }
+            let text =
+                std::str::from_utf8(&bytes).map_err(|e| FormatError::CourseJson(e.to_string()))?;
+            Course::from_json(text)?;
             course_seen = true;
-            text.len() as u64
+            bytes.len() as u64
         } else {
-            std::io::copy(&mut file, &mut std::io::sink())
+            std::io::copy(&mut bounded, &mut std::io::sink())
                 .map_err(|e| FormatError::Zip(format!("{name}: {e}")))?
         };
-        if size > entry_limit(stored, limits) {
+        if size > entry_limit {
             return Err(FormatError::EntryTooLarge(name));
         }
         sizes.add(size, stored, limits)?;

@@ -116,7 +116,10 @@ fn the_font_and_paragraph_controls_of_package_t_are_wired() {
     }
     // Numbering toggles on the main part; the menu sits behind the ▾.
     assert!(TextOp::Numbering.has_menu() && !TextOp::Numbering.main_opens());
-    assert!(TextOp::Case.main_opens() && TextOp::Highlight.main_opens());
+    assert!(TextOp::Case.main_opens());
+    // Highlight and Font Color apply their bar colour on the main part; the menu is behind the ▾.
+    assert!(TextOp::Highlight.has_menu() && !TextOp::Highlight.main_opens());
+    assert!(TextOp::Color.has_menu() && !TextOp::Color.main_opens());
 }
 
 #[test]
@@ -381,27 +384,18 @@ fn the_case_menu_lists_the_five_choices() {
 #[test]
 fn the_highlight_menu_offers_colours_and_no_color() {
     let mut h = harness();
-    let ribbon = h.editor.ui.ribbon.rect;
-    let brush = coursecraft_render::Icon::PaintBrush.codepoint().to_string();
-    let spots: Vec<egui::Pos2> = h
-        .find_texts(&brush)
-        .into_iter()
-        .filter(|p| ribbon.contains(*p))
-        .collect();
-    assert!(!spots.is_empty(), "the ribbon draws paint brushes");
-    let mut opened = false;
-    for spot in spots {
-        h.click_at(spot);
-        h.idle_frame();
-        if h.find_text("Highlight colours").is_some() {
-            opened = true;
-            break;
-        }
-        // Close whatever opened and try the next brush.
-        h.press(egui::Key::Escape, egui::Modifiers::NONE);
-        h.idle_frame();
-    }
-    assert!(opened, "one brush is the Highlight menu");
+    let arrow = h
+        .last_widgets
+        .iter()
+        .find(|w| w.label.as_deref() == Some("Highlight options"))
+        .map(|w| w.bounds.center())
+        .expect("the Highlight ▾");
+    h.click_at(arrow);
+    h.idle_frame();
+    assert!(
+        h.find_text("Highlight colours").is_some(),
+        "the ▾ opens the Highlight menu"
+    );
     assert!(h.find_text("Theme colours").is_some());
     assert!(h.find_text("No Color").is_some());
     let none = h.find_text("No Color").expect("No Color");

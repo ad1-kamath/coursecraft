@@ -86,6 +86,7 @@ pub mod slides;
 pub mod snap;
 pub mod snapshot;
 pub mod spell_check;
+pub mod state_text_route;
 pub mod states;
 pub mod status;
 pub mod text_format;
@@ -250,6 +251,8 @@ mod m39_p_paste_focus_tests;
 #[cfg(test)]
 mod m39_t_text_tests;
 #[cfg(test)]
+mod neon_editor_fix_tests;
+#[cfg(test)]
 mod outline_tests;
 #[cfg(test)]
 mod panels_tests;
@@ -339,6 +342,8 @@ mod u9_navigator_canvas_tests;
 mod uiux_allowlist;
 #[cfg(test)]
 mod uiux_sweep_tests;
+#[cfg(test)]
+mod ux_fix_a_tests;
 #[cfg(test)]
 mod var_compare_tests;
 #[cfg(test)]
@@ -1091,6 +1096,8 @@ pub struct UiState {
     pub clipboard_paste_count: u32,
     /// The Paste menu choice that waits for the system clipboard to answer.
     pub pending_paste_mode: Option<clipboard::PasteMode>,
+    /// The frame that requested the system paste for `pending_paste_mode`.
+    pub pending_paste_frame: u64,
     /// The Paste Special window.
     pub paste_special: clipboard::PasteSpecialState,
     /// The Focus Order window.
@@ -1757,6 +1764,7 @@ impl Editor {
                 clipboard: None,
                 clipboard_text: None,
                 pending_paste_mode: None,
+                pending_paste_frame: 0,
                 paste_special: clipboard::PasteSpecialState::default(),
                 focus_order: focus_order::FocusOrderState::default(),
                 clipboard_paste_count: 0,
@@ -2167,6 +2175,21 @@ impl Editor {
         self.ui.scene_rename = None;
         self.ui.slide_rename = None;
         self.ui.pending_delete_scene = None;
+        // The new course starts at revision 0 like the old one, so nothing keyed by revision
+        // may survive, and nothing armed on the old course's ids either (`N86`).
+        self.ui.properties_lists = PropertiesListCache::default();
+        self.ui.media_refs_cache = MediaRefsCache::default();
+        self.ui.spell_check = spell_check::SpellingState::default();
+        self.ui.slide_size_dialog = slide_size_dialog::SlideSizeState::default();
+        self.ui.format_painter = None;
+        self.ui.show_fonts_window = false;
+        self.ui.show_history = false;
+        self.ui.show_validation_window = false;
+        self.ui.path_edit = None;
+        self.ui.draw = None;
+        self.ui.table_cell = None;
+        self.ui.anim_preview = anim_preview::PreviewState::default();
+        self.ui.record_narration = record_narration::RecordNarrationState::default();
         self.ui.properties = PropertiesState::default();
         self.ui.layers = LayersState::default();
         self.ui.layer_settings = LayerSettingsState::default();
@@ -3722,7 +3745,7 @@ impl Editor {
 
     pub(crate) fn preview_navigated_state(&mut self, state_name: String) {
         if !self.ui.master_view {
-            self.ui.bottom_tab = BottomTab::States;
+            dock::request_bottom_tab(self, BottomTab::States);
             self.ui.preview_state = Some(state_name);
             self.ui.last_selected_object = self.selection.object.clone();
         }
@@ -3784,7 +3807,7 @@ impl Editor {
         self.ui.story_view = false;
         self.ui.master_view_return_slide = Some(self.selection.slide.clone());
         self.ui.inspector_tab = InspectorTab::Slide;
-        self.ui.bottom_tab = BottomTab::Timeline;
+        dock::request_bottom_tab(self, BottomTab::Timeline);
         self.ui.placement_tool = None;
         self.ui.placement_drag = None;
         self.ui.canvas_drag = None;
@@ -3833,7 +3856,7 @@ impl Editor {
             self.selection.layer = None;
             self.selection.clear_objects();
             self.ui.inspector_tab = InspectorTab::Slide;
-            self.ui.bottom_tab = BottomTab::Timeline;
+            dock::request_bottom_tab(self, BottomTab::Timeline);
         }
     }
 
@@ -4400,6 +4423,27 @@ impl Editor {
         self.ui.show_welcome || self.ui.file_page.open || self.modal_dialog_open()
     }
 
+    /// True when a window that follows the course live is open: Publish, Layer Settings, the
+    /// trigger editor, Fonts, the Media Library or a cue rename. Undo and Redo work behind
+    /// them, but the keys that edit the canvas behind them (Delete, Enter, arrows, Select All,
+    /// Cut, Copy, Paste) do not (`N89`).
+    #[must_use]
+    pub(crate) fn soft_dialog_open(&self) -> bool {
+        let ui = &self.ui;
+        ui.publish.open
+            || ui.trigger_form.is_some()
+            || ui.layer_settings.is_open()
+            || ui.show_media_library
+            || ui.show_fonts_window
+            || ui.timeline.slide_cue_rename.is_some()
+    }
+
+    /// True when the keys that edit the canvas must not reach it.
+    #[must_use]
+    pub(crate) fn edit_keys_blocked(&self) -> bool {
+        self.global_keys_blocked() || self.soft_dialog_open()
+    }
+
     /// Nudge every selected object by `(dx, dy)` as one undo step.
     pub fn nudge_selection(&mut self, dx: f32, dy: f32) {
         if let Some(session) = self.ui.editing_state.clone() {
@@ -4872,7 +4916,7 @@ impl Editor {
     #[must_use]
     pub fn wants_image_paste(&self, ctx: &egui::Context) -> bool {
         let (preview_has_focus, text_focus) = self.paste_focus(ctx);
-        Self::paste_input_allowed(preview_has_focus, text_focus)
+        Self::paste_input_allowed(preview_has_focus, text_focus) && !self.edit_keys_blocked()
     }
 
     /// The slides panel's contents (thumbnails, scenes).
@@ -4980,7 +5024,8 @@ impl Editor {
 
         // Copy, cut and paste arrive as events so they work in the browser too.
         // Leave them to a focused text field or the in-place editor.
-        if Self::paste_input_allowed(preview_has_focus, text_focus) {
+        // Not behind a window that owns the keys, nor on the Start page (`N89`).
+        if Self::paste_input_allowed(preview_has_focus, text_focus) && !self.edit_keys_blocked() {
             let (copy, cut, paste) = ui.input_mut(|i| {
                 let mut copy = false;
                 let mut cut = false;
@@ -5012,6 +5057,7 @@ impl Editor {
                 clipboard::paste_text(self, &text);
             }
         }
+        clipboard::expire_pending_paste_mode(self, ui.ctx().cumulative_frame_nr());
 
         let mut requests = Vec::new();
 
@@ -5094,6 +5140,7 @@ impl Editor {
             && !text_focus
             && !self.ui.ai.open
             && !self.ui.document.open
+            && !self.global_keys_blocked()
             && ui.input_mut(|i| i.consume_key(Modifiers::NONE, Key::F7))
         {
             spell_check::open(self);
@@ -5123,6 +5170,7 @@ impl Editor {
             && !self.ui.alt.open
             && !self.ui.translate.open
             && !self.ui.document.open
+            && !self.global_keys_blocked()
             && let Some(sc) = menu::parse_shortcut("Ctrl+Shift+M")
             && !ui.ctx().egui_wants_keyboard_input()
             && ui.input_mut(|i| i.consume_shortcut(&sc))
@@ -5168,7 +5216,11 @@ impl Editor {
         } else {
             &[]
         };
+        let soft_dialog = self.soft_dialog_open();
         for &(cmd, sc) in shortcuts {
+            if soft_dialog && !matches!(cmd.id, "edit.undo" | "edit.redo") {
+                continue;
+            }
             if cmd.id == "object.delete"
                 && self.ui.bottom_tab == BottomTab::States
                 && self.ui.states.card_strip_focused
@@ -5219,6 +5271,7 @@ impl Editor {
             && !self.ui.alt.open
             && !self.ui.translate.open
             && self.file_ops_available
+            && !self.global_keys_blocked()
             && let Some(sc) = menu::parse_shortcut("Ctrl+Shift+P")
             && !ui.ctx().egui_wants_keyboard_input()
             && ui.input_mut(|i| i.consume_shortcut(&sc))
@@ -5238,7 +5291,7 @@ impl Editor {
             && !ui.memory(|m| m.focused().is_some())
             && !(self.ui.bottom_tab == BottomTab::States && self.ui.states.card_strip_focused)
         {
-            let keys_blocked = self.global_keys_blocked();
+            let keys_blocked = self.edit_keys_blocked();
             let del_pressed = !keys_blocked
                 && ui.input_mut(|i| {
                     i.consume_key(Modifiers::NONE, Key::Delete)
@@ -5381,6 +5434,12 @@ impl Editor {
             }
         }
 
+        // The layer eyes follow the slide even while the Slide Layers panel is closed, so a
+        // layer shown on one slide is not shown on the next (`N108`).
+        self.ui
+            .layers
+            .sync(&self.session.course, &self.selection, self.session.revision);
+
         // Auto-switch inspector tab on selection change
         if self.selection.object != self.ui.last_selected_object {
             self.ui.preview_state = None;
@@ -5403,7 +5462,7 @@ impl Editor {
         }
 
         if self.ui.master_view && self.ui.bottom_tab == BottomTab::States {
-            self.ui.bottom_tab = BottomTab::Timeline;
+            dock::request_bottom_tab(self, BottomTab::Timeline);
         }
         // F12 previews this slide, Ctrl+F12 (Cmd+F12 on macOS) previews from here,
         // and Shift+F12 previews the whole course, like the Preview menu and toolbar.

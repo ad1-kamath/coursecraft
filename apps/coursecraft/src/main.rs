@@ -354,13 +354,17 @@ fn restore_prompt_for_path(path: &Path) -> Option<RestorePrompt> {
     }
 }
 
-/// Restore prompt for a leftover untitled autosave in `config_dir`, if any.
+/// Restore prompt for the newest untitled autosave in `config_dir` whose
+/// owning process is no longer running, if any. Another window's live autosave
+/// is never offered. `is_alive` tells whether a process id is running.
 #[cfg(not(target_arch = "wasm32"))]
-fn untitled_restore_prompt(config_dir: Option<&Path>) -> Option<RestorePrompt> {
-    let auto_path = autosave::autosave_path_for_project(None, config_dir?);
-    if !auto_path.exists() {
-        return None;
-    }
+fn untitled_restore_prompt(
+    config_dir: Option<&Path>,
+    is_alive: &dyn Fn(u32) -> bool,
+) -> Option<RestorePrompt> {
+    let auto_path = autosave::orphaned_untitled_autosaves(config_dir?, is_alive)
+        .into_iter()
+        .next()?;
     Some(RestorePrompt {
         file_path: None,
         time_str: autosave_time_str(&auto_path),
@@ -716,7 +720,10 @@ impl EditorApp {
                 self.editor.ui.has_loaded_course = true;
             }
             None => {
-                self.restore_prompt = untitled_restore_prompt(self.config_dir.as_deref());
+                self.restore_prompt = untitled_restore_prompt(
+                    self.config_dir.as_deref(),
+                    &autosave::process_is_alive,
+                );
                 if self.restore_prompt.is_some() {
                     self.editor.ui.show_welcome = false;
                 }
@@ -793,7 +800,7 @@ impl EditorApp {
                 autosave::delete_autosave(&auto_path);
                 if let Some(ref dir) = self.config_dir {
                     let untitled_path = autosave::autosave_path_for_project(None, dir);
-                    autosave::delete_autosave(&untitled_path);
+                    autosave::delete_untitled_autosave(&untitled_path);
                     self.prefs.add_recent(&path);
                     let _ = prefs::save_prefs(dir, &self.prefs);
                 }
@@ -1000,6 +1007,24 @@ impl EditorApp {
         }
     }
 
+    /// Open the autosave of `prompt`. The autosave of another, ended untitled
+    /// session then moves to this session's own file, so it is offered once only.
+    fn restore_autosave(&mut self, prompt: &RestorePrompt) {
+        let had_error = self.error_modal.is_some();
+        self.finish_open(&prompt.autosave_path, prompt.file_path.clone(), true);
+        if prompt.file_path.is_none()
+            && !had_error
+            && self.error_modal.is_none()
+            && let Some(dir) = self.config_dir.as_deref()
+        {
+            let own = autosave::autosave_path_for_project(None, dir);
+            if own != prompt.autosave_path && std::fs::rename(&prompt.autosave_path, &own).is_ok() {
+                autosave::write_owner_marker(&own);
+                autosave::delete_untitled_autosave(&prompt.autosave_path);
+            }
+        }
+    }
+
     fn finish_open(&mut self, path_to_read: &Path, final_path: Option<PathBuf>, is_restored: bool) {
         let opened = if path_to_read.is_dir() {
             files::open_folder_from(path_to_read).map(|(loaded, record)| (loaded, Some(record)))
@@ -1148,6 +1173,9 @@ impl EditorApp {
                 self.config_dir.as_deref(),
             )
         {
+            if self.project.path.is_none() {
+                autosave::write_owner_marker(&auto_path);
+            }
             let course = self.editor.session.course.clone();
             let media = self.editor.used_media();
             let epoch = self.save_epoch.load(std::sync::atomic::Ordering::Acquire);
@@ -2899,7 +2927,7 @@ impl<'a> coursecraft_control::ControlHost for EditorHostAdapter<'a> {
         autosave::delete_autosave(&auto_path);
         if let Some(dir) = self.config_dir {
             let untitled_path = autosave::autosave_path_for_project(None, dir);
-            autosave::delete_autosave(&untitled_path);
+            autosave::delete_untitled_autosave(&untitled_path);
             self.prefs.add_recent(&target);
             let _ = prefs::save_prefs(dir, self.prefs);
         }
@@ -2983,6 +3011,10 @@ impl eframe::App for EditorApp {
     /// the process has exited.
     #[cfg(not(target_arch = "wasm32"))]
     fn on_exit(&mut self) {
+        // A normal close leaves no untitled autosave of this window behind.
+        if let Some(dir) = self.config_dir.as_deref() {
+            autosave::delete_untitled_autosave(&autosave::autosave_path_for_project(None, dir));
+        }
         self.updates.start_pending_update();
     }
 
@@ -3248,15 +3280,12 @@ impl EditorApp {
                         let mut dismiss = false;
                         ui.horizontal(|ui| {
                             if coursecraft_ui_egui::primary_button(ui, "Restore").clicked() {
-                                self.finish_open(
-                                    &prompt.autosave_path,
-                                    prompt.file_path.clone(),
-                                    true,
-                                );
+                                self.restore_autosave(&prompt);
                                 dismiss = true;
                             }
                             if ui.button("Discard").clicked() {
                                 self.bump_save_epoch();
+                                autosave::delete_untitled_autosave(&prompt.autosave_path);
                                 autosave::delete_autosave(&prompt.autosave_path);
                                 if let Some(ref file_path) = prompt.file_path {
                                     self.finish_open(file_path, Some(file_path.clone()), false);

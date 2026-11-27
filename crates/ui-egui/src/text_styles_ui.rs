@@ -288,17 +288,24 @@ fn palette_row(ui: &mut Ui, course: &Course, id: &str, actions: &mut Vec<Action>
         return;
     };
     ui.spacing_mut().item_spacing.x = 6.0;
+    // While the picker is dragged the colour lives here, with the colour it started from. A
+    // draft of an older colour (the hex field or an undo changed it since) is dropped, so the
+    // swatch never sticks on its first value (`N103`).
     let hex_key = Id::unique(("palette_hex", id));
     let mut hex = ui
-        .data(|d| d.get_temp::<String>(hex_key))
-        .unwrap_or_else(|| entry.color.0.clone());
+        .data(|d| d.get_temp::<(String, String)>(hex_key))
+        .filter(|(from, _)| *from == entry.color.0)
+        .map_or_else(|| entry.color.0.clone(), |(_, draft)| draft);
     if color_swatch_picker(ui, &mut hex, ("palette_swatch", id.to_owned()), 18.0, 4) {
-        ui.data_mut(|d| d.remove::<String>(hex_key));
+        ui.data_mut(|d| d.remove::<(String, String)>(hex_key));
         if hex != entry.color.0 {
             actions.push(("theme.set_palette_color", json!({"id": id, "color": hex})));
         }
+    } else if hex == entry.color.0 {
+        ui.data_mut(|d| d.remove::<(String, String)>(hex_key));
     } else {
-        ui.data_mut(|d| d.insert_temp(hex_key, hex));
+        let from = entry.color.0.clone();
+        ui.data_mut(|d| d.insert_temp(hex_key, (from, hex)));
     }
     let (name, committed) =
         buffered_field(ui, Id::unique(("palette_name", id)), &entry.name, 120.0);

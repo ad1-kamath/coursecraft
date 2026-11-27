@@ -7,3 +7,6 @@
 # First-frame pictures for Google Flow (kept locally, not committed)
 examples/healthy-habits/flow/*.png
 examples/healthy-habits/flow/*.mp4
+
+# Editor autosave files written next to a course
+*.autosave.ccraft

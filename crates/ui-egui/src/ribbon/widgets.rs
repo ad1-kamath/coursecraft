@@ -274,6 +274,18 @@ pub fn toggle_split(
     enabled: bool,
     on: bool,
 ) -> (Response, Response) {
+    toggle_split_bar(ui, icon, name, enabled, on, None)
+}
+
+/// A [`toggle_split`] with a thin bar under the icon showing the colour the main part applies.
+pub fn toggle_split_bar(
+    ui: &mut Ui,
+    icon: Icon,
+    name: &str,
+    enabled: bool,
+    on: bool,
+    bar: Option<Color32>,
+) -> (Response, Response) {
     let p = palette(ui.ctx());
     let arrow_w = 12.0;
     let (rect, outer) = ui.allocate_exact_size(vec2(24.0 + arrow_w, SMALL_H), Sense::hover());
@@ -294,7 +306,30 @@ pub fn toggle_split(
         painter.rect_filled(arrow_rect, radius, c);
     }
     let col = if enabled { p.text } else { p.text_disabled };
-    paint_icon(&painter, main_rect.center(), icon, SMALL_ICON, col);
+    let icon_at = if bar.is_some() {
+        main_rect.center() - vec2(0.0, 2.0)
+    } else {
+        main_rect.center()
+    };
+    paint_icon(&painter, icon_at, icon, SMALL_ICON, col);
+    if let Some(color) = bar {
+        let color = if enabled {
+            color
+        } else {
+            color.gamma_multiply(0.4)
+        };
+        let bar_rect = Rect::from_min_max(
+            pos2(main_rect.min.x + 4.0, main_rect.max.y - 5.0),
+            pos2(main_rect.max.x - 4.0, main_rect.max.y - 2.0),
+        );
+        painter.rect_filled(bar_rect, CornerRadius::same(1), color);
+        painter.rect_stroke(
+            bar_rect,
+            CornerRadius::same(1),
+            Stroke::new(1.0, p.border),
+            egui::StrokeKind::Outside,
+        );
+    }
     chevron(
         &painter,
         pos2(arrow_rect.center().x, rect.center().y),

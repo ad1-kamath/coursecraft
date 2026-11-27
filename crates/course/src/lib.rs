@@ -48,7 +48,9 @@ pub use media::{
     MediaOwner, MediaRef, MediaRole, MediaScope, SlideContainer, visit_course_media,
     visit_object_media, visit_slide_media,
 };
-pub use named_styles::{StyleLink, apply_named_style, style_link, style_of_text_box};
+pub use named_styles::{
+    StyleLink, apply_named_style, clear_run_look, style_link, style_of_text_box,
+};
 pub use recolor::{RecolorError, normalize_hex, recolor_course, same_rgb};
 
 pub use audit::{
@@ -469,10 +471,12 @@ impl Course {
                 .iter()
                 .chain(slide.layers.iter().flat_map(|layer| layer.triggers.iter()))
                 .any(|trigger| {
-                    matches!(
-                        trigger.action,
-                        Action::SubmitResults | Action::CompleteCourse { .. }
-                    )
+                    // A disabled trigger never fires.
+                    !trigger.disabled
+                        && matches!(
+                            trigger.action,
+                            Action::SubmitResults | Action::CompleteCourse { .. }
+                        )
                 })
         });
         if has_trigger {
@@ -662,6 +666,8 @@ impl Object {
     }
 }
 
+#[cfg(test)]
+mod anim_window_tests;
 #[cfg(test)]
 mod bughunt_m25_strings;
 #[cfg(test)]

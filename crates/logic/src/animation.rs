@@ -319,34 +319,54 @@ pub fn sample_motion_path(
         (elapsed_ms as f32 / path.duration_ms as f32).clamp(0.0, 1.0)
     };
     let eased_t = ease(path.easing, t);
-    let target_dist = (eased_t * total_len).clamp(0.0, total_len);
+    // Overshoot and elastic easings run past the ends: the point continues along the first or
+    // last segment's direction (bounded, so a hostile easing cannot fling it away).
+    let target_dist = (eased_t * total_len).clamp(-total_len, 2.0 * total_len);
 
-    let mut accum = 0.0;
-    let mut pt = path.points.last().copied().unwrap_or_default();
-
-    for (i, &seg_len) in seg_lens.iter().enumerate() {
-        if target_dist <= accum + seg_len || i == seg_lens.len().saturating_sub(1) {
-            let frac = if seg_len > 0.0 {
-                ((target_dist - accum) / seg_len).clamp(0.0, 1.0)
-            } else {
-                0.0
-            };
-            let p0 = path.points.get(i).copied().unwrap_or_default();
-            let p1 = path.points.get(i + 1).copied().unwrap_or_default();
-            pt = Point {
-                x: p0.x + frac * (p1.x - p0.x),
-                y: p0.y + frac * (p1.y - p0.y),
-            };
-            break;
-        }
-        accum += seg_len;
-    }
+    let pt = point_at_distance(&path.points, &seg_lens, target_dist, total_len);
 
     if path.relative {
         (from.0 + pt.x, from.1 + pt.y)
     } else {
         (pt.x - frame.x, pt.y - frame.y)
     }
+}
+
+/// The point `dist` along a polyline whose segments have lengths `seg_lens` (sum `total_len`,
+/// which is positive and finite). Before the start or past the end it continues along the first
+/// or last segment that has a length.
+fn point_at_distance(points: &[Point], seg_lens: &[f32], dist: f32, total_len: f32) -> Point {
+    let at = |i: usize, frac: f32| {
+        let p0 = points.get(i).copied().unwrap_or_default();
+        let p1 = points.get(i + 1).copied().unwrap_or_default();
+        Point {
+            x: p0.x + frac * (p1.x - p0.x),
+            y: p0.y + frac * (p1.y - p0.y),
+        }
+    };
+    if dist < 0.0 {
+        if let Some((i, &len)) = seg_lens.iter().enumerate().find(|(_, l)| **l > 0.0) {
+            return at(i, dist / len);
+        }
+    } else if dist > total_len
+        && let Some((i, &len)) = seg_lens.iter().enumerate().rfind(|(_, l)| **l > 0.0)
+    {
+        return at(i, 1.0 + (dist - total_len) / len);
+    }
+    let mut accum = 0.0;
+    let last = seg_lens.len().saturating_sub(1);
+    for (i, &seg_len) in seg_lens.iter().enumerate() {
+        if dist <= accum + seg_len || i == last {
+            let frac = if seg_len > 0.0 {
+                ((dist - accum) / seg_len).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            return at(i, frac);
+        }
+        accum += seg_len;
+    }
+    points.last().copied().unwrap_or_default()
 }
 
 /// Result of sampling a slide transition between previous and next slide.
@@ -405,6 +425,18 @@ pub struct TransitionSample {
     pub backdrop: Option<[u8; 3]>,
 }
 
+/// `transition` as it plays when the learner prefers reduced motion: a plain [`Fade`]
+/// of the same duration, whatever the authored effect.
+///
+/// [`Fade`]: TransitionEffect::Fade
+#[must_use]
+pub fn reduced_motion_transition(transition: &Transition) -> Transition {
+    Transition {
+        effect: TransitionEffect::Fade,
+        duration_ms: transition.duration_ms,
+    }
+}
+
 /// Sample a slide transition at progress `progress` in `[0, 1]`.
 #[must_use]
 pub fn sample_transition(
@@ -430,7 +462,9 @@ pub fn sample_transition(
         (-vx * amount * w, -vy * amount * h)
     };
     match transition.effect {
-        TransitionEffect::Fade => plain(SlideLook::faded(1.0 - p), SlideLook::faded(p)),
+        // The old slide stays opaque and the new one fades in over it, so no dark backdrop
+        // shows through half way.
+        TransitionEffect::Fade => plain(SlideLook::REST, SlideLook::faded(p)),
         TransitionEffect::FadeBlack => TransitionSample {
             backdrop: Some([0, 0, 0]),
             ..plain(
@@ -482,7 +516,7 @@ pub fn sample_transition(
                 matches!(transition.effect, TransitionEffect::Dissolve)
                     .then(|| coursecraft_course::AnimEffect::new("dissolve"))
             }) else {
-                return plain(SlideLook::faded(1.0 - p), SlideLook::faded(p));
+                return plain(SlideLook::REST, SlideLook::faded(p));
             };
             let s = crate::effects::sample_effect(
                 &fx,

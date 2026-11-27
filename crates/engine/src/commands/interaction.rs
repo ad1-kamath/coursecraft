@@ -422,9 +422,11 @@ pub(super) fn interaction_insert(s: &mut Session, p: &Json) -> Result<Json> {
         theme: &theme,
         w,
         h,
-        margin: (w * 0.06).clamp(20.0, 120.0),
-        top: (h * 0.12).max(20.0),
-        gap: (w * 0.012).clamp(6.0, 20.0),
+        // The floors keep a normal slide readable; the caps keep a tiny slide
+        // (a side of a few pixels) from getting negative widths.
+        margin: (w * 0.06).clamp(20.0, 120.0).min(w * 0.2),
+        top: (h * 0.12).max(20.0).min(h * 0.2),
+        gap: (w * 0.012).clamp(6.0, 20.0).min(w * 0.02),
         base_ids: Vec::new(),
         layer_ids: Vec::new(),
         all_ids: Vec::new(),

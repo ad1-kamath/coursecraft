@@ -374,6 +374,36 @@ fn by_letter_shadow_follows_its_letters() {
     );
 }
 
+// --- %variables% inside a by-letter or by-paragraph sequence ----------------------------------
+
+fn with_variable(c: Course, name: &str, value: &str) -> Course {
+    let mut json: serde_json::Value = serde_json::from_str(&c.to_json().expect("json")).expect("v");
+    json["variables"] = serde_json::json!([{ "name": name, "value": value }]);
+    Course::from_json(&json.to_string()).expect("course")
+}
+
+#[test]
+fn sequenced_text_fills_in_variables_before_it_splits() {
+    for sequence in ["by_letter", "by_paragraph"] {
+        let literal = sequence_course(sequence, "MMMM WWWW", serde_json::json!([]));
+        let token = with_variable(
+            sequence_course(sequence, "%who%", serde_json::json!([])),
+            "who",
+            "MMMM WWWW",
+        );
+        let want = count_non_white(&player_at(&literal, 2500));
+        let got = count_non_white(&player_at(&token, 2500));
+        assert!(want > 100, "text is drawn");
+        assert!(
+            got.abs_diff(want) < want / 20,
+            "{sequence}: the value shows, not the raw token: {want} vs {got}"
+        );
+        // Partway through, the filled-in text is still being revealed.
+        let early = count_non_white(&player_at(&token, 150));
+        assert!(early < got, "{sequence}: still revealing: {early} < {got}");
+    }
+}
+
 // --- Mesh pass: scale, rotation and clip -------------------------------------------------
 
 fn render_with(c: &Course, sample: &ObjectSample) -> RgbaImage {

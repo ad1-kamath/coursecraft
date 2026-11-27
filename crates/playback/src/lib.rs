@@ -933,6 +933,12 @@ pub trait MediaBackend {
     /// Wasm video only: show or clear the caption text drawn over one video.
     /// The default does nothing, which is right for audio and for desktop.
     fn show_caption(&mut self, _object: &str, _text: Option<&str>) {}
+    /// Whether this backend draws video captions itself (a DOM box over the
+    /// video). When `false`, the player frame draws video captions like audio
+    /// ones. Default `false`, which is right for desktop.
+    fn shows_video_captions(&self) -> bool {
+        false
+    }
     /// Desktop video: newest decoded frame for `object`, if any. Never blocks.
     /// Default is `None` (poster / wasm).
     fn video_frame(&self, _object: &str) -> Option<Arc<VideoFrame>> {
@@ -955,6 +961,28 @@ pub trait MediaBackend {
     /// opening the default audio stream has failed.
     fn no_device(&self) -> bool {
         false
+    }
+}
+
+/// The MIME type a web media element needs for the file named `src`, by extension.
+/// The match ignores case, so `CLIP.MP4` is video like `clip.mp4`.
+#[must_use]
+pub fn mime_for_src(src: &str) -> &'static str {
+    let src = src.to_ascii_lowercase();
+    if src.ends_with(".mp3") {
+        "audio/mpeg"
+    } else if src.ends_with(".wav") {
+        "audio/wav"
+    } else if src.ends_with(".ogg") {
+        "audio/ogg"
+    } else if src.ends_with(".m4a") {
+        "audio/mp4"
+    } else if src.ends_with(".mp4") {
+        "video/mp4"
+    } else if src.ends_with(".webm") {
+        "video/webm"
+    } else {
+        "application/octet-stream"
     }
 }
 
@@ -1850,21 +1878,7 @@ impl WebBackend {
         let uint8 = js_sys::Uint8Array::from(bytes);
         array.push(&uint8);
 
-        let mime = if src.ends_with(".mp3") {
-            "audio/mpeg"
-        } else if src.ends_with(".wav") {
-            "audio/wav"
-        } else if src.ends_with(".ogg") {
-            "audio/ogg"
-        } else if src.ends_with(".m4a") {
-            "audio/mp4"
-        } else if src.ends_with(".mp4") {
-            "video/mp4"
-        } else if src.ends_with(".webm") {
-            "video/webm"
-        } else {
-            "application/octet-stream"
-        };
+        let mime = mime_for_src(src);
 
         let bag = web_sys::BlobPropertyBag::new();
         bag.set_type(mime);
@@ -2272,6 +2286,10 @@ impl MediaBackend for WebBackend {
                 }
             }
         }
+    }
+
+    fn shows_video_captions(&self) -> bool {
+        true
     }
 
     fn show_caption(&mut self, object: &str, text: Option<&str>) {

@@ -25,6 +25,9 @@ const MARGIN_TWIPS: u32 = 720;
 const TEXT_WIDTH_TWIPS: u32 = PAGE_WIDTH_TWIPS - 2 * MARGIN_TWIPS;
 /// English Metric Units per twip (1 inch = 914,400 EMU = 1,440 twips).
 const EMU_PER_TWIP: u64 = 635;
+/// The tallest slide picture, in twips: a portrait slide must leave room for
+/// the heading and notes on the page. A 16:9 picture is about 8660 twips tall.
+const MAX_PICTURE_HEIGHT_TWIPS: u64 = 8_800;
 /// At 96 dpi a pixel is 0.75 pt, and the review layout uses 9144 EMU per pt,
 /// so one pixel of the JPEG is 6858 EMU before scaling to the text width.
 const EMU_PER_PIXEL: u64 = 9_144 * 3 / 4;
@@ -232,7 +235,7 @@ fn push_picture(xml: &mut String, index: usize, page: &ReviewPage) {
 
 /// The picture is as wide as the text column; its height follows the JPEG's
 /// pixel aspect ratio.
-fn picture_extent(page: &ReviewPage) -> (u64, u64) {
+pub(crate) fn picture_extent(page: &ReviewPage) -> (u64, u64) {
     let width = u64::from(TEXT_WIDTH_TWIPS).saturating_mul(EMU_PER_TWIP);
     if page.width == 0 || page.height == 0 {
         return (width, width.saturating_mul(9) / 16);
@@ -240,6 +243,11 @@ fn picture_extent(page: &ReviewPage) -> (u64, u64) {
     let natural_width = u64::from(page.width).saturating_mul(EMU_PER_PIXEL);
     let natural_height = u64::from(page.height).saturating_mul(EMU_PER_PIXEL);
     let height = width.saturating_mul(natural_height) / natural_width.max(1);
+    let max_height = MAX_PICTURE_HEIGHT_TWIPS.saturating_mul(EMU_PER_TWIP);
+    if height > max_height {
+        let narrower = max_height.saturating_mul(natural_width) / natural_height.max(1);
+        return (narrower.max(1), max_height);
+    }
     (width, height.max(1))
 }
 
@@ -272,6 +280,7 @@ fn push_escaped(out: &mut String, text: &str) {
             '\'' => out.push_str("&apos;"),
             '\t' | '\n' | '\r' => out.push(ch),
             ch if (ch as u32) < 0x20 => {}
+            '\u{FFFE}' | '\u{FFFF}' => {}
             ch => out.push(ch),
         }
     }

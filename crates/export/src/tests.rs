@@ -48,6 +48,15 @@ fn resampler_44100_to_48000_keeps_a_constant_signal_constant() {
 }
 
 #[test]
+fn resampler_refuses_an_absurdly_low_source_rate() {
+    // 100k samples at 1 Hz would otherwise become 4.8 billion samples.
+    let input = vec![1i16; 100_000];
+    let started = std::time::Instant::now();
+    assert!(resample_to_stereo(&input, 1, 1).is_empty());
+    assert!(started.elapsed() < std::time::Duration::from_secs(2));
+}
+
+#[test]
 fn mix_add_saturates_instead_of_wrapping() {
     let mut dst = [i16::MAX, i16::MIN, 0, 100];
     mix_add(&mut dst, &[1000, -1000, 32_000, -50]);
@@ -642,5 +651,77 @@ mod encoder {
             assert!(out.is_file(), "MP4 missing at {w}x{h}");
             assert!(report.frames > 0, "expected frames at {w}x{h}");
         }
+    }
+}
+
+// ------------------------------------------------------- mp4 frame size, no encoder
+
+#[test]
+fn mp4_frame_height_is_even_and_matches_the_renderer() {
+    for (w, h, width, expected_even) in [
+        (1200u32, 800u32, 1280u32, 852u32),
+        (720, 1280, 1920, 3412),
+        (1280, 720, 1280, 720),
+        (1920, 1080, 1280, 720),
+    ] {
+        let mut course = hello_course();
+        course.slide_size = coursecraft_course::Size { w, h };
+        let even = crate::mp4::frame_height(&course, width).expect("height");
+        assert_eq!(even, expected_even, "{w}x{h} at {width}");
+        assert_eq!(even % 2, 0);
+        let rendered = ((width as f32 * h as f32 / w as f32).round() as u32).clamp(16, 4096);
+        assert!(
+            rendered - even <= 1,
+            "the encoder frame is at most one row short"
+        );
+    }
+}
+
+#[test]
+fn mp4_odd_rendered_height_is_cropped_to_the_encoder_height() {
+    let image = coursecraft_render::RgbaImage {
+        width: 4,
+        height: 3,
+        pixels: vec![7; 4 * 3 * 4],
+    };
+    assert_eq!(crate::mp4::even_rows(&image).len(), 4 * 2 * 4);
+    let even = coursecraft_render::RgbaImage {
+        width: 4,
+        height: 4,
+        pixels: vec![7; 4 * 4 * 4],
+    };
+    assert_eq!(crate::mp4::even_rows(&even).len(), 4 * 4 * 4);
+}
+
+#[test]
+fn mp4_partial_file_keeps_the_extension_last() {
+    let partial = crate::mp4::partial_path(std::path::Path::new("dir/video.mp4"));
+    assert_eq!(partial, std::path::Path::new("dir/video.partial.mp4"));
+}
+
+#[test]
+fn review_pictures_of_tall_slides_fit_on_a_landscape_page() {
+    // 16:9 keeps the full text width; 9:16 and 4:3 get narrower, never taller than the cap.
+    let (wide, high) = crate::pdf::image_size(1600, 900);
+    assert!((wide - 770.0).abs() < 0.01 && high < 440.0, "{wide}x{high}");
+    for (w, h) in [(720u32, 1280u32), (1600, 1200), (100, 1000)] {
+        let (width, height) = crate::pdf::image_size(w, h);
+        assert!(height <= 440.0 + 0.01, "pdf {w}x{h} -> {height}");
+        assert!(width <= 770.0 + 0.01);
+        let ratio = (width / height) - (w as f32 / h as f32);
+        assert!(ratio.abs() < 0.01, "aspect kept: {ratio}");
+
+        let page = crate::pages::ReviewPage {
+            heading: String::new(),
+            jpeg: Vec::new(),
+            width: w,
+            height: h,
+            notes: String::new(),
+            text: Vec::new(),
+        };
+        let (cx, cy) = crate::docx::picture_extent(&page);
+        // 635 EMU per twip; a page is 11906 twips tall with 720-twip margins.
+        assert!(cy <= 8_800 * 635, "docx {w}x{h} -> {cy}");
+        assert!(cx <= (16_838 - 1440) * 635);
     }
 }

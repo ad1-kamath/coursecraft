@@ -18,7 +18,6 @@ use serde_json::{Value as Json, json};
 use crate::Editor;
 use crate::properties::InspectorTab;
 use crate::status::navigate_to_audit_finding;
-use crate::timeline::BottomTab;
 
 /// Longest search or replacement the engine accepts (the engine's text limit).
 const MAX_TEXT_BYTES: usize = 4096;
@@ -442,11 +441,11 @@ pub(crate) fn go_to(editor: &mut Editor, hit: &Hit) {
         editor.ui.show_course_settings_window = true;
         editor.ui.course_settings.open_resources = true;
     } else {
-        editor.ui.inspector_tab = InspectorTab::Course;
+        crate::dock::request_inspector_tab(editor, InspectorTab::Course);
     }
 
     if hit.field.starts_with("question/") {
-        editor.ui.bottom_tab = BottomTab::Question;
+        crate::dock::request_bottom_tab(editor, crate::BottomTab::Question);
     } else if !editor.ui.master_view
         && let Some(state_name) = state_name_from_find_field(&hit.field)
     {

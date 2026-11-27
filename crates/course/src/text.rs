@@ -476,8 +476,41 @@ fn change_case_of(
     }
 }
 
-/// Change the case of the characters in `char_range` (an empty range covers all of
-/// `plain_text`), run by run. Run formatting and line breaks stay where they are.
+/// Whether `ch` is an apostrophe that joins the letters of a word ("don't", "don’t").
+fn is_apostrophe(ch: char) -> bool {
+    matches!(ch, '\'' | '\u{2019}' | '\u{02BC}')
+}
+
+/// Whether the sentence-ending mark at `index` starts a new sentence.
+///
+/// Rules: `\n` always does. `.`, `!` and `?` do when whitespace (or the end of
+/// the text) follows them, except a `.` that ends a dotted abbreviation of single
+/// letters such as "e.g." or "i.e." (a letter after a `.` before the mark).
+fn ends_sentence(chars: &[char], index: usize) -> bool {
+    let Some(&ch) = chars.get(index) else {
+        return false;
+    };
+    if ch == '\n' {
+        return true;
+    }
+    if !matches!(ch, '.' | '!' | '?') {
+        return false;
+    }
+    if chars
+        .get(index + 1)
+        .is_some_and(|next| !next.is_whitespace())
+    {
+        return false;
+    }
+    let dotted_abbreviation = ch == '.'
+        && index >= 2
+        && chars.get(index - 1).is_some_and(|c| c.is_alphabetic())
+        && chars.get(index - 2) == Some(&'.');
+    !dotted_abbreviation
+}
+
+/// Change the case of the characters in `char_range` (an empty range, `start ==
+/// end`, covers all of `plain_text`), run by run. Run formatting and line breaks stay where they are.
 /// `plain_text` must be the text of `runs` when there are runs. Returns the new
 /// plain text and the new runs (empty when `runs` was empty).
 #[must_use]
@@ -504,7 +537,7 @@ pub fn change_case_in_range(
     let mut in_word = false;
     let mut new_sentence = true;
     for (index, ch) in chars.iter().enumerate() {
-        let is_word_char = ch.is_alphanumeric() || (*ch == '\'' && in_word);
+        let is_word_char = ch.is_alphanumeric() || (is_apostrophe(*ch) && in_word);
         if is_word_char {
             if let Some(slot) = word_start.get_mut(index) {
                 *slot = !in_word;
@@ -520,7 +553,7 @@ pub fn change_case_in_range(
             }
         }
         in_word = is_word_char;
-        if matches!(ch, '.' | '!' | '?' | '\n') {
+        if ends_sentence(&chars, index) {
             new_sentence = true;
         }
     }

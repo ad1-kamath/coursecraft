@@ -315,6 +315,39 @@ pub(super) fn table_merge(s: &mut Session, p: &Json) -> Result<Json> {
     {
         return Err(bad(C, "the merge anchor is covered by another merge"));
     }
+    // A merge may swallow merges that lie wholly inside the new range. A cell
+    // that another merge owns from outside the range would be covered twice.
+    for covered_row in row..row_end {
+        for covered_column in column..column_end {
+            let Some((owner_row, owner_column)) = owners
+                .get(covered_row)
+                .and_then(|line| line.get(covered_column))
+                .copied()
+                .flatten()
+            else {
+                continue;
+            };
+            let (span_rows, span_columns) = rows
+                .get(owner_row)
+                .and_then(|line| line.cells.get(owner_column))
+                .map_or((1, 1), |cell| {
+                    (
+                        usize::from(cell.row_span.max(1)),
+                        usize::from(cell.col_span.max(1)),
+                    )
+                });
+            let inside = owner_row >= row
+                && owner_column >= column
+                && owner_row.saturating_add(span_rows) <= row_end
+                && owner_column.saturating_add(span_columns) <= column_end;
+            if !inside {
+                return Err(bad(
+                    C,
+                    "the merged range overlaps another merged cell; split it first",
+                ));
+            }
+        }
+    }
     for covered_row in row..row_end {
         for covered_column in column..column_end {
             let Some(cell) = rows

@@ -13,8 +13,8 @@ use egui::{
 };
 
 use crate::chrome::{
-    DEFAULT_BAR_COLOR, DEFAULT_BAR_TEXT_COLOR, at_slide_end, format_ms, nav_limits,
-    play_pause_inputs, progress_fraction, replay_inputs,
+    DEFAULT_BAR_COLOR, DEFAULT_BAR_TEXT_COLOR, at_slide_end, format_ms, play_pause_inputs,
+    player_nav_limits, progress_fraction, replay_inputs,
 };
 use crate::color::parse_color;
 use crate::design::{
@@ -186,8 +186,6 @@ pub struct PlayerFrame {
     last_chrome: Vec<(crate::focus::ChromeButton, Rect)>,
     /// The lightbox close button's screen rect, when one was painted.
     last_lightbox_close: Option<Rect>,
-    /// Last object focus reported to the runtime, so only changes are sent.
-    last_focus_object: Option<String>,
 }
 
 impl Default for PlayerFrame {
@@ -234,7 +232,6 @@ impl Default for PlayerFrame {
             focus: crate::focus::FocusManager::new(),
             last_chrome: Vec::new(),
             last_lightbox_close: None,
-            last_focus_object: None,
         }
     }
 }
@@ -346,6 +343,12 @@ impl PlayerFrame {
         self.focus.chrome_visibility()
     }
 
+    /// Show `text` as the notice banner, even if the learner dismissed an earlier notice.
+    pub fn post_notice(&mut self, text: String) {
+        self.notice = Some(text);
+        self.notice_dismissed = false;
+    }
+
     /// The notice text currently shown, if a notice is set, non-empty and not
     /// dismissed for the session.
     #[must_use]
@@ -436,7 +439,10 @@ impl PlayerFrame {
         self.last_notice_rect = None;
         self.last_review_rect = None;
         self.drawer_view = DrawerView::default();
+        // The host's DOM layer still owns typing after a restart.
+        let dom_owner = self.focus.dom_focus_owner();
         self.focus = crate::focus::FocusManager::new();
+        self.focus.set_dom_focus_owner(dom_owner);
         self.last_chrome.clear();
         self.last_lightbox_close = None;
         self.seek_drag = None;
@@ -459,6 +465,7 @@ impl PlayerFrame {
         view: &mut SlideView,
         media: Option<(&mut MediaCache, &dyn MediaSource)>,
     ) -> FrameOutput {
+        player.set_reduced_motion(self.reduced_motion);
         let requested = ui.available_size();
         if !requested.x.is_finite()
             || !requested.y.is_finite()
@@ -564,11 +571,14 @@ impl PlayerFrame {
         let pointer_hovered = view.hovered_object().map(str::to_owned);
         let previous_hover = self.focus.hovered_object().map(str::to_owned);
         self.focus.set_drawer_view(self.drawer_view.clone());
-        let mut inputs = if gated {
+        let mut inputs = if gated || self.ended {
             Vec::new()
         } else {
             self.handle_keyboard(ui, player, show_menu, show_nav)
         };
+        // Whether a lightbox was already open before this frame's focus update,
+        // which itself notes an opening lightbox.
+        let lightbox_was_open = self.focus.lightbox_open();
         // Once the course has ended the card covers the slide and the strip is
         // hidden, so there is nothing left to focus.
         if !self.ended && !gated {
@@ -605,14 +615,16 @@ impl PlayerFrame {
                 }
             }
         }
+        // Object focus only matters while the learner is working by keyboard.
+        // Report what the runtime does not already know, including clearing it
+        // when a pointer press ends keyboard mode or the slide changes.
         let focused_object = match self.focus.focused() {
-            Some(crate::focus::FocusTarget::Object(id)) => Some(id.clone()),
+            Some(crate::focus::FocusTarget::Object(id)) if self.focus.keyboard_mode() => {
+                Some(id.clone())
+            }
             _ => None,
         };
-        // Object focus only matters while the learner is working by keyboard;
-        // report it when it changes, including clearing it.
-        if self.focus.keyboard_mode() && focused_object != self.last_focus_object {
-            self.last_focus_object = focused_object.clone();
+        if focused_object.as_deref() != player.state().focused_object.as_deref() {
             inputs.insert(
                 0,
                 Input::FocusChanged {
@@ -648,9 +660,16 @@ impl PlayerFrame {
             // The scrim covers the whole frame, so nothing reaches the slide.
             covered.push(full);
         }
-        if gated {
-            // The gate covers everything, so nothing reaches the slide.
+        if gated || self.ended {
+            // The gate and the end card cover everything, so nothing reaches the slide.
             covered.push(full);
+        }
+        if self.speed_open
+            && self.strip_opacity > 0.01
+            && let Some(anchor) = layout.as_ref().and_then(|l| l.speed)
+        {
+            // The popup is drawn above the slide; keep its presses off the slide.
+            covered.push(speed_popup_rect(full, anchor));
         }
         let (notice_text, notice_banner) = self.notice_area(ui, player, full, &mut covered);
         let review_text = review_banner_text(player);
@@ -689,14 +708,18 @@ impl PlayerFrame {
             covered.push(rect);
         }
         view.set_reduced_motion(self.reduced_motion);
-        inputs.extend(show_slide(ui, player, view, media, slide_rect, &covered));
+        let slide_inputs = show_slide(ui, player, view, media, slide_rect, &covered);
+        // The end card covers the slide, so nothing under it may act.
+        if !self.ended {
+            inputs.extend(slide_inputs);
+        }
         let transform = view.last_transform();
         let focus_transform = if player.lightbox_open() {
             view.lightbox_transform()
         } else {
             transform
         };
-        if player.lightbox_open() && !self.focus.lightbox_open() {
+        if player.lightbox_open() && !lightbox_was_open {
             let opener = view
                 .last_clicked_object()
                 .map(|id| crate::focus::FocusTarget::Object(id.to_owned()));
@@ -959,13 +982,23 @@ impl PlayerFrame {
         // Menu and caption keys are consumed here so a trigger's key forwarding
         // cannot also see them. Escape is left unconsumed when it closes
         // nothing, so the host (for example the editor preview) can use it.
+        // `M` and `C` are only taken while they do something; otherwise a slide's
+        // `key_pressed` trigger for them still fires.
+        let lightbox = player.lightbox_open();
+        let can_menu = show_menu && !lightbox;
+        let can_captions = !lightbox
+            && effective_show_bar(player)
+            && player.effective_player().show_captions
+            && player
+                .current_slide()
+                .is_some_and(crate::media_driver::slide_has_captions);
         let (left, right, menu, escape, captions) = ui.input_mut(|i| {
             (
                 i.key_pressed(egui::Key::ArrowLeft),
                 i.key_pressed(egui::Key::ArrowRight),
-                i.consume_key(egui::Modifiers::NONE, egui::Key::M),
+                can_menu && i.consume_key(egui::Modifiers::NONE, egui::Key::M),
                 i.key_pressed(egui::Key::Escape),
-                i.consume_key(egui::Modifiers::NONE, egui::Key::C),
+                can_captions && i.consume_key(egui::Modifiers::NONE, egui::Key::C),
             )
         });
         if player.lightbox_open() {
@@ -997,14 +1030,7 @@ impl PlayerFrame {
         let Some(slide) = player.current_slide() else {
             return Vec::new();
         };
-        let (is_first, is_last) = if player.is_partial_preview() {
-            (false, false)
-        } else {
-            nav_limits(
-                player.play_order().iter().map(|s| s.id.as_str()),
-                slide.id.as_str(),
-            )
-        };
+        let (is_first, is_last) = player_nav_limits(player, slide.id.as_str());
         let mut inputs = Vec::new();
         if show_nav {
             let mut used_left = false;
@@ -1064,7 +1090,7 @@ impl PlayerFrame {
         let Some(caption) = &self.caption else {
             return;
         };
-        if caption.kind != coursecraft_playback::MediaKind::Audio {
+        if caption.dom {
             return;
         }
         let strip_top = if self.strip_opacity > 0.01 {
@@ -2102,7 +2128,7 @@ fn draw_speed_and_fullscreen(
     }
     if let Some(rect) = layout.fullscreen {
         let (icon, tooltip) = if fullscreen_on {
-            (Icon::CornersIn, "Exit full screen")
+            (Icon::CornersIn, course.chrome_string("exitFullScreen"))
         } else {
             (Icon::CornersOut, course.chrome_string("fullScreen"))
         };
@@ -2124,6 +2150,23 @@ fn format_rate(rate: f32) -> String {
     format!("{rate}\u{00D7}")
 }
 
+/// Where the speed popup sits above its button. The frame reads it before the slide is
+/// shown, so the popup covers the slide and presses on a rate never reach it.
+fn speed_popup_rect(full: Rect, anchor: Rect) -> Rect {
+    let height = SPEED_ROW * coursecraft_logic::PLAYBACK_RATES.len() as f32 + 8.0;
+    let width = 72.0;
+    let pad = 4.0_f32.min(((full.width() - width) * 0.5).max(0.0));
+    let min_x = full.left() + pad;
+    let max_x = (full.right() - width - pad).max(min_x);
+    let x = coursecraft_course::safe_clamp(anchor.center().x - width * 0.5, min_x, max_x);
+    let y = coursecraft_course::safe_clamp(
+        anchor.top() - 6.0 - height,
+        full.top(),
+        (full.bottom() - height).max(full.top()),
+    );
+    Rect::from_min_size(Pos2::new(x, y), vec2(width, height))
+}
+
 #[allow(clippy::too_many_arguments)]
 fn draw_speed_popup(
     ui: &Ui,
@@ -2137,18 +2180,8 @@ fn draw_speed_popup(
     bar: Color32,
 ) {
     let rates = coursecraft_logic::PLAYBACK_RATES;
-    let height = SPEED_ROW * rates.len() as f32 + 8.0;
-    let width = 72.0;
-    let pad = 4.0_f32.min(((full.width() - width) * 0.5).max(0.0));
-    let min_x = full.left() + pad;
-    let max_x = (full.right() - width - pad).max(min_x);
-    let x = coursecraft_course::safe_clamp(anchor.center().x - width * 0.5, min_x, max_x);
-    let y = coursecraft_course::safe_clamp(
-        anchor.top() - 6.0 - height,
-        full.top(),
-        (full.bottom() - height).max(full.top()),
-    );
-    let popup = Rect::from_min_size(Pos2::new(x, y), vec2(width, height));
+    let popup = speed_popup_rect(full, anchor);
+    let width = popup.width();
     let painter = ui.ctx().layer_painter(egui::LayerId::new(
         egui::Order::Tooltip,
         Id::unique("coursecraft-speed-popup"),
@@ -2222,16 +2255,9 @@ fn draw_secondary_controls(
     bar: Color32,
 ) {
     let slide = player.current_slide();
-    let (is_first, is_last) = if player.is_partial_preview() {
-        (false, false)
-    } else {
-        slide.map_or((true, true), |slide| {
-            nav_limits(
-                player.play_order().iter().map(|s| s.id.as_str()),
-                slide.id.as_str(),
-            )
-        })
-    };
+    let (is_first, is_last) = slide.map_or((true, true), |slide| {
+        player_nav_limits(player, slide.id.as_str())
+    });
     let started = player.state().started;
     let can_nav = show_nav && started && !player.lightbox_open();
     let can_menu = player.effective_player().show_menu && started;
@@ -2958,6 +2984,7 @@ fn draw_drawer(
             inputs,
             focus_search,
             accent,
+            progress >= 1.0,
         );
         return;
     }
@@ -3250,6 +3277,11 @@ fn glossary_search_id() -> Id {
 }
 
 /// One tappable row in a drawer list: highlight, focus ring and chrome rect.
+///
+/// While the drawer slides in (`settled` false) the row takes no clicks. The chrome
+/// rect keeps only the vertically visible part, so a row scrolled out of the list
+/// reports an empty rect instead of one over the header.
+#[allow(clippy::too_many_arguments)]
 fn drawer_item(
     ui: &mut Ui,
     kind: &crate::focus::ChromeButton,
@@ -3258,10 +3290,29 @@ fn drawer_item(
     focus: &crate::focus::FocusManager,
     chrome: &mut Vec<(crate::focus::ChromeButton, Rect)>,
     accent: Color32,
+    settled: bool,
 ) -> (Rect, egui::Response) {
-    let (row, resp) = ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::click());
-    let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
-    chrome.push((kind.clone(), row));
+    let sense = if settled {
+        Sense::click()
+    } else {
+        Sense::hover()
+    };
+    let (row, resp) = ui.allocate_exact_size(vec2(ui.available_width(), height), sense);
+    let resp = if settled {
+        resp.on_hover_cursor(egui::CursorIcon::PointingHand)
+    } else {
+        resp
+    };
+    let clip = ui.clip_rect();
+    let top = row.top().max(clip.top());
+    let bottom = row.bottom().min(clip.bottom());
+    let shown = if bottom > top {
+        Rect::from_min_max(Pos2::new(row.left(), top), Pos2::new(row.right(), bottom))
+    } else {
+        let y = coursecraft_course::safe_clamp(row.top(), clip.top(), clip.bottom());
+        Rect::from_min_size(Pos2::new(row.left(), y), egui::Vec2::ZERO)
+    };
+    chrome.push((kind.clone(), shown));
     if selected {
         ui.painter().rect_filled(
             row,
@@ -3288,6 +3339,7 @@ fn draw_content_tab(
     inputs: &mut Vec<Input>,
     focus_search: &mut bool,
     accent: Color32,
+    settled: bool,
 ) {
     let course = player.course();
     let body_font = FontId::new(SIZE_BODY, FontFamily::Name("inter".into()));
@@ -3303,7 +3355,7 @@ fn draw_content_tab(
                     for resource in &course.resources {
                         let kind = crate::focus::ChromeButton::ResourceRow(resource.id.clone());
                         let (row, resp) =
-                            drawer_item(ui, &kind, 34.0, false, focus, chrome, accent);
+                            drawer_item(ui, &kind, 34.0, false, focus, chrome, accent, settled);
                         let max_res_w = (row.right() - 28.0 - (row.left() + 8.0)).max(0.0);
                         paint_truncated_text(
                             ui.painter(),
@@ -3358,7 +3410,8 @@ fn draw_content_tab(
                     for entry in &entries {
                         let kind = crate::focus::ChromeButton::GlossaryTerm(entry.id.clone());
                         let open = view.selected.as_deref() == Some(entry.id.as_str());
-                        let (row, resp) = drawer_item(ui, &kind, 30.0, open, focus, chrome, accent);
+                        let (row, resp) =
+                            drawer_item(ui, &kind, 30.0, open, focus, chrome, accent, settled);
                         let max_term_w = (row.right() - (row.left() + 8.0) - 8.0).max(0.0);
                         paint_truncated_text(
                             ui.painter(),

@@ -250,7 +250,9 @@ fn the_ribbon_font_box_opens_the_inspectors_font_picker() {
         .and_then(|s| s.font)
         .expect("the title has one font");
     let ribbon = h.editor.ui.ribbon.rect;
-    let combo = h.find_text_in(&font, ribbon).expect("the Font box");
+    let combo = h
+        .find_text_in(&crate::font_picker::displayed_font(&font), ribbon)
+        .expect("the Font box");
     h.click_at(combo);
     h.idle_frame();
     assert!(
@@ -266,16 +268,38 @@ fn the_ribbon_font_box_opens_the_inspectors_font_picker() {
 #[test]
 fn the_ribbon_font_color_opens_the_full_colour_picker() {
     let mut h = harness();
-    let ribbon = h.editor.ui.ribbon.rect;
-    let button = h
-        .find_icon(coursecraft_render::Icon::Palette)
-        .filter(|p| ribbon.contains(*p))
-        .expect("the ribbon's Font Color");
-    h.click_at(button);
+    // The main part applies the colour in its bar; the ▾ opens the picker.
+    let arrow = h
+        .last_widgets
+        .iter()
+        .find(|w| w.label.as_deref() == Some("Font Color options"))
+        .map(|w| w.bounds.center())
+        .expect("the ribbon's Font Color ▾");
+    h.click_at(arrow);
     h.idle_frame();
     assert!(
         h.find_text_containing("Eyedropper").is_some(),
         "the picker's eyedropper"
     );
     assert!(h.find_text("Theme").is_some(), "the theme swatches");
+}
+
+#[test]
+fn ribbon_font_box_shows_inter_for_the_legacy_default_font() {
+    let mut h = harness();
+    let slide = h.editor.session.course.slide("s-intro").expect("slide");
+    let (obj, _) = slide.object("title").expect("title");
+    let ObjectKind::Text { style, .. } = &obj.kind else {
+        panic!("title is text");
+    };
+    assert!(
+        style.font.eq_ignore_ascii_case("Open Sans"),
+        "the hello course title uses the legacy default font"
+    );
+    h.idle_frame();
+    assert_eq!(
+        crate::ribbon::combo_text(&h.editor, Action::Text(TextOp::Font)),
+        "Inter",
+        "the ribbon Font box agrees with the inspector"
+    );
 }

@@ -100,6 +100,8 @@ fn piece(run: &ResolvedTextRun, text: String, visible: bool) -> ResolvedTextRun 
         r.strikethrough = false;
         r.highlight = None;
         r.shadow = false;
+        // Text that is not on yet is not a link yet.
+        r.link = None;
     }
     r
 }
@@ -242,6 +244,29 @@ mod tests {
             assert_eq!(all, "First line\n\nSecond line\nThird");
         }
         assert!(split_parts(&item, Sequence::AsOne).is_none());
+    }
+
+    #[test]
+    fn parts_keep_the_link_only_on_their_own_text() {
+        let mut item = text_item("First\nSecond");
+        if let Visual::Text { runs, .. } = &mut item.visual {
+            for run in runs.iter_mut() {
+                run.link = Some(coursecraft_course::Link::Url {
+                    url: "https://example.com".into(),
+                });
+            }
+        }
+        let parts = split_parts(&item, Sequence::ByParagraph).expect("parts");
+        for part in &parts {
+            for run in runs_of(part).expect("runs") {
+                assert_eq!(
+                    run.link.is_some(),
+                    run.color.a() > 0,
+                    "run {:?}: a link only where the text shows",
+                    run.text
+                );
+            }
+        }
     }
 
     #[test]

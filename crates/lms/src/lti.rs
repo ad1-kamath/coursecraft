@@ -224,13 +224,19 @@ impl LtiReporter {
 
     /// The endpoint refused the report, or the network failed.
     ///
-    /// The report is re-queued once. A second failure gives up and sets
+    /// The report is re-queued once, unless a newer report is already waiting: that
+    /// one replaces it. A second failure gives up and sets
     /// [`LtiReporter::lost`], which the player turns into the lost-reporting
     /// notice.
     pub fn mark_failed(&mut self) {
         let Some(report) = self.in_flight.take() else {
             return;
         };
+        if self.has_pending() {
+            // A newer report arrived while this one was in flight. It replaces the
+            // failed one, so the stale report is dropped and is not retried.
+            return;
+        }
         if self.retried {
             self.lost = true;
             self.pending.clear();

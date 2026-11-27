@@ -21,6 +21,8 @@ mod batch;
 #[cfg(test)]
 mod batch_tests;
 #[cfg(test)]
+mod render_layer_tests;
+#[cfg(test)]
 mod tests;
 
 /// Package standard accepted by `--standard`.
@@ -413,6 +415,43 @@ impl coursecraft_render::MediaSource for InMemoryCliMedia {
     }
 }
 
+/// Whether `p` names a `.ccraft` archive (any letter case).
+fn is_ccraft_path(p: &Path) -> bool {
+    p.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("ccraft"))
+}
+
+/// Resolve `p` for a same-file check even when it does not exist yet: the
+/// parent is resolved and the file name added back.
+fn resolve_for_compare(p: &Path) -> PathBuf {
+    if let Ok(real) = std::fs::canonicalize(p) {
+        return real;
+    }
+    let parent = p
+        .parent()
+        .filter(|d| !d.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    match (std::fs::canonicalize(parent), p.file_name()) {
+        (Ok(dir), Some(name)) => dir.join(name),
+        _ => p.to_path_buf(),
+    }
+}
+
+/// Refuse an output path that is the input course, or the `course.json` inside
+/// an input project folder. Commands that promise "a copy" use this.
+fn refuse_input_as_output(input: &Path, out: &Path) -> Res<()> {
+    let target = resolve_for_compare(out);
+    let input_file = resolve_for_compare(&course_file(input));
+    if target == resolve_for_compare(input) || target == input_file {
+        return Err(format!(
+            "{}: the output must not be the input course; choose another path",
+            out.display()
+        ));
+    }
+    Ok(())
+}
+
 fn read(p: &Path) -> Res<String> {
     std::fs::read_to_string(p).map_err(|e| format!("{}: {e}", p.display()))
 }
@@ -556,18 +595,7 @@ fn run_pack(folder: &Path, out: &Path) -> Res<ExitCode> {
     }
     let opened = coursecraft_format::open_project_folder(folder)
         .map_err(|e| format!("{}: {e}", folder.display()))?;
-    let bytes = coursecraft_format::save_project(&opened.project.course, &opened.project.media)
-        .map_err(|e| e.to_string())?;
-    let name = out
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("project.ccraft");
-    let tmp = out.with_file_name(format!("{name}.tmp-pack"));
-    std::fs::write(&tmp, &bytes).map_err(|e| format!("{}: {e}", tmp.display()))?;
-    std::fs::rename(&tmp, out).map_err(|e| {
-        let _ = std::fs::remove_file(&tmp);
-        format!("{}: {e}", out.display())
-    })?;
+    write_ccraft_archive(out, &opened.project.course, &opened.project.media)?;
     println!(
         "Packed {} files into {}",
         opened.project.media.len() + 1,
@@ -899,23 +927,43 @@ fn load_media_from_dir(dir: &Path) -> Vec<CliMediaEntry> {
     if !dir.is_dir() {
         return media;
     }
-    let mut stack = vec![dir.to_path_buf()];
-    while let Some(current) = stack.pop() {
-        if let Ok(entries) = std::fs::read_dir(&current) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    stack.push(path);
-                } else if path.is_file()
-                    && let Ok(rel) = path.strip_prefix(dir)
-                    && let Some(name) = rel.to_str()
-                    && let Ok(bytes) = std::fs::read(&path)
-                {
-                    media.push((name.to_string(), std::sync::Arc::from(bytes.as_slice())));
-                }
+    let max_bytes = coursecraft_format::Limits::default().max_entry_bytes;
+    // Each entry is a folder and its path inside `dir`, with `/` separators so
+    // keys match the names a `.ccraft` uses on every platform.
+    let mut stack = vec![(dir.to_path_buf(), String::new(), 0usize)];
+    while let Some((current, prefix, depth)) = stack.pop() {
+        if depth > MAX_MEDIA_DEPTH {
+            continue;
+        }
+        let Ok(entries) = std::fs::read_dir(&current) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            // `file_type` does not follow links: a link, and so a link loop, is skipped.
+            let Ok(kind) = entry.file_type() else {
+                continue;
+            };
+            let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
+                continue;
+            };
+            let rel = if prefix.is_empty() {
+                name
+            } else {
+                format!("{prefix}/{name}")
+            };
+            if kind.is_dir() {
+                stack.push((entry.path(), rel, depth + 1));
+            } else if kind.is_file()
+                && media.len() < MAX_MEDIA_FILES
+                && coursecraft_format::is_safe_relative_path(&rel)
+                && entry.metadata().is_ok_and(|m| m.len() <= max_bytes)
+                && let Ok(bytes) = std::fs::read(entry.path())
+            {
+                media.push((rel, std::sync::Arc::from(bytes.as_slice())));
             }
         }
     }
+    media.sort_by(|a, b| a.0.cmp(&b.0));
     media
 }
 
@@ -1147,37 +1195,47 @@ fn run_snapshot_player(
 }
 
 /// Read every file under `media/<path>/`, keeping paths relative to `media/`.
+/// Links are skipped, the folder must be inside `media/`, and the web-folder
+/// file and size caps apply. A refusal is reported on stderr.
 fn collect_web_folder_files(
     media_dir: &Path,
     path: &str,
 ) -> Option<Vec<(String, std::sync::Arc<[u8]>)>> {
-    let dir = media_dir.join(path);
-    if !dir.is_dir() {
+    if !media_dir.join(path.trim_end_matches('/')).is_dir() {
         return None;
     }
-    let mut out = Vec::new();
-    let mut queue = vec![(dir, path.to_owned())];
-    while let Some((dir, prefix)) = queue.pop() {
-        let entries = std::fs::read_dir(&dir).ok()?;
-        for entry in entries.filter_map(Result::ok) {
-            let name = entry.file_name().to_string_lossy().into_owned();
-            let relative = format!("{prefix}/{name}");
-            let file_type = entry.path().symlink_metadata().ok()?.file_type();
-            if file_type.is_symlink() {
-                continue;
-            }
-            if file_type.is_dir() {
-                queue.push((entry.path(), relative));
-            } else if file_type.is_file() {
-                out.push((
-                    relative,
-                    std::sync::Arc::from(std::fs::read(entry.path()).ok()?),
-                ));
-            }
+    match coursecraft_format::read_media_folder(
+        media_dir,
+        path,
+        coursecraft_course::WEB_MAX_FILES,
+        coursecraft_course::WEB_MAX_BYTES,
+    ) {
+        Ok(files) => Some(
+            files
+                .into_iter()
+                .map(|(name, bytes)| (name, std::sync::Arc::from(bytes)))
+                .collect(),
+        ),
+        Err(error) => {
+            eprintln!("warning: web folder {path}: {error}");
+            None
         }
     }
-    out.sort_by(|a, b| a.0.cmp(&b.0));
-    Some(out)
+}
+
+/// Read `media_dir/src` when it is a regular file that lives inside
+/// `media_dir` (a link that leaves it is refused) and is within the size limit.
+fn read_media_file(media_dir: &Path, src: &str) -> Option<Vec<u8>> {
+    let root = std::fs::canonicalize(media_dir).ok()?;
+    let file = std::fs::canonicalize(media_dir.join(src)).ok()?;
+    if !file.starts_with(&root) {
+        return None;
+    }
+    let meta = std::fs::metadata(&file).ok()?;
+    if !meta.is_file() || meta.len() > coursecraft_format::Limits::default().max_entry_bytes {
+        return None;
+    }
+    std::fs::read(&file).ok()
 }
 
 fn is_valid_player_dir(dir: &Path) -> bool {
@@ -1248,7 +1306,18 @@ fn run_publish(
 
     let player = resolve_player_dir(player)?;
     let course = course_file(&course);
-    let c = load(&course)?;
+    // A `.ccraft` carries its own media; the folder beside it is not its media.
+    let (c, archive_media): (Course, Option<MediaMap>) = if is_ccraft_path(&course) {
+        let project = open_ccraft_file(&course)?;
+        let map = project
+            .media
+            .into_iter()
+            .map(|(name, bytes)| (name, std::sync::Arc::from(bytes)))
+            .collect();
+        (project.course, Some(map))
+    } else {
+        (load(&course)?, None)
+    };
 
     let issues = c.validate();
     let errors = issues
@@ -1307,13 +1376,27 @@ fn run_publish(
         .map(|(face, bytes)| (face.src, std::sync::Arc::from(bytes)))
         .collect();
     let media_resolver = |src: &str| {
-        embedded_map.get(src).cloned().or_else(|| {
-            std::fs::read(course_dir.join("media").join(src))
-                .ok()
-                .map(std::sync::Arc::from)
-        })
+        embedded_map
+            .get(src)
+            .cloned()
+            .or_else(|| match &archive_media {
+                Some(map) => map.get(src).cloned(),
+                None => read_media_file(&course_dir.join("media"), src).map(std::sync::Arc::from),
+            })
     };
-    let web_folders = |path: &str| collect_web_folder_files(&course_dir.join("media"), path);
+    let web_folders = |path: &str| match &archive_media {
+        Some(map) => {
+            let prefix = format!("{}/", path.trim_end_matches('/'));
+            let mut files: Vec<(String, std::sync::Arc<[u8]>)> = map
+                .iter()
+                .filter(|(name, _)| name.starts_with(&prefix))
+                .map(|(name, bytes)| (name.clone(), std::sync::Arc::clone(bytes)))
+                .collect();
+            files.sort_by(|a, b| a.0.cmp(&b.0));
+            (!files.is_empty()).then_some(files)
+        }
+        None => collect_web_folder_files(&course_dir.join("media"), path),
+    };
 
     let pkg_input = PackageInput {
         course: &published_course,
@@ -1362,6 +1445,8 @@ fn run_publish(
     println!("published {} file(s), {} bytes zip", files.len(), zip_len);
     Ok(ExitCode::SUCCESS)
 }
+
+type MediaMap = std::collections::HashMap<String, std::sync::Arc<[u8]>>;
 
 struct LoadedProject {
     course: Course,
@@ -1585,53 +1670,103 @@ fn run_export_docx(
     }
 }
 
-fn write_course_output<B: AsRef<[u8]>>(
+/// Write `bytes` to `path` through a temporary file and a rename, creating the
+/// parent folder. A failed write leaves any existing file as it was.
+fn write_file_atomic(path: &Path, bytes: &[u8]) -> Res<()> {
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
+    }
+    let name = path
+        .file_name()
+        .map_or_else(|| "output".into(), |n| n.to_string_lossy().into_owned());
+    let tmp = path.with_file_name(format!(".{name}.tmp-{}", std::process::id()));
+    let result = std::fs::write(&tmp, bytes)
+        .and_then(|()| std::fs::rename(&tmp, path))
+        .map_err(|e| format!("{}: {e}", path.display()));
+    if result.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    result
+}
+
+/// Write a `.ccraft` archive, checking that it opens again before it replaces
+/// anything.
+fn write_ccraft_archive<B: AsRef<[u8]>>(
     out: &Path,
     course: &Course,
     media: &[(String, B)],
 ) -> Res<()> {
-    let is_ccraft = out
-        .extension()
-        .and_then(|e| e.to_str())
-        .is_some_and(|e| e.eq_ignore_ascii_case("ccraft"));
+    let bytes = coursecraft_format::save_project(course, media)
+        .map_err(|e| format!("save project error: {e}"))?;
+    coursecraft_format::verify_project(std::io::Cursor::new(&bytes))
+        .map_err(|e| format!("the saved file could not be opened again ({e})"))?;
+    write_file_atomic(out, &bytes)
+}
+
+/// Write `course.json` text and, when the course has media, the media into the
+/// `media/` folder beside it, as a bare `course.json` expects. A file that
+/// already holds the same bytes is left alone; a link is never written through.
+fn write_course_json_file<B: AsRef<[u8]>>(
+    out: &Path,
+    course: &Course,
+    media: &[(String, B)],
+) -> Res<()> {
+    let mut json = course.to_json().map_err(|e| e.to_string())?;
+    json.push('\n');
+    let media_dir = out
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."))
+        .join("media");
+    for (path, _) in media {
+        if !coursecraft_format::is_safe_relative_path(path) {
+            return Err(format!("media name {path:?} is not a safe path"));
+        }
+    }
+    for (path, data) in media {
+        let dest = media_dir.join(path);
+        if std::fs::read(&dest).is_ok_and(|old| old == data.as_ref()) {
+            continue;
+        }
+        let mut walk = media_dir.clone();
+        let mut linked = media_dir.is_symlink();
+        for segment in path.split('/') {
+            walk.push(segment);
+            linked |= walk.is_symlink();
+        }
+        if linked {
+            return Err(format!(
+                "{}: refusing to write through a link",
+                dest.display()
+            ));
+        }
+        write_file_atomic(&dest, data.as_ref())?;
+    }
+    write_file_atomic(out, json.as_bytes())
+}
+
+/// Write a course to `.ccraft`, `.json` (with its media beside it) or a project
+/// folder, by the extension of `out`.
+fn write_course_output<B: AsRef<[u8]> + Sync>(
+    out: &Path,
+    course: &Course,
+    media: &[(String, B)],
+) -> Res<()> {
     let is_json = out
         .extension()
         .and_then(|e| e.to_str())
         .is_some_and(|e| e.eq_ignore_ascii_case("json"));
-    if is_ccraft {
-        if let Some(parent) = out.parent()
-            && !parent.as_os_str().is_empty()
-        {
-            std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
-        }
-        let bytes = coursecraft_format::save_project(course, media)
-            .map_err(|e| format!("save project error: {e}"))?;
-        std::fs::write(out, bytes).map_err(|e| format!("{}: {e}", out.display()))?;
-        return Ok(());
+    if is_ccraft_path(out) {
+        return write_ccraft_archive(out, course, media);
     }
     if is_json {
-        let mut json = course.to_json().map_err(|e| e.to_string())?;
-        json.push('\n');
-        if let Some(parent) = out.parent()
-            && !parent.as_os_str().is_empty()
-        {
-            std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
-        }
-        std::fs::write(out, json).map_err(|e| format!("{}: {e}", out.display()))?;
-        return Ok(());
+        return write_course_json_file(out, course, media);
     }
-    std::fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
-    let mut json = course.to_json().map_err(|e| e.to_string())?;
-    json.push('\n');
-    std::fs::write(out.join("course.json"), json)
-        .map_err(|e| format!("{}: {e}", out.join("course.json").display()))?;
-    for (path, data) in media {
-        let dest = out.join("media").join(path);
-        if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
-        }
-        std::fs::write(&dest, data.as_ref()).map_err(|e| format!("{}: {e}", dest.display()))?;
-    }
+    let mut record = coursecraft_format::FolderRecord::new();
+    coursecraft_format::save_project_folder(out, course, media, &mut record)
+        .map_err(|e| format!("{}: {e}", out.display()))?;
     Ok(())
 }
 
@@ -1665,6 +1800,7 @@ fn print_import_report(report: &coursecraft_format::xliff::ImportReport) {
 }
 
 fn run_import_xliff(course: PathBuf, xliff: PathBuf, out: PathBuf) -> Res<ExitCode> {
+    refuse_input_as_output(&course, &out)?;
     let loaded = load_project_any(&course)?;
     let bytes = std::fs::read(&xliff).map_err(|e| format!("{}: {e}", xliff.display()))?;
     let doc = coursecraft_format::xliff::parse_xliff(&bytes)
@@ -1696,6 +1832,7 @@ fn run_import_questions(
     out: PathBuf,
     bank: Option<String>,
 ) -> Res<ExitCode> {
+    refuse_input_as_output(&course, &out)?;
     let loaded = load_project_any(&course)?;
     let bytes = std::fs::read(csv).map_err(|e| format!("{}: {e}", csv.display()))?;
     let text = String::from_utf8(bytes)
@@ -1795,36 +1932,7 @@ fn run_import_pptx(deck: PathBuf, out: PathBuf) -> Res<ExitCode> {
         eprintln!("{}", imported.report.summary_window_text());
     }
 
-    if out.to_string_lossy().ends_with(".ccraft") {
-        if let Some(parent) = out.parent()
-            && !parent.as_os_str().is_empty()
-        {
-            std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
-        }
-        let zip_bytes = coursecraft_format::save_project(&imported.course, &imported.media)
-            .map_err(|e| format!("save project error: {e}"))?;
-        std::fs::write(&out, zip_bytes).map_err(|e| format!("{}: {e}", out.display()))?;
-    } else {
-        std::fs::create_dir_all(&out).map_err(|e| format!("{}: {e}", out.display()))?;
-        let mut course_json = imported.course.to_json().map_err(|e| e.to_string())?;
-        course_json.push('\n');
-        std::fs::write(out.join("course.json"), course_json)
-            .map_err(|e| format!("{}: {e}", out.join("course.json").display()))?;
-
-        if !imported.media.is_empty() {
-            let media_dir = out.join("media");
-            std::fs::create_dir_all(&media_dir)
-                .map_err(|e| format!("{}: {e}", media_dir.display()))?;
-            for (path, data) in &imported.media {
-                let dest = media_dir.join(path);
-                if let Some(parent) = dest.parent() {
-                    std::fs::create_dir_all(parent)
-                        .map_err(|e| format!("{}: {e}", parent.display()))?;
-                }
-                std::fs::write(&dest, data).map_err(|e| format!("{}: {e}", dest.display()))?;
-            }
-        }
-    }
+    write_course_output(&out, &imported.course, &imported.media)?;
 
     for item in &imported.report.items {
         println!("Slide {}: {}", item.slide, item.note);
@@ -1944,11 +2052,24 @@ fn run_validate(course: &Path, out: &mut impl std::io::Write) -> Res<ExitCode> {
     for w in &font_warnings {
         let _ = writeln!(out, "warning: /fonts — {w}");
     }
+    let glyph_warnings = coursecraft_render::undrawable_chars(&c);
+    for u in &glyph_warnings {
+        let place = match (&u.slide, &u.object) {
+            (Some(s), Some(o)) => format!("/slides/{s}/objects/{o}"),
+            (Some(s), None) => format!("/slides/{s}"),
+            _ => "/title".to_owned(),
+        };
+        let _ = writeln!(
+            out,
+            "warning: {place} — no bundled font can draw U+{:04X} ({}); it shows as an empty box unless the font is embedded",
+            u.ch as u32, u.ch
+        );
+    }
     let errors = issues
         .iter()
         .filter(|i| i.severity == Severity::Error)
         .count();
-    let warnings = issues.len() - errors + font_warnings.len();
+    let warnings = issues.len() - errors + font_warnings.len() + glyph_warnings.len();
     let _ = writeln!(out, "{errors} error(s), {warnings} warning(s)");
     Ok(if errors == 0 {
         ExitCode::SUCCESS
@@ -1960,7 +2081,12 @@ fn run_validate(course: &Path, out: &mut impl std::io::Write) -> Res<ExitCode> {
 fn run(cli: Cli) -> Res<ExitCode> {
     match cli.cmd {
         Cmd::New { out, title } => {
-            write(&out, &Session::blank(&title).course)?;
+            let course = Session::blank(&title).course;
+            if is_ccraft_path(&out) {
+                write_ccraft_archive(&out, &course, &Vec::<(String, Vec<u8>)>::new())?;
+            } else {
+                write(&out, &course)?;
+            }
             Ok(ExitCode::SUCCESS)
         }
         Cmd::Validate { course } => {
@@ -1986,7 +2112,8 @@ fn run(cli: Cli) -> Res<ExitCode> {
             script,
             out,
         } => {
-            let mut s = Session::new(load(&course)?);
+            let loaded = load_project_any(&course)?;
+            let mut s = Session::new(loaded.course);
             let steps: Vec<Step> =
                 serde_json::from_str(&read(&script)?).map_err(|e| format!("script: {e}"))?;
             for (i, step) in steps.iter().enumerate() {
@@ -1997,7 +2124,11 @@ fn run(cli: Cli) -> Res<ExitCode> {
                     &serde_json::json!({ "step": i, "command": step.command, "result": result }),
                 )?;
             }
-            write(&out, &s.course)?;
+            if is_ccraft_path(&out) {
+                write_ccraft_archive(&out, &s.course, &loaded.media)?;
+            } else {
+                write_course_json_file(&out, &s.course, &loaded.media)?;
+            }
             Ok(ExitCode::SUCCESS)
         }
         Cmd::Batch {
@@ -2070,7 +2201,13 @@ fn run(cli: Cli) -> Res<ExitCode> {
             out,
             width,
             fps,
-        } => run_export_mp4(course, out, width, fps).map(|(code, _)| code),
+        } => {
+            let (code, report) = run_export_mp4(course, out, width, fps)?;
+            if let Some(report) = report {
+                println!("{report}");
+            }
+            Ok(code)
+        }
         Cmd::ExportPdf {
             course,
             out,

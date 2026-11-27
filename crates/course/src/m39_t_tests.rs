@@ -175,3 +175,51 @@ fn change_case_of_a_range_still_knows_the_word_start_before_it() {
     let (text, _) = change_case_in_range(&[], "hello", (2, 5), CaseChange::Title);
     assert_eq!(text, "hello");
 }
+
+#[test]
+fn applying_a_named_style_with_clear_overrides_also_clears_highlight_and_shadow() {
+    let mut kind: crate::ObjectKind = serde_json::from_value(serde_json::json!({
+        "type": "text",
+        "text": "abc",
+        "runs": [{
+            "text": "abc", "bold": true, "highlight": "#FFFF00", "shadow": true,
+            "link": { "type": "url", "url": "https://example.com" }
+        }]
+    }))
+    .expect("kind");
+    let named: crate::NamedTextStyle = serde_json::from_value(serde_json::json!({
+        "id": "n1", "name": "N", "style": {}
+    }))
+    .expect("named");
+    assert!(crate::apply_named_style(&mut kind, &named, true));
+    let crate::ObjectKind::Text { runs, .. } = &kind else {
+        panic!("text");
+    };
+    assert_eq!(runs.len(), 1, "the link keeps its run");
+    assert_eq!(runs[0].bold, None);
+    assert_eq!(runs[0].highlight, None);
+    assert_eq!(runs[0].shadow, None);
+    assert!(runs[0].link.is_some());
+}
+
+#[test]
+fn title_case_keeps_a_curly_apostrophe_inside_the_word() {
+    let (text, _) = change_case_in_range(&[], "don’t STOP, it’s ok", (0, 0), CaseChange::Title);
+    assert_eq!(text, "Don’t Stop, It’s Ok");
+    let (text, _) = change_case_in_range(&[], "donʼt", (0, 0), CaseChange::Title);
+    assert_eq!(text, "Donʼt");
+}
+
+#[test]
+fn sentence_case_does_not_start_a_sentence_after_an_abbreviation() {
+    let (text, _) = change_case_in_range(
+        &[],
+        "USE TOOLS, e.g. foo. i.e. bar. next",
+        (0, 0),
+        CaseChange::Sentence,
+    );
+    assert_eq!(text, "Use tools, e.g. foo. I.e. bar. Next");
+    let (text, _) =
+        change_case_in_range(&[], "version 1.5 is out. ok", (0, 0), CaseChange::Sentence);
+    assert_eq!(text, "Version 1.5 is out. Ok");
+}

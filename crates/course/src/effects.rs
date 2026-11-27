@@ -289,7 +289,8 @@ use EffectCategory::{Basic, Exciting, Moderate, Subtle};
 /// Every effect, in gallery order.
 pub static EFFECTS: &[EffectDef] = &[
     // Basic
-    def("appear", Basic, ("Appear", "Disappear"), &[], 0),
+    // Appear shows at once; 1 ms is the shortest duration an animation may have.
+    def("appear", Basic, ("Appear", "Disappear"), &[], 1),
     def("fade", Basic, ("Fade in", "Fade out"), &[], 500),
     def("grow", Basic, ("Grow", "Shrink"), &[], 500),
     def("fly_in", Basic, ("Fly in", "Fly out"), &[FROM_ANY], 500),
@@ -628,7 +629,7 @@ mod tests {
                 "duplicate `{}`",
                 d.id
             );
-            assert!(d.default_duration_ms <= 60_000);
+            assert!((1..=60_000).contains(&d.default_duration_ms), "`{}`", d.id);
             if let Some((default, allowed)) = d.direction() {
                 assert!(allowed.contains(&default), "`{}` default", d.id);
             }

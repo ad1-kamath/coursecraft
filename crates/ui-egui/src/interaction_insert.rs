@@ -33,6 +33,7 @@ fn insert(editor: &mut Editor, name: &str, frame: Rect, kind: ObjectKind) -> Opt
         "object.add",
         json!({
             "slide": editor.selection.slide,
+            "layer": editor.selection.layer,
             "kind": kind_json,
             "frame": frame,
             "name": name,
@@ -113,6 +114,7 @@ pub fn insert_progress_meter(editor: &mut Editor) -> Option<String> {
             "object.add".to_owned(),
             serde_json::json!({
                 "slide": editor.selection.slide,
+                "layer": editor.selection.layer,
                 "kind": kind_json,
                 "frame": centred_frame(editor, 360.0, 48.0),
                 "name": "Progress meter",

@@ -57,6 +57,11 @@ pub struct RibbonState {
     /// The tab whose single click just opened it (or expanded the ribbon), and
     /// when: the second click of that double-click must not collapse it again.
     pub tab_opened: Option<(&'static str, f64)>,
+    /// The colour Font Color applies when its main part is clicked (`#RRGGBB`), the last one
+    /// picked from the ribbon. Unset: the theme accent.
+    pub last_font_color: Option<String>,
+    /// The colour Highlight applies when its main part is clicked. Unset: yellow.
+    pub last_highlight: Option<String>,
 }
 
 /// Longest gap between the two clicks of a double-click on a tab.
@@ -74,6 +79,8 @@ impl Default for RibbonState {
             seen_objects: None,
             tab_opened: None,
             in_master: false,
+            last_font_color: None,
+            last_highlight: None,
         }
     }
 }
@@ -189,7 +196,25 @@ fn focus_order_available(editor: &Editor) -> Result<(), &'static str> {
     }
 }
 
-fn ui_available(editor: &Editor, action: UiAction) -> Result<(), &'static str> {
+/// A slide dialog needs a slide, in neither a master nor a state.
+fn slide_dialog_available(editor: &Editor) -> Result<(), &'static str> {
+    if editor.ui.master_view {
+        Err(MASTER)
+    } else if editor.ui.editing_state.is_some() {
+        Err(STATE)
+    } else if editor
+        .session
+        .course
+        .slide(&editor.selection.slide)
+        .is_none()
+    {
+        Err("Select a slide first")
+    } else {
+        Ok(())
+    }
+}
+
+pub(crate) fn ui_available(editor: &Editor, action: UiAction) -> Result<(), &'static str> {
     let master = editor.ui.master_view;
     let state = editor.ui.editing_state.is_some();
     match action {
@@ -229,7 +254,10 @@ fn ui_available(editor: &Editor, action: UiAction) -> Result<(), &'static str> {
             }
         }
         UiAction::Arrange => {
-            if editor.selection.object.is_some() {
+            if state {
+                // Order and alignment are shared across all states (`N95`).
+                Err(STATE)
+            } else if editor.selection.object.is_some() {
                 Ok(())
             } else {
                 Err("Select an object first")
@@ -242,27 +270,22 @@ fn ui_available(editor: &Editor, action: UiAction) -> Result<(), &'static str> {
                 Err(crate::menu::FILE_OPS_DISABLED_MSG)
             }
         }
-        UiAction::NarrationFromText
-        | UiAction::FindReplace
+        UiAction::NarrationFromText | UiAction::RecordNarration => {
+            if master {
+                Err(MASTER)
+            } else if state {
+                Err(STATE)
+            } else {
+                Ok(())
+            }
+        }
+        UiAction::FindReplace
         | UiAction::AltText
         | UiAction::Spelling
         | UiAction::FormatInspector
         | UiAction::Player => Ok(()),
         UiAction::SlideLayer | UiAction::Trigger | UiAction::Question | UiAction::Interaction => {
-            if master {
-                Err(MASTER)
-            } else if state {
-                Err(STATE)
-            } else if editor
-                .session
-                .course
-                .slide(&editor.selection.slide)
-                .is_none()
-            {
-                Err("Select a slide first")
-            } else {
-                Ok(())
-            }
+            slide_dialog_available(editor)
         }
         UiAction::InsertSlideNumber
         | UiAction::InsertSlideNumberOfTotal
@@ -290,7 +313,7 @@ fn ui_available(editor: &Editor, action: UiAction) -> Result<(), &'static str> {
         | UiAction::ScrollPanel => {
             if state {
                 Err(STATE)
-            } else if master && !matches!(action, UiAction::Table | UiAction::Button) {
+            } else if master && !matches!(action, UiAction::Button) {
                 Err(MASTER)
             } else {
                 Ok(())
@@ -308,7 +331,6 @@ fn ui_available(editor: &Editor, action: UiAction) -> Result<(), &'static str> {
         | UiAction::Caption
         | UiAction::TextBox
         | UiAction::MediaLibrary
-        | UiAction::RecordNarration
         | UiAction::SlideView
         | UiAction::SlideMaster
         | UiAction::ZoomFit
@@ -347,6 +369,7 @@ fn ui_available(editor: &Editor, action: UiAction) -> Result<(), &'static str> {
         }
         UiAction::SlideSize
         | UiAction::Themes
+        | UiAction::ThemeFonts
         | UiAction::SlideInspector
         | UiAction::AnimateInspector
         | UiAction::Guide
@@ -391,18 +414,24 @@ fn ui_available(editor: &Editor, action: UiAction) -> Result<(), &'static str> {
     }
 }
 
+/// Run an enabled control's engine command.
+pub(crate) fn run_command(editor: &mut Editor, id: &'static str) {
+    if id == "object.duplicate" && editor.selection.is_multi() {
+        // Every selected object, as Ctrl+D does (`N97`).
+        editor.duplicate_selection();
+    } else if let Some(params) = crate::menu::adapter(editor, id) {
+        editor.run(id, params);
+    }
+}
+
 /// Run an enabled control's action.
 fn run(editor: &mut Editor, action: Action, resp: &Response, requests: &mut Vec<EditorRequest>) {
     match action {
-        Action::Command(id) => {
-            if let Some(params) = crate::menu::adapter(editor, id) {
-                editor.run(id, params);
-            }
-        }
+        Action::Command(id) => run_command(editor, id),
         Action::Ui(ui_action) => run_ui(editor, ui_action, resp, requests),
         Action::Text(op) => {
             if let Some(change) = text_change(editor, op) {
-                crate::text_format::apply(editor, &change);
+                apply_text_change(editor, &change);
             }
         }
         Action::NotYet(_) | Action::NotPlanned(_) => {}
@@ -448,7 +477,9 @@ fn run_ui(
         UiAction::SelectAll => editor.select_all_objects(),
         UiAction::AltText => editor.open_alt_text_dialog(),
         UiAction::Spelling => crate::spell_check::open(editor),
-        UiAction::FormatInspector => editor.ui.inspector_tab = InspectorTab::Format,
+        UiAction::FormatInspector => {
+            crate::dock::request_inspector_tab(editor, InspectorTab::Format)
+        }
         // Its menu opens on click.
         UiAction::Arrange => {}
         UiAction::Player => editor.ui.show_course_settings_window = true,
@@ -538,8 +569,11 @@ fn run_ui(
         UiAction::ThemeSystem => set_theme(editor, ThemePref::System, requests),
         UiAction::SlideSize => editor.open_slide_size_dialog(),
         UiAction::Themes => editor.ui.show_theme_window = true,
-        UiAction::SlideInspector => editor.ui.inspector_tab = InspectorTab::Slide,
-        UiAction::AnimateInspector => editor.ui.inspector_tab = InspectorTab::Animate,
+        UiAction::ThemeFonts => crate::theme_dialog::open_theme_fonts_dialog(editor),
+        UiAction::SlideInspector => crate::dock::request_inspector_tab(editor, InspectorTab::Slide),
+        UiAction::AnimateInspector => {
+            crate::dock::request_inspector_tab(editor, InspectorTab::Animate)
+        }
         UiAction::AddMotionPath => {
             if let Some(object) = editor.selection.object.clone() {
                 let slide = editor.selection.slide.clone();
@@ -547,7 +581,7 @@ fn run_ui(
                     "object.add_motion_path",
                     json!({ "slide": slide, "object": object }),
                 );
-                editor.ui.inspector_tab = InspectorTab::Animate;
+                crate::dock::request_inspector_tab(editor, InspectorTab::Animate);
             }
         }
         UiAction::Guide => crate::report::open_link(&resp.ctx, GUIDE_URL),
@@ -1288,7 +1322,13 @@ fn control(
             None,
         ),
         Kind::ToggleSplit => {
-            let (main, arrow) = widgets::toggle_split(ui, item.icon, label, enabled, selected);
+            let bar = match item.action {
+                Action::Text(spec::TextOp::Color) => Some(font_color_bar(editor)),
+                Action::Text(spec::TextOp::Highlight) => Some(highlight_bar(editor)),
+                _ => None,
+            };
+            let (main, arrow) =
+                widgets::toggle_split_bar(ui, item.icon, label, enabled, selected, bar);
             (main, Some(arrow))
         }
         Kind::Combo { width } => (
@@ -1351,7 +1391,7 @@ fn control(
     {
         let hex = crate::properties::color_to_hex(color);
         crate::properties::remember_color(ui.ctx(), &hex);
-        crate::text_format::apply(editor, &crate::text_format::Change::Color(hex));
+        apply_text_change(editor, &crate::text_format::Change::Color(hex));
     }
     if let (Some(arrow), Action::Text(op)) = (&arrow, item.action) {
         let arrow = arrow.clone().on_hover_text(&tip);
@@ -1395,12 +1435,16 @@ fn text_selected(editor: &Editor, op: spec::TextOp) -> bool {
 }
 
 /// The value a combo shows: the font or size at the text, blank when mixed.
-fn combo_text(editor: &Editor, action: Action) -> String {
+pub(crate) fn combo_text(editor: &Editor, action: Action) -> String {
     let Ok(st) = &editor.ui.ribbon.text else {
         return String::new();
     };
     match action {
-        Action::Text(spec::TextOp::Font) => st.font.clone().unwrap_or_default(),
+        Action::Text(spec::TextOp::Font) => st
+            .font
+            .as_deref()
+            .map(crate::font_picker::displayed_font)
+            .unwrap_or_default(),
         Action::Text(spec::TextOp::Size) => st.size.map(fmt_size).unwrap_or_default(),
         _ => String::new(),
     }
@@ -1420,8 +1464,9 @@ fn text_change(editor: &Editor, op: spec::TextOp) -> Option<crate::text_format::
     use crate::text_format::Change;
     use coursecraft_course::{Align, ListKind};
     use spec::TextOp;
-    let _ = editor;
     Some(match op {
+        TextOp::Color => Change::Color(last_font_color(editor)),
+        TextOp::Highlight => Change::Highlight(Some(last_highlight(editor))),
         TextOp::Grow => Change::Grow,
         TextOp::Shrink => Change::Shrink,
         TextOp::Bold => Change::Bold,
@@ -1443,13 +1488,56 @@ fn text_change(editor: &Editor, op: spec::TextOp) -> Option<crate::text_format::
         | TextOp::Font
         | TextOp::Size
         | TextOp::Spacing
-        | TextOp::Color
         | TextOp::LineSpacing
         | TextOp::AlignText
         | TextOp::Case
-        | TextOp::Highlight
         | TextOp::Direction => return None,
     })
+}
+
+/// The colour Font Color applies from its main part: the last one picked from the ribbon, else
+/// the theme accent.
+fn last_font_color(editor: &Editor) -> String {
+    editor
+        .ui
+        .ribbon
+        .last_font_color
+        .clone()
+        .unwrap_or_else(|| editor.session.course.theme.accent.0.clone())
+}
+
+/// The colour Highlight applies from its main part: the last one picked, else yellow.
+fn last_highlight(editor: &Editor) -> String {
+    editor
+        .ui
+        .ribbon
+        .last_highlight
+        .clone()
+        .unwrap_or_else(|| HIGHLIGHT_COLORS[0].1.to_owned())
+}
+
+/// The bar under the Font Color icon.
+fn font_color_bar(editor: &Editor) -> egui::Color32 {
+    coursecraft_render::parse_color(&coursecraft_course::Color(last_font_color(editor)))
+        .unwrap_or(egui::Color32::GRAY)
+}
+
+/// The bar under the Highlight icon.
+fn highlight_bar(editor: &Editor) -> egui::Color32 {
+    coursecraft_render::parse_color(&coursecraft_course::Color(last_highlight(editor)))
+        .unwrap_or(egui::Color32::YELLOW)
+}
+
+/// Apply a text change from the ribbon, remembering a picked Font Color or Highlight colour so the
+/// main part of that control applies it next time.
+fn apply_text_change(editor: &mut Editor, change: &crate::text_format::Change) -> bool {
+    use crate::text_format::Change;
+    match change {
+        Change::Color(hex) => editor.ui.ribbon.last_font_color = Some(hex.clone()),
+        Change::Highlight(Some(hex)) => editor.ui.ribbon.last_highlight = Some(hex.clone()),
+        _ => {}
+    }
+    crate::text_format::apply(editor, change)
 }
 
 /// The eyedropper's name for the ribbon's Font Color.
@@ -1476,7 +1564,11 @@ fn text_menu(editor: &mut Editor, ui: &mut Ui, op: spec::TextOp) {
             // The inspector's font picker list: search, the course's fonts,
             // recent and installed fonts, Add font….
             use crate::font_picker::FontPickerAction;
-            let shown = st.font.clone().unwrap_or_default();
+            let shown = st
+                .font
+                .as_deref()
+                .map(crate::font_picker::displayed_font)
+                .unwrap_or_default();
             let mut requests = Vec::new();
             let state = &mut editor.ui;
             let action = crate::font_picker::show_font_list(
@@ -1518,7 +1610,8 @@ fn text_menu(editor: &mut Editor, ui: &mut Ui, op: spec::TextOp) {
         }
         TextOp::Spacing => {
             for (label, points) in SPACINGS {
-                item(ui, tl!(label), false, Change::Spacing(points));
+                let on = st.letter_spacing.is_some_and(|v| (v - points).abs() < 0.01);
+                item(ui, tl!(label), on, Change::Spacing(points));
             }
         }
         TextOp::LineSpacing => {
@@ -1607,7 +1700,7 @@ fn text_menu(editor: &mut Editor, ui: &mut Ui, op: spec::TextOp) {
                 // A drag across the wheel is one change, applied on release;
                 // the popup stays open for another try.
                 crate::properties::remember_color(ui.ctx(), &hex);
-                crate::text_format::apply(editor, &Change::Color(hex.clone()));
+                apply_text_change(editor, &Change::Color(hex.clone()));
                 pending = false;
             }
             ui.ctx()
@@ -1619,7 +1712,7 @@ fn text_menu(editor: &mut Editor, ui: &mut Ui, op: spec::TextOp) {
         _ => {}
     }
     if let Some(change) = picked {
-        crate::text_format::apply(editor, &change);
+        apply_text_change(editor, &change);
         ui.close();
     }
 }
@@ -1686,6 +1779,11 @@ pub(crate) const NUMBER_SCHEMES: [(coursecraft_course::NumberScheme, &str); 7] =
     ),
 ];
 
+/// The Start at change, only when the number was edited (`N100`).
+pub(crate) fn start_at_change(edited: bool, value: u32) -> Option<crate::text_format::Change> {
+    edited.then_some(crate::text_format::Change::StartAt(value))
+}
+
 /// Numbering ▾: the seven schemes with samples, and Start at….
 fn numbering_menu(
     ui: &mut Ui,
@@ -1700,11 +1798,10 @@ fn numbering_menu(
     }
     ui.separator();
     let id = egui::Id::unique("ribbon_numbering_start_at");
-    let mut value: u32 = ui
-        .ctx()
-        .data(|d| d.get_temp::<u32>(id))
-        .or(st.start_at)
-        .unwrap_or(1);
+    // The number only counts once it was edited: clicking in and away must not turn the
+    // text into a numbered list (`N100`).
+    let edited_before = ui.ctx().data(|d| d.get_temp::<u32>(id));
+    let mut value: u32 = edited_before.or(st.start_at).unwrap_or(1);
     ui.horizontal(|ui| {
         ui.label(tl!("Start at"));
         let resp = ui.add(
@@ -1717,9 +1814,17 @@ fn numbering_menu(
         }
         if resp.drag_stopped() || resp.lost_focus() {
             ui.ctx().data_mut(|d| d.remove::<u32>(id));
-            *picked = Some(crate::text_format::Change::StartAt(value));
+            if let Some(change) = start_at_change(edited_before.is_some() || resp.changed(), value)
+            {
+                *picked = Some(change);
+            }
         }
     });
+}
+
+/// Menu entries that mark themselves as the default choice of their menu.
+pub(crate) fn is_default_entry(id: &str) -> bool {
+    id == "paste.destination"
 }
 
 fn menu(
@@ -1734,7 +1839,12 @@ fn menu(
         Menu::Items(entries) => {
             for entry in entries.iter().filter(|e| !e.is_hidden()) {
                 let state = availability(editor, entry.action, blocked);
-                let resp = ui.add_enabled(state.is_ok(), egui::Button::new(tl!(entry.label)));
+                let mut button = egui::Button::new(tl!(entry.label));
+                if is_default_entry(entry.id) {
+                    // The entry the main button (and Ctrl+V) uses.
+                    button = button.shortcut_text(tl!("Default"));
+                }
+                let resp = ui.add_enabled(state.is_ok(), button);
                 let resp = match &state {
                     Ok(()) => resp,
                     Err(reason) => resp.on_disabled_hover_text(reason),
@@ -1756,7 +1866,7 @@ fn menu(
         Menu::Ui(UiMenu::Questions) => {
             for kind in crate::question::ALL_QUESTION_KINDS {
                 if ui
-                    .button(crate::question::question_kind_name(kind))
+                    .button(tl!(crate::question::question_kind_name(kind)))
                     .clicked()
                 {
                     crate::toolbar::insert_question(editor, kind);

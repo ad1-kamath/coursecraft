@@ -284,3 +284,46 @@ fn the_emphasis_card_adds_and_lists_an_emphasis() {
         "the card lists it"
     );
 }
+
+/// `N96`: dragging an emphasis field keeps the dragged value until the drag ends.
+#[test]
+fn dragging_the_emphasis_duration_keeps_the_dragged_value() {
+    let mut harness = TestHarness::new_with_size(hello(), (1280.0, 900.0));
+    select_button_animate(&mut harness);
+    let add = harness
+        .find_text_in("+ Add emphasis", harness.right_panel_rect())
+        .expect("Add emphasis button");
+    harness.click_at(add);
+    harness.idle_frame();
+    let tile = harness.find_text_last("Heartbeat").expect("Heartbeat tile");
+    harness.click_at(tile);
+    harness.idle_frame();
+    let duration = |h: &TestHarness| {
+        h.editor
+            .session
+            .course
+            .slide("s-intro")
+            .and_then(|s| s.object("btn-start"))
+            .map(|(o, _)| o.emphasis[0].duration_ms)
+            .expect("emphasis")
+    };
+    let before = duration(&harness);
+    // The emphasis card sits below the entrance card, so its row is the last one.
+    let label = harness
+        .find_texts("Duration")
+        .last()
+        .copied()
+        .expect("Duration row");
+    harness.drag_by(
+        egui::pos2(label.x + 130.0, label.y),
+        egui::vec2(60.0, 0.0),
+        6,
+        egui::Modifiers::NONE,
+    );
+    harness.idle_frame();
+    assert!(
+        duration(&harness) >= before + 2000,
+        "a 60 px drag must add about 3 s, got {} from {before}",
+        duration(&harness)
+    );
+}

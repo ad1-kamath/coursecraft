@@ -66,6 +66,18 @@ pub enum FontPickerAction {
     AddFont,
 }
 
+/// The font name the UI shows for a stored font family. The legacy default
+/// "Open Sans" renders in Inter, so the ribbon, the inspector and every font
+/// list show "Inter" for it.
+#[must_use]
+pub fn displayed_font(stored: &str) -> String {
+    if stored.eq_ignore_ascii_case("Open Sans") {
+        "Inter".to_owned()
+    } else {
+        stored.to_owned()
+    }
+}
+
 /// The course theme's `(heading, body)` fonts, for the "Theme Fonts" section.
 fn theme_fonts_id() -> egui::Id {
     egui::Id::unique("font_picker_theme_fonts")
@@ -184,7 +196,10 @@ fn build_rows(
             rows.push(FontRow::Header(tl!("Theme Fonts")));
             for (label, name) in theme_rows {
                 let restricted = restricted_lookup.contains(&name.to_ascii_lowercase());
-                let is_current = name.eq_ignore_ascii_case(shown_font);
+                // A text style stores only a family name, so it cannot say
+                // whether the text follows the theme. The named font row in
+                // "In this course" or below is the one that shows as current.
+                let is_current = false;
                 rows.push(FontRow::Font {
                     name,
                     label: Some(label),
@@ -751,4 +766,38 @@ fn font_list_body(
         });
     });
     action
+}
+
+#[cfg(test)]
+mod row_tests {
+    use super::*;
+
+    fn current_rows(rows: &[FontRow]) -> Vec<(Option<String>, String)> {
+        rows.iter()
+            .filter_map(|r| match r {
+                FontRow::Font {
+                    name,
+                    label,
+                    is_current: true,
+                    ..
+                } => Some((label.clone(), name.clone())),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn only_the_named_font_row_is_current() {
+        let theme = ("Inter".to_owned(), "Inter".to_owned());
+        let rows = build_rows(Some(&theme), "Inter", &[], &[], None, "");
+        let current = current_rows(&rows);
+        assert_eq!(current, vec![(None, "Inter".to_owned())]);
+    }
+
+    #[test]
+    fn open_sans_displays_as_inter() {
+        assert_eq!(displayed_font("Open Sans"), "Inter");
+        assert_eq!(displayed_font("open sans"), "Inter");
+        assert_eq!(displayed_font("Georgia"), "Georgia");
+    }
 }

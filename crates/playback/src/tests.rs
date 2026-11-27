@@ -889,3 +889,16 @@ fn audio_length_is_read_from_the_file() {
         None
     );
 }
+
+#[test]
+fn mime_type_ignores_the_case_of_the_extension() {
+    use crate::mime_for_src;
+    assert_eq!(mime_for_src("media/clip.mp4"), "video/mp4");
+    assert_eq!(mime_for_src("media/CLIP.MP4"), "video/mp4");
+    assert_eq!(mime_for_src("AUDIO.MP3"), "audio/mpeg");
+    assert_eq!(mime_for_src("a.WebM"), "video/webm");
+    assert_eq!(mime_for_src("a.OGG"), "audio/ogg");
+    assert_eq!(mime_for_src("a.M4a"), "audio/mp4");
+    assert_eq!(mime_for_src("a.Wav"), "audio/wav");
+    assert_eq!(mime_for_src("a.txt"), "application/octet-stream");
+}

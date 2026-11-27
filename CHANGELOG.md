@@ -2,6 +2,106 @@
 
 What changed in each release, newest first. Versions follow [semantic versioning](https://semver.org): until 1.0, a minor version (0.x) may change things, but a project saved by an older CourseCraft always opens in a newer one.
 
+## Unreleased
+
+Bug fixes from a review of 0.6.1 and from rebuilding a sample course.
+
+**Animation and timing**
+- Moving an object on the timeline also moves its emphasis. Copy Animation keeps an emphasis offset inside the target's time.
+- An entrance or exit cut short by the end of the slide now finishes and sends "animation completes". Validation warns when an animation falls outside the object's time.
+- PowerPoint import no longer counts the delay of an "After previous" effect twice.
+- Overshoot and Elastic easing now play fully on emphasis and motion paths.
+- The Fade transition no longer dips to dark at its midpoint.
+- Deleting a member of a group no longer leaves a group of one object.
+
+**Reduced motion**
+- With reduced motion on, transitions, entrances and exits become a short fade, and emphasis plays one time with no movement.
+
+**Text, paste and fonts**
+- Text that plays in by letter now fills in `%variables%`.
+- Symbols such as ✕ ✔ ★ ⚠ now draw, from a small bundled symbol font. `validate` warns about characters that no bundled font can draw.
+- Change Case handles curly apostrophes and abbreviations such as "e.g.". Change Case and Clear Formatting with an empty selection change nothing.
+- A named style with "clear overrides" also clears highlight and shadow.
+- A paste mode chosen from Paste ▾ no longer applies to a later Ctrl+V. Use Destination Theme maps a heading font when the destination has only a body font. Paste Special lists Keep Text Only one time, and Paste ▾ marks the default.
+
+**Pictures and questions**
+- A picture cut into a shape keeps its crop. Picture fills have a new Fill mode that keeps the picture's proportions.
+- Image shapes accept `circle` as a name for `ellipse`.
+- A question can have a frame. Its prompt and answers are then laid out inside the frame.
+
+**Editor**
+- The ribbon Font box shows Inter for the default font, and font lists mark only one row.
+- Escape on a font list closes only that list. The Theme Fonts window closes with its Theme window. Design › Fonts opens the font settings directly.
+- The Symbol window keeps its place when its size changes.
+- Focus Order shows the base layer and each layer in its own section, and closes when the slide changes under it.
+- Inspector tab names are no longer cut to three letters.
+- Font Color and Highlight show the current colour under the icon.
+- Scale % uses the correct size after a resize elsewhere.
+- Picking a gallery effect keeps the Sequence setting. An effect applied to several objects is one undo step. Entrance › Appear from the gallery now works.
+
+**Files and CLI**
+- Each untitled window has its own autosave file, so a second window cannot restore or discard the work of the first.
+- `render --layer` shows only the named layer. `snapshot-player` "ended" shows the slide at its real end.
+
+**Files, import, export and publish**
+- `coursecraft-cli run`, `new` and `pack` write a real `.ccraft` archive, with all media, when the output path ends in `.ccraft` in any letter case. `publish` of a `.ccraft` packs the archive's own media.
+- `import-xliff` and `import-questions` refuse an output that is the input course. All three writes keep media, check a `.ccraft` opens again, and replace the old file only when the new one is whole.
+- A project folder whose `media` is a link to a folder outside the project is refused. A planted `course.json.ccraft-tmp` link is no longer written through. A case-only rename of a media file no longer leaves two files on a case-sensitive disk.
+- A bare `course.json` keeps its web folders when it is opened in the app or in `coursecraft-mcp` and saved as a `.ccraft`. A project folder opened by `coursecraft-mcp` saves only what changed.
+- MP4 export no longer fails on a size such as 1200 x 800, and no longer deletes an existing file when an export fails or is cancelled.
+- PDF and Word review exports shrink a tall slide picture to fit the page.
+- XLIFF import keeps a space typed between two formatted runs and accepts CDATA sections.
+- `batch --replace-media` treats `.m4a` as audio and accepts fonts and other files. Packages from courses with the same file name no longer overwrite each other.
+- `coursecraft-cli` media folders on Windows use `/` in media names, and a link loop no longer hangs.
+- `course.get` with the pointer `/tracking` works. xAPI launch links with an empty `registration` or `activity_id` use the default. SCORM manifests refuse a launch path with a colon.
+
+**Runtime (second review)**
+- Nothing runs after an `exit` action, even another trigger on the same event.
+- Safe Resume with a lightbox open no longer marks the base slide completed. A lightbox slide keeps its question order.
+- A slide cannot open as a lightbox over itself.
+- Intersections and the "hidden base" rule are rechecked after a trigger changes a state or a layer.
+- Emphasis, trimmed media start, cue points at the trim end, layer media stop and seeks during a slide jump follow the spec.
+- Answer review shows dragged objects where the learner dropped them.
+- LTI: a failed retry no longer drops a newer result, and a 401 or 403 mid-session turns reporting off.
+
+**Player (second review)**
+- A new playback speed applies to media at once.
+- Text entry commits on `Tab` and on a screen-reader focus change.
+- Inputs and draggable objects on the base layer ignore the learner while a layer with "prevent base clicks" shows. A disabled object cannot be dragged.
+- `M` and `C` reach the slide's key triggers when the menu or captions are off. The end card and an open speed list take no slide clicks.
+- Scrollbar thumbs move the right way, and scroll panels clip their text boxes.
+- Captions from web videos are not drawn two times. Flipped text stays readable, and its shadow and links follow the text.
+- Scroll panel thumbs, reveal masks and base markers draw in the right place during transitions, drags and rotation.
+- `run_javascript` can read built-in and timer variables. Path hit tests, table border dashes and text link areas match what is drawn. Media file types are found in any letter case.
+
+**Editor (second review)**
+- In Edit State, the Format inspector, text panel, Ctrl+B/I/U and the Size and Position panel change the edited state, not the normal state.
+- Insert puts tables, inputs, markers, scroll panels, timers, meters and web objects on the selected layer. Controls that cannot work in Master View or Edit State are disabled with a reason.
+- Opening another course clears old caches. Import from the Start page leaves the Start page.
+- Trigger Editor: timer actions and the Timer Ends event keep separate timers, and pickers reset when the variable or target changes.
+- Format and Animation Painter work between duplicated slides. Copy › Duplicate copies all selected objects.
+- The ribbon shows "mixed" for mixed font, size, colour and indent. Numbering › Start at changes nothing unless the value changes.
+- Emphasis sliders drag smoothly. Multi-selection rotation shows and resets correctly. Theme palette swatches update.
+- Button Fill and Border open the right panel. Question Tools › Display and Scoring open the docked panel.
+- A single click on a ruler adds no guide. F2 on a question bank slide does nothing. Layer eye toggles reset when the slide changes.
+- More dialogs block shortcuts, and more strings are translated. Recent file names are no longer sent through translation.
+
+**Accessibility (second review)**
+- `Tab` moves between drop targets while a keyboard drag is held. `Space` on a radio group picks the next option.
+- Screen readers no longer reach hidden objects, hidden master objects or the slide behind an open drawer or the end card. The end card reads "Course complete". Disabled inputs are disabled in the web page.
+- Focus returns to the object that opened a lightbox, also after a mouse click.
+- In the web player, links, glossary terms, draggable objects and scroll panels work by keyboard, and letter and digit keys reach key triggers.
+- The player tells the course when focus leaves an object. Slide key triggers do not fire behind the drawer. Review mode is read-only for matching, hotspot and drag questions.
+- The focus ring no longer wraps a state badge and covers every line of a wrapped link. The full-screen exit tooltip is translated.
+
+**Hostile input (second review)**
+- PPTX colours with non-ASCII text, very large Roman numerals, zip bombs, Lottie files with too much drawing work, very large PPTX tables, long LTI token lifetimes and very low audio rates no longer crash or hang.
+
+**Engine (second review)**
+- Text styles, connector frames, merges, state links and slide paste or duplicate now keep the course valid. Delete commands clean up the links they break.
+- The theme accent follows the palette. Appear has a 500 ms default. Replace with no match makes no change. Styles apply to lines. A disabled "complete course" trigger does not count as reporting.
+- `course.add_font` accepts `.ttc` and `.otc` files.
+
 ## 0.6.1
 
 The Download and What's new buttons in the update window now work, plus text and formatting gaps (M39) and two fixes from GitHub issues.

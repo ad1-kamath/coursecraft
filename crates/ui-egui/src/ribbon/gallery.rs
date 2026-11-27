@@ -347,20 +347,28 @@ pub fn apply(editor: &mut Editor, gallery: Gallery, index: usize) {
                         });
                         let animation = effect.map(|effect| Animation {
                             effect,
+                            // Appear has a default of 0: the engine needs 1 ms at least.
                             duration_ms: old
                                 .map_or(def.map_or(500, |d| d.default_duration_ms), |a| {
                                     a.duration_ms
-                                }),
+                                })
+                                .clamp(1, 60_000),
                             easing: old.map_or(Easing::EaseOut, |a| a.easing),
-                            sequence: Default::default(),
+                            // The text sequence belongs to the object, not to the effect.
+                            sequence: old.map_or_else(Default::default, |a| a.sequence),
                         });
                         (s.id.clone(), o.id.clone(), animation)
                     })
                     .collect()
             };
-            for (slide, object, animation) in changes {
-                set_animation(editor, &slide, &object, motion, animation.as_ref());
-            }
+            // One pick is one undo step, however many objects are selected.
+            let steps = changes
+                .iter()
+                .map(|(slide, object, animation)| {
+                    set_animation_step(slide, object, motion, animation.as_ref())
+                })
+                .collect();
+            run_as_one_step(editor, steps);
             if let Some(d) = index.checked_sub(1).and_then(|i| EFFECTS.get(i)) {
                 editor.ui.anim_preview.picked(d.id);
             }
@@ -390,12 +398,16 @@ fn add_emphasis(editor: &mut Editor, index: usize) {
             })
             .collect()
     };
-    for (slide, object, start) in &adds {
-        editor.run(
-            "object.add_emphasis",
-            json!({ "slide": slide, "object": object, "effect": def.id, "start_ms": start }),
-        );
-    }
+    let steps = adds
+        .iter()
+        .map(|(slide, object, start)| {
+            (
+                "object.add_emphasis".to_owned(),
+                json!({ "slide": slide, "object": object, "effect": def.id, "start_ms": start }),
+            )
+        })
+        .collect();
+    run_as_one_step(editor, steps);
     if editor.ui.anim_preview.auto && !adds.is_empty() {
         let slide = editor.selection.slide.clone();
         let ids = editor.selection.ids();
@@ -471,22 +483,36 @@ fn set_transition(editor: &mut Editor, slide: &str, transition: Option<&Transiti
     );
 }
 
-fn set_animation(
-    editor: &mut Editor,
+/// The `object.set_animation` step for one object's entrance or exit.
+fn set_animation_step(
     slide: &str,
     object: &str,
     motion: Motion,
     animation: Option<&Animation>,
-) {
+) -> (String, serde_json::Value) {
     let which = if motion == Motion::Exit {
         "exit"
     } else {
         "entrance"
     };
-    editor.run(
-        "object.set_animation",
+    (
+        "object.set_animation".to_owned(),
         json!({ "slide": slide, "object": object, "which": which, "animation": animation }),
-    );
+    )
+}
+
+/// Run `steps` as one undo step: a ribbon pick on several selected objects is one action.
+fn run_as_one_step(editor: &mut Editor, mut steps: Vec<(String, serde_json::Value)>) {
+    match steps.len() {
+        0 => {}
+        1 => {
+            let (id, params) = steps.remove(0);
+            editor.run(&id, params);
+        }
+        _ => {
+            editor.run_batch(&steps);
+        }
+    }
 }
 
 fn transition_from(effect: &TransitionEffect) -> Option<Direction> {
@@ -680,9 +706,11 @@ fn update(
                     Some((o.id.clone(), a))
                 })
                 .collect();
-            for (object, a) in changes {
-                set_animation(editor, &id, &object, motion, Some(&a));
-            }
+            let steps = changes
+                .iter()
+                .map(|(object, a)| set_animation_step(&id, object, motion, Some(a)))
+                .collect();
+            run_as_one_step(editor, steps);
         }
     }
 }

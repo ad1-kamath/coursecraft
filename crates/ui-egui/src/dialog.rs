@@ -29,6 +29,12 @@ fn footer_id(window: Id) -> Id {
     window.with("dialog_footer_height")
 }
 
+/// The frame in which a popup already answered the Escape key. Dialogs drawn later in the same
+/// frame must not also close on that key press.
+fn escape_claim_id() -> Id {
+    Id::unique("coursecraft_dialog_escape_claim")
+}
+
 fn shown_id() -> Id {
     Id::unique("coursecraft_dialog_shown_frame")
 }
@@ -195,6 +201,10 @@ impl<'a> Dialog<'a> {
         }
         let fixed_width = !self.resizable;
         let popup_was_open = egui::Popup::is_any_open(ctx);
+        let frame = ctx.cumulative_frame_nr();
+        if popup_was_open && ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            ctx.data_mut(|d| d.insert_temp(escape_claim_id(), frame));
+        }
         let close_on_escape = self.close_on_escape;
         let show_window = |window: Window<'_>| {
             window.show(ctx, move |ui| {
@@ -227,7 +237,7 @@ impl<'a> Dialog<'a> {
             if response.is_some()
                 && still_open
                 && close_on_escape
-                && !popup_was_open
+                && ctx.data(|d| d.get_temp::<u64>(escape_claim_id())) != Some(frame)
                 && !egui::Popup::is_any_open(ctx)
                 && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
             {

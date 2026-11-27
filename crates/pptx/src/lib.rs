@@ -1429,6 +1429,11 @@ pub fn import_pptx_with_limits(
                 };
                 process_non_placeholder_children(sp_tree, GroupTransform::default(), 0, &mut mcx)?;
             }
+            // Shape ids are numbered per XML part. Settle this part's
+            // connectors and forget its ids so a slide id such as 2 cannot
+            // reach a master shape with the same id (N52).
+            resolve_connector_glues(&mut objects, &mut tracker);
+            tracker.pptx_ids.clear();
         }
         if let Some(lp) = layout_path.as_deref()
             && let Some(layout_tree) = layout_tree_opt.as_ref()
@@ -1453,6 +1458,8 @@ pub fn import_pptx_with_limits(
             };
             process_non_placeholder_children(sp_tree, GroupTransform::default(), 0, &mut lcx)?;
         }
+        resolve_connector_glues(&mut objects, &mut tracker);
+        tracker.pptx_ids.clear();
 
         if let Some(sp_tree) = slide_tree.find_descendant("spTree") {
             let initial_xfrm = GroupTransform::default();
@@ -3035,7 +3042,7 @@ fn parse_table_styles(entries: &Entries<'_>, theme: &ThemePalette) -> TableStyle
 fn blend_hex_colors(a: &str, b: &str, t: f32) -> Color {
     let parse = |s: &str| -> (f32, f32, f32) {
         let h = s.trim_start_matches('#');
-        if h.len() >= 6 {
+        if h.len() >= 6 && h.is_ascii() {
             let r = u8::from_str_radix(&h[0..2], 16).unwrap_or(0) as f32;
             let g = u8::from_str_radix(&h[2..4], 16).unwrap_or(0) as f32;
             let bl = u8::from_str_radix(&h[4..6], 16).unwrap_or(0) as f32;
@@ -3210,6 +3217,22 @@ fn process_table(frame_node: &XmlNode, transform: GroupTransform, cx: &mut Slide
             .unwrap_or(0);
     }
     if rows_nodes.is_empty() || column_count == 0 {
+        return;
+    }
+    // Check the size before any allocation: a hostile grid of thousands of
+    // columns and rows would otherwise build millions of cells (N80). The
+    // model refuses such a table anyway.
+    if rows_nodes.len() > coursecraft_course::TABLE_MAX_AXIS
+        || column_count > coursecraft_course::TABLE_MAX_AXIS
+        || rows_nodes.len().saturating_mul(column_count) > coursecraft_course::TABLE_MAX_CELLS
+    {
+        cx.tracker.report_skip(
+            SkipKind::Table,
+            format!(
+                "Table with {} rows and {column_count} columns is too large and was skipped",
+                rows_nodes.len()
+            ),
+        );
         return;
     }
 
@@ -4176,7 +4199,20 @@ fn custom_geometry_paths(
     let start_end = line_end_from(ln, "headEnd");
     let end_end = line_end_from(ln, "tailEnd");
 
+    // One `<p:sp>` may hold many `<a:path>` elements and each becomes an
+    // object, so they count against the per-slide shape cap (N81).
+    let room = cx
+        .limits
+        .max_shapes_per_slide
+        .saturating_sub(cx.objects.len());
     for path_node in path_lst.children_named("path") {
+        if result.len() >= room {
+            cx.tracker.report_skip(
+                SkipKind::CustomGeometry,
+                "Custom geometry had more paths than the shape limit; extra paths were skipped",
+            );
+            break;
+        }
         let local_w = parse_coord(path_node, "w").filter(|value| *value > 0.0);
         let local_h = parse_coord(path_node, "h").filter(|value| *value > 0.0);
         let scale_x = local_w.map_or(1.0, |w| if frame.w > 0.0 { frame.w / w } else { 1.0 });
@@ -4222,6 +4258,7 @@ fn custom_geometry_paths(
                         .collect();
                     if let (Some(&c1), Some(&c2), Some(&end)) =
                         (controls.first(), controls.get(1), controls.get(2))
+                        && local.len() < coursecraft_course::PATH_MAX_POINTS
                     {
                         sample_cubic(from, c1, c2, end, &mut local);
                         current = Some(end);
@@ -4235,7 +4272,9 @@ fn custom_geometry_paths(
                         .children_named("pt")
                         .filter_map(|pt| Some((parse_coord(pt, "x")?, parse_coord(pt, "y")?)))
                         .collect();
-                    if let (Some(&c1), Some(&end)) = (controls.first(), controls.get(1)) {
+                    if let (Some(&c1), Some(&end)) = (controls.first(), controls.get(1))
+                        && local.len() < coursecraft_course::PATH_MAX_POINTS
+                    {
                         sample_quad(from, c1, end, &mut local);
                         current = Some(end);
                     }
@@ -4252,8 +4291,10 @@ fn custom_geometry_paths(
                     let swing = parse_coord(command, "swAng").unwrap_or(0.0) / 60_000.0
                         * std::f32::consts::PI
                         / 180.0;
-                    sample_arc(from, rx, ry, start, swing, &mut local);
-                    current = local.last().copied();
+                    if local.len() < coursecraft_course::PATH_MAX_POINTS {
+                        sample_arc(from, rx, ry, start, swing, &mut local);
+                        current = local.last().copied();
+                    }
                 }
                 "close" => closed = true,
                 _ => {}

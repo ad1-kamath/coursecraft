@@ -26,8 +26,7 @@ use serde_json::{Value as Json, json};
 
 use crate::Editor;
 use crate::properties::{
-    PendingCaretStyle, default_shape_text_style, effects_tri_for_range, font_at_cursor,
-    style_for_range, style_tri_for_range,
+    PendingCaretStyle, default_shape_text_style, effects_tri_for_range, style_tri_for_range,
 };
 
 /// Which characters of one object a change applies to.
@@ -62,6 +61,8 @@ pub struct TextState {
     pub underline: Option<bool>,
     pub strikethrough: Option<bool>,
     pub color: Option<String>,
+    /// Character spacing in points; `None` where mixed.
+    pub letter_spacing: Option<f32>,
     pub align: Option<Align>,
     pub valign: Option<VAlign>,
     pub wrap: Option<bool>,
@@ -370,8 +371,24 @@ fn one_state(editor: &Editor, target: &Target) -> Option<TextState> {
     let range = char_range(target.scope, parts.text);
     let (bold, italic, underline) = style_tri_for_range(parts.runs, &parts.style, range);
     let (strikethrough, _, _) = effects_tri_for_range(parts.runs, &parts.style, range);
-    let (_, _, _, size, color) = style_for_range(parts.runs, &parts.style, range);
-    let font = font_at_cursor(parts.runs, range.0).unwrap_or_else(|| parts.style.font.clone());
+    // Font, size and colour read `None` where the range mixes values (`N99`).
+    let base = &parts.style;
+    let uniform = |own: &dyn Fn(&TextRun) -> Option<String>, base_value: String| {
+        if parts.runs.is_empty() {
+            Some(base_value)
+        } else {
+            same_in_range(parts.runs, range, |r| {
+                r.and_then(own).unwrap_or_else(|| base_value.clone())
+            })
+        }
+    };
+    let font = uniform(&|r| r.font.clone(), base.font.clone());
+    let size = uniform(&|r| r.size.map(|v| v.to_string()), base.size.to_string())
+        .and_then(|v| v.parse::<f32>().ok());
+    let color = uniform(
+        &|r| r.color.as_ref().map(|c| c.0.clone()),
+        base.color.0.clone(),
+    );
     let (first, end) = paragraph_range(target.scope, parts.text);
     let paragraphs = coursecraft_course::text::paragraphs_for(parts.text, parts.paragraphs);
     let covered: Vec<&Paragraph> = paragraphs
@@ -385,20 +402,27 @@ fn one_state(editor: &Editor, target: &Target) -> Option<TextState> {
     };
     let list = covered.first().map(|p| p.list);
     let list = list.filter(|l| covered.iter().all(|p| p.list == *l));
-    let level = covered.first().map(|p| p.level);
+    let level = covered
+        .first()
+        .map(|p| p.level)
+        .filter(|l| covered.iter().all(|p| p.level == *l));
     let mut state = TextState {
-        font: Some(font),
-        size: Some(size),
+        font,
+        size,
         bold,
         italic,
         underline,
         strikethrough,
-        color: Some(color),
+        color,
+        letter_spacing: same_in_range(parts.runs, range, |r| {
+            r.and_then(|r| r.letter_spacing)
+                .unwrap_or(parts.style.letter_spacing)
+        }),
         align: Some(parts.style.align),
         valign: Some(parts.style.valign),
         wrap: Some(parts.style.wrap),
         list: list.or(covered.is_empty().then_some(ListKind::None)),
-        level: level.or(Some(0)),
+        level: level.or(covered.is_empty().then_some(0)),
         line_spacing: same(&|p| p.line_spacing).or(covered.is_empty().then_some(1.0)),
         shadow: shadow_for_range(parts.runs, range),
         highlight: highlight_for_range(parts.runs, range),
@@ -432,6 +456,7 @@ fn one_state(editor: &Editor, target: &Target) -> Option<TextState> {
         state.underline = patch.underline.or(state.underline);
         state.strikethrough = patch.strikethrough.or(state.strikethrough);
         state.size = patch.size.or(state.size);
+        state.letter_spacing = patch.letter_spacing.or(state.letter_spacing);
         state.font = patch.font.clone().or(state.font);
         state.color = patch.color.as_ref().map(|c| c.0.clone()).or(state.color);
         state.shadow = patch.shadow.or(state.shadow);
@@ -461,6 +486,7 @@ pub fn state(editor: &Editor) -> Option<TextState> {
     let mut underline = None;
     let mut strike = None;
     let mut color = None;
+    let mut letter_spacing = None;
     let mut align = None;
     let mut valign = None;
     let mut wrap = None;
@@ -480,6 +506,7 @@ pub fn state(editor: &Editor) -> Option<TextState> {
         merge(&mut underline, s.underline);
         merge(&mut strike, s.strikethrough);
         merge(&mut color, s.color);
+        merge(&mut letter_spacing, s.letter_spacing);
         merge(&mut align, s.align);
         merge(&mut valign, s.valign);
         merge(&mut wrap, s.wrap);
@@ -500,6 +527,7 @@ pub fn state(editor: &Editor) -> Option<TextState> {
         underline: underline.flatten(),
         strikethrough: strike.flatten(),
         color: color.flatten(),
+        letter_spacing: letter_spacing.flatten(),
         align: align.flatten(),
         valign: valign.flatten(),
         wrap: wrap.flatten(),

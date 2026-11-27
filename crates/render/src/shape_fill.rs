@@ -525,26 +525,31 @@ pub fn fill_contours(contours: &[Vec<Pt>], color: Color32, pixels_per_point: f32
     let mut outers: Vec<(usize, Vec<Pt>)> = Vec::new();
     let mut holes: Vec<Vec<Pt>> = Vec::new();
     let mut hole_targets: Vec<usize> = Vec::new();
+    // Collect every outer first: a hole may be listed before its outer.
     for (i, contour) in oriented.iter().enumerate() {
         if depth.get(i).copied().unwrap_or(0) % 2 == 0 {
             outers.push((i, contour.clone()));
-        } else {
-            let Some(&sample) = contour.first() else {
-                continue;
-            };
-            let mut best: Option<(f32, usize)> = None;
-            for (outer_position, (_, outer)) in outers.iter().enumerate() {
-                if point_in_polygon(sample, outer) {
-                    let area = signed_area(outer).abs();
-                    if best.is_none_or(|(best_area, _)| area < best_area) {
-                        best = Some((area, outer_position));
-                    }
+        }
+    }
+    for (i, contour) in oriented.iter().enumerate() {
+        if depth.get(i).copied().unwrap_or(0) % 2 == 0 {
+            continue;
+        }
+        let Some(&sample) = contour.first() else {
+            continue;
+        };
+        let mut best: Option<(f32, usize)> = None;
+        for (outer_position, (_, outer)) in outers.iter().enumerate() {
+            if point_in_polygon(sample, outer) {
+                let area = signed_area(outer).abs();
+                if best.is_none_or(|(best_area, _)| area < best_area) {
+                    best = Some((area, outer_position));
                 }
             }
-            if let Some((_, target)) = best {
-                holes.push(contour.clone());
-                hole_targets.push(target);
-            }
+        }
+        if let Some((_, target)) = best {
+            holes.push(contour.clone());
+            hole_targets.push(target);
         }
     }
 

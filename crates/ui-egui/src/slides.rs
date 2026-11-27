@@ -2597,11 +2597,13 @@ fn show_slides_content(editor: &mut Editor, ui: &mut Ui, panel_rect: Rect) {
         && editor.ui.slide_rename.is_none()
         && editor.ui.scene_rename.is_none()
         && editor.ui.bank_rename.is_none()
+        // Question bank rows have no rename field: F2 there would leave `slide_rename` set
+        // with nothing to clear it (`N105`).
         && editor
             .session
             .course
-            .slide(&editor.selection.slide)
-            .is_some()
+            .slides()
+            .any(|slide| slide.id == editor.selection.slide)
         && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, Key::F2))
     {
         let sid = editor.selection.slide.clone();

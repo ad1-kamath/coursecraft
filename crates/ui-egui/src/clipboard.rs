@@ -489,10 +489,37 @@ pub fn paste_private_with(editor: &mut Editor, mode: PasteMode) {
 /// desktop (the mode waits for the paste event), else the editor's own.
 pub fn paste_now_with(editor: &mut Editor, ctx: &egui::Context, mode: PasteMode) {
     if editor.file_ops_available {
-        editor.ui.pending_paste_mode = Some(mode);
-        ctx.send_viewport_cmd(egui::ViewportCommand::RequestPaste);
+        request_system_paste(editor, ctx, Some(mode));
     } else {
         paste_private_with(editor, mode);
+    }
+}
+
+/// Ask the system clipboard for its text. `mode` applies to the answer of this
+/// request only: `None` (the main Paste button) clears any older mode, and
+/// [`expire_pending_paste_mode`] drops a mode that no paste event took.
+pub fn request_system_paste(editor: &mut Editor, ctx: &egui::Context, mode: Option<PasteMode>) {
+    editor.ui.pending_paste_mode = mode;
+    editor.ui.pending_paste_frame = ctx.cumulative_frame_nr();
+    ctx.send_viewport_cmd(egui::ViewportCommand::RequestPaste);
+}
+
+/// Frames a Paste menu mode waits for the system clipboard to answer.
+const PASTE_MODE_FRAMES: u64 = 2;
+
+/// Drop a pending paste mode when the frame that should have handled its
+/// request is over. Call after the frame's paste events were handled, so a
+/// text field that took the event, or an empty clipboard, cannot leave the mode
+/// for a later Ctrl+V.
+pub fn expire_pending_paste_mode(editor: &mut Editor, frame: u64) {
+    if editor.ui.pending_paste_mode.is_some()
+        && frame
+            >= editor
+                .ui
+                .pending_paste_frame
+                .saturating_add(PASTE_MODE_FRAMES)
+    {
+        editor.ui.pending_paste_mode = None;
     }
 }
 
@@ -610,11 +637,12 @@ fn adapt_value(value: &mut serde_json::Value, source: &SourceTheme, dest: &Sourc
                     if key == "font" {
                         if *text == source.font && source.font != dest.font {
                             text.clone_from(&dest.font);
-                        } else if source.heading_font.as_deref() == Some(text.as_str())
-                            && source.heading_font != dest.heading_font
-                            && let Some(ref heading) = dest.heading_font
-                        {
-                            text.clone_from(heading);
+                        } else if source.heading_font.as_deref() == Some(text.as_str()) {
+                            // A theme without a heading font uses its body font for headings.
+                            let target = dest.heading_font.as_deref().unwrap_or(&dest.font);
+                            if text != target {
+                                *text = target.to_owned();
+                            }
                         }
                     } else if !TEXT_KEYS.contains(&key.as_str())
                         && let Some(mapped) = map_color(text, source, dest)
@@ -993,13 +1021,13 @@ fn insert_text_box(editor: &mut Editor, text: &str, themed: bool) {
 /// A format the Paste Special window can paste.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PasteFormat {
-    /// CourseCraft objects, with the three [`PasteMode`] options.
+    /// CourseCraft objects, with the three [`PasteMode`] options. Without
+    /// objects on the clipboard it pastes the system clipboard's text, which
+    /// only [`PasteMode::TextOnly`] applies to.
     #[default]
     Objects,
     /// CourseCraft slides.
     Slides,
-    /// Plain text in a new text box.
-    PlainText,
 }
 
 /// State of the Paste Special window.
@@ -1011,10 +1039,11 @@ pub struct PasteSpecialState {
 }
 
 /// Which formats can be pasted now. Each entry is `Err(reason)` when disabled.
-pub fn paste_formats(editor: &Editor) -> [(PasteFormat, Result<(), &'static str>); 3] {
+pub fn paste_formats(editor: &Editor) -> [(PasteFormat, Result<(), &'static str>); 2] {
     const NOTHING: &str = "Nothing of this kind on the clipboard";
     let kind = editor.ui.clipboard.as_ref().map(|c| c.kind);
-    let objects = if kind == Some(ClipboardKind::Objects) {
+    // The system clipboard may hold text even when no objects were copied.
+    let objects = if kind == Some(ClipboardKind::Objects) || editor.file_ops_available {
         Ok(())
     } else {
         Err(NOTHING)
@@ -1024,15 +1053,9 @@ pub fn paste_formats(editor: &Editor) -> [(PasteFormat, Result<(), &'static str>
     } else {
         Err(NOTHING)
     };
-    let text = if kind == Some(ClipboardKind::Objects) || editor.file_ops_available {
-        Ok(())
-    } else {
-        Err(NOTHING)
-    };
     [
         (PasteFormat::Objects, objects),
         (PasteFormat::Slides, slides),
-        (PasteFormat::PlainText, text),
     ]
 }
 
@@ -1050,18 +1073,32 @@ impl Editor {
         self.ui.paste_special = PasteSpecialState {
             open: true,
             format,
-            mode: PasteMode::DestinationTheme,
+            mode: if self.ui.clipboard.as_ref().map(|c| c.kind) == Some(ClipboardKind::Objects) {
+                PasteMode::DestinationTheme
+            } else {
+                PasteMode::TextOnly
+            },
         };
     }
+}
+
+fn has_objects(editor: &Editor) -> bool {
+    editor.ui.clipboard.as_ref().map(|c| c.kind) == Some(ClipboardKind::Objects)
 }
 
 /// Paste what the Paste Special window has chosen.
 pub fn paste_special_ok(editor: &mut Editor, ctx: &egui::Context) {
     let state = editor.ui.paste_special;
     match state.format {
-        PasteFormat::Objects => paste_now_with(editor, ctx, state.mode),
+        PasteFormat::Objects => {
+            let mode = if has_objects(editor) {
+                state.mode
+            } else {
+                PasteMode::TextOnly
+            };
+            paste_now_with(editor, ctx, mode);
+        }
         PasteFormat::Slides => paste_now_with(editor, ctx, PasteMode::default()),
-        PasteFormat::PlainText => paste_now_with(editor, ctx, PasteMode::TextOnly),
     }
 }
 
@@ -1082,12 +1119,13 @@ pub fn show_paste_special_window(editor: &mut Editor, ctx: &egui::Context) {
                 ui.label(tl!("As:"));
                 let objects_label = tl!("CourseCraft objects");
                 let slides_label = tl!("CourseCraft slides");
-                let text_label = tl!("Plain text");
+                let text_label = tl!("Clipboard text");
+                let objects_on_clipboard = has_objects(editor);
                 for (format, available) in formats {
                     let label = match format {
-                        PasteFormat::Objects => objects_label,
+                        PasteFormat::Objects if objects_on_clipboard => objects_label,
+                        PasteFormat::Objects => text_label,
                         PasteFormat::Slides => slides_label,
-                        PasteFormat::PlainText => text_label,
                     };
                     let response = ui.add_enabled(
                         available.is_ok(),
@@ -1105,12 +1143,21 @@ pub fn show_paste_special_window(editor: &mut Editor, ctx: &egui::Context) {
                     ui.separator();
                     ui.label(tl!("Formatting:"));
                     let mode = &mut editor.ui.paste_special.mode;
-                    ui.radio_value(
-                        mode,
-                        PasteMode::DestinationTheme,
-                        tl!("Use Destination Theme"),
-                    );
-                    ui.radio_value(mode, PasteMode::KeepSource, tl!("Keep Source Formatting"));
+                    // Text has no source formatting or theme to follow.
+                    let styled = objects_on_clipboard;
+                    let reason = tl!("The clipboard holds text only, so it has no formatting");
+                    for (value, label) in [
+                        (PasteMode::DestinationTheme, tl!("Use Destination Theme")),
+                        (PasteMode::KeepSource, tl!("Keep Source Formatting")),
+                    ] {
+                        let selected = styled && *mode == value;
+                        let response =
+                            ui.add_enabled(styled, egui::RadioButton::new(selected, label));
+                        if response.clicked() {
+                            *mode = value;
+                        }
+                        response.on_disabled_hover_text(reason);
+                    }
                     ui.radio_value(mode, PasteMode::TextOnly, tl!("Keep Text Only"));
                 }
             });

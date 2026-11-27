@@ -246,13 +246,19 @@ pub(crate) fn temp_suffix(src: &str) -> String {
     }
 }
 
+/// Lowest source sample rate accepted. Telephone audio is 8 kHz, so real
+/// content never goes below this.
+const MIN_SOURCE_RATE: u32 = 1_000;
+
 /// Resample interleaved PCM to 48 kHz stereo with linear interpolation.
 ///
 /// Mono is duplicated to both channels and anything above stereo keeps its
 /// first two channels. A constant signal stays constant.
 pub(crate) fn resample_to_stereo(samples: &[i16], channels: u16, from_rate: u32) -> Vec<i16> {
     let channels = usize::from(channels);
-    if channels == 0 || from_rate == 0 {
+    // A declared rate below real audio would multiply the output by tens of
+    // thousands (1 Hz gives 48000 times), so such a source stays silent (N83).
+    if channels == 0 || from_rate < MIN_SOURCE_RATE {
         return Vec::new();
     }
     let frames = samples.len() / channels;

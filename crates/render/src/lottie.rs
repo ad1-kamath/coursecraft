@@ -14,7 +14,7 @@
 //! patterns are approximated as dash or dot. Layer masks are clipped to the
 //! mask path's bounding box, not its exact shape.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use egui::{Color32, Mesh, Painter, Rect, pos2};
 use kurbo::{Affine, PathEl, Point};
@@ -47,6 +47,9 @@ pub const MAX_SHAPE_NODES: usize = 100_000;
 pub const MAX_REPEATER_COPIES: f64 = 256.0;
 /// Largest precomposition nesting depth accepted.
 const MAX_COMPOSITION_NESTING: usize = 64;
+/// Most shapes one frame may draw once precompositions and repeaters are
+/// expanded. One frame cannot show more than the triangle budget anyway.
+pub const MAX_DRAW_WORK: u64 = 500_000;
 /// Triangles one animation may draw in one frame before it is skipped.
 pub const MAX_TRIANGLES_PER_FRAME: usize = 120_000;
 
@@ -207,7 +210,7 @@ pub fn paint_composition(
     };
     let mut sink = EpaintSink::new(painter.clone(), base, alpha, pixels_per_point);
     Renderer::new().append(composition, frame, Affine::IDENTITY, 1.0, &mut sink);
-    sink.warned
+    !sink.warned
 }
 
 /// Whether two bytes start a ZIP archive (a `.lottie` file).
@@ -361,40 +364,125 @@ fn repeater_within_limits(repeater: &Repeater) -> bool {
     }
 }
 
+/// Reject precomposition cycles and animations whose total drawing work is far
+/// beyond what one frame can show.
+///
+/// A diamond of precompositions (each layer instancing the next level twice)
+/// has no cycle yet expands to `2^levels` draws, and repeaters multiply: a
+/// group with four 256-copy repeaters draws `256^4` shapes. Both are counted
+/// here, before anything is painted.
 fn check_asset_cycles(composition: &Composition) -> Result<(), String> {
     fn visit(
         name: &str,
         composition: &Composition,
         visiting: &mut HashSet<String>,
-        done: &mut HashSet<String>,
+        done: &mut HashMap<String, u64>,
         depth: usize,
-    ) -> Result<(), String> {
+    ) -> Result<u64, String> {
         if depth > MAX_COMPOSITION_NESTING {
             return Err("precompositions are nested too deeply".to_string());
         }
-        if done.contains(name) {
-            return Ok(());
+        if let Some(work) = done.get(name) {
+            return Ok(*work);
         }
         if !visiting.insert(name.to_owned()) {
             return Err("precompositions reference each other in a cycle".to_string());
         }
+        let mut work = 0u64;
         if let Some(layers) = composition.assets.get(name) {
-            for layer in layers {
-                if let Content::Instance { name: child, .. } = &layer.content {
-                    visit(child, composition, visiting, done, depth.saturating_add(1))?;
-                }
-            }
+            work = layers_work(layers, composition, visiting, done, depth)?;
         }
         visiting.remove(name);
-        done.insert(name.to_owned());
-        Ok(())
+        done.insert(name.to_owned(), work);
+        Ok(work)
+    }
+    fn layers_work(
+        layers: &[Layer],
+        composition: &Composition,
+        visiting: &mut HashSet<String>,
+        done: &mut HashMap<String, u64>,
+        depth: usize,
+    ) -> Result<u64, String> {
+        let mut total = 0u64;
+        for layer in layers {
+            let work = match &layer.content {
+                Content::Instance { name: child, .. } => {
+                    1u64.saturating_add(visit(child, composition, visiting, done, depth + 1)?)
+                }
+                Content::Shape(shapes) => shape_work(shapes, 1).max(1),
+                _ => 1,
+            };
+            total = total.saturating_add(work);
+            if total > MAX_DRAW_WORK {
+                return Err(format!(
+                    "animation draws more than {MAX_DRAW_WORK} shapes per frame"
+                ));
+            }
+        }
+        Ok(total)
     }
     let mut visiting = HashSet::new();
-    let mut done = HashSet::new();
+    let mut done = HashMap::new();
     for name in composition.assets.keys() {
         visit(name, composition, &mut visiting, &mut done, 0)?;
     }
+    layers_work(
+        &composition.layers,
+        composition,
+        &mut visiting,
+        &mut done,
+        0,
+    )?;
     Ok(())
+}
+
+/// Shapes drawn by a shape list. Repeaters in one list multiply each other and
+/// every group below them; sibling groups add.
+fn shape_work(shapes: &[LottieShape], multiplier: u64) -> u64 {
+    let repeat = shapes
+        .iter()
+        .filter_map(|shape| match shape {
+            LottieShape::Repeater(repeater) => Some(repeater_max_copies(repeater)),
+            _ => None,
+        })
+        .fold(1u64, u64::saturating_mul);
+    let multiplier = multiplier.saturating_mul(repeat);
+    let mut total = 0u64;
+    for shape in shapes {
+        match shape {
+            LottieShape::Group(inner, _) => {
+                total = total.saturating_add(shape_work(inner, multiplier));
+            }
+            LottieShape::Geometry(_) => total = total.saturating_add(multiplier),
+            LottieShape::Draw(_) | LottieShape::Trim(_) | LottieShape::Repeater(_) => {}
+        }
+    }
+    total
+}
+
+/// Most copies a repeater can make, at least 1.
+fn repeater_max_copies(repeater: &Repeater) -> u64 {
+    let max = match repeater {
+        Repeater::Fixed(repeater) => repeater.copies as f64,
+        Repeater::Animated(repeater) => match &repeater.copies {
+            Value::Fixed(copies) => *copies,
+            Value::Animated(animated) => {
+                animated
+                    .values
+                    .iter()
+                    .copied()
+                    .fold(
+                        0.0_f64,
+                        |best, copies| if copies > best { copies } else { best },
+                    )
+            }
+        },
+    };
+    if max.is_finite() && max >= 1.0 {
+        max.min(MAX_REPEATER_COPIES).ceil() as u64
+    } else {
+        1
+    }
 }
 
 // ---------------------------------------------------------------- painting
@@ -584,7 +672,9 @@ impl RenderSink for EpaintSink<'_> {
         brush: &fixed::Brush,
         shape: &impl kurbo::Shape,
     ) {
-        if self.alpha <= 0.0 {
+        // Once the triangle budget is spent nothing more is drawn, so skip the
+        // flattening and triangulation too.
+        if self.alpha <= 0.0 || self.warned {
             return;
         }
         let affine = self.base * transform;
@@ -1184,6 +1274,68 @@ mod tests {
         assert!(parse_composition(deep.as_bytes()).is_err());
         let empty_archive = stored_zip(&[("manifest.json", b"{}")]);
         assert!(parse_composition(&empty_archive).is_err());
+    }
+
+    const KS: &str = r#""ks":{"a":{"a":0,"k":[0,0]},"p":{"a":0,"k":[0,0]},"s":{"a":0,"k":[100,100]},"r":{"a":0,"k":0},"o":{"a":0,"k":100}}"#;
+
+    fn wrap(assets: &str, layers: &str) -> String {
+        format!(
+            r#"{{"v":"5.5.7","fr":30,"ip":0,"op":30,"w":100,"h":100,"nm":"x","ddd":0,"assets":[{assets}],"layers":[{layers}]}}"#
+        )
+    }
+
+    fn instance(ind: usize, target: &str) -> String {
+        format!(
+            r#"{{"ddd":0,"ind":{ind},"ty":0,"nm":"i","refId":"{target}","w":100,"h":100,{KS},"ao":0,"ip":0,"op":30,"st":0,"bm":0}}"#
+        )
+    }
+
+    /// N79: a diamond of precompositions has no cycle but expands to 2^levels.
+    #[test]
+    fn diamond_precompositions_are_refused_by_the_work_budget() {
+        let levels = 25;
+        let mut assets = Vec::new();
+        for level in 0..levels {
+            let next = format!("c{}", level + 1);
+            assets.push(format!(
+                r#"{{"id":"c{level}","layers":[{},{}]}}"#,
+                instance(1, &next),
+                instance(2, &next)
+            ));
+        }
+        assets.push(format!(r#"{{"id":"c{levels}","layers":[]}}"#));
+        let json = wrap(&assets.join(","), &instance(1, "c0"));
+        let started = std::time::Instant::now();
+        let err = parse_composition(json.as_bytes()).expect_err("diamond must be refused");
+        assert!(err.contains("per frame"), "{err}");
+        assert!(started.elapsed() < std::time::Duration::from_secs(2));
+    }
+
+    /// N79: repeaters in one group multiply, so four of 256 copies is 256^4.
+    #[test]
+    fn stacked_repeaters_are_refused_by_the_work_budget() {
+        let rp = r#"{"ty":"rp","c":{"a":0,"k":256},"o":{"a":0,"k":0},"m":1,"tr":{"p":{"a":0,"k":[1,0]},"a":{"a":0,"k":[0,0]},"s":{"a":0,"k":[100,100]},"r":{"a":0,"k":0},"so":{"a":0,"k":100},"eo":{"a":0,"k":100}}}"#;
+        let layer = format!(
+            r#"{{"ddd":0,"ind":1,"ty":4,"nm":"r","sr":1,{KS},"ao":0,"shapes":[{{"ty":"gr","it":[
+              {{"ty":"rc","d":1,"s":{{"a":0,"k":[2,2]}},"p":{{"a":0,"k":[0,0]}},"r":{{"a":0,"k":0}}}},
+              {{"ty":"fl","c":{{"a":0,"k":[1,0,0,1]}},"o":{{"a":0,"k":100}},"r":1}},
+              {rp},{rp},{rp},{rp},
+              {{"ty":"tr","p":{{"a":0,"k":[0,0]}},"a":{{"a":0,"k":[0,0]}},"s":{{"a":0,"k":[100,100]}},"r":{{"a":0,"k":0}},"o":{{"a":0,"k":100}}}}
+            ]}}],"ip":0,"op":30,"st":0,"bm":0}}"#
+        );
+        let json = wrap("", &layer);
+        let err = parse_composition(json.as_bytes()).expect_err("must be refused");
+        assert!(err.contains("per frame"), "{err}");
+    }
+
+    #[test]
+    fn a_plain_nested_precomposition_still_loads() {
+        let assets = format!(
+            r#"{{"id":"a","layers":[{}]}},{{"id":"b","layers":[]}}"#,
+            instance(1, "b")
+        );
+        let json = wrap(&assets, &instance(1, "a"));
+        parse_composition(json.as_bytes()).expect("ordinary nesting loads");
     }
 
     #[test]

@@ -435,8 +435,28 @@ fn style(ui: &Ui) -> DockStyle {
     let mut style = DockStyle::from_ui(ui);
     style.side_edge_zones = true;
     style.new_dock_zones = false;
+    // craft-ui shrinks tabs that do not fit to a common width and cuts their names ("Ani…").
+    // No tab narrower than the longest inspector name: the tabs that still do not fit go to
+    // craft-ui's "…" overflow menu, where every name is whole.
+    let widest = Panel::INSPECTORS
+        .iter()
+        .map(|panel| {
+            ui.painter()
+                .layout_no_wrap(
+                    tl!(panel.label()).to_owned(),
+                    style.font.clone(),
+                    style.text,
+                )
+                .size()
+                .x
+        })
+        .fold(0.0_f32, f32::max);
+    style.min_tab_width = style.min_tab_width.max(widest + TAB_PADDING);
     style
 }
+
+/// craft-ui's horizontal padding inside every tab (its `TAB_PADDING`).
+const TAB_PADDING: f32 = 24.0;
 
 /// The saved id of every panel this build knows.
 fn known_ids() -> Vec<serde_json::Value> {
@@ -740,6 +760,34 @@ pub fn reveal_inspector(editor: &mut Editor) {
         set_open(editor, panel, true);
     }
     apply(editor, vec![Action::Activate { panel }]);
+}
+
+/// Ask for the inspector `tab`: it becomes the current one and, with docking on, comes forward
+/// at the start of the next frame even when it was already current but closed or behind
+/// another panel's tab (`N98`). The reveal waits for the next frame, as the panels are being
+/// drawn now.
+pub fn request_inspector_tab(editor: &mut Editor, tab: InspectorTab) {
+    editor.ui.inspector_tab = tab;
+    if editor.ui.dock.shown_inspector == tab {
+        // Forget what was brought forward, so that `reveal_inspector` acts again.
+        editor.ui.dock.shown_inspector = if tab == InspectorTab::Slide {
+            InspectorTab::Course
+        } else {
+            InspectorTab::Slide
+        };
+    }
+}
+
+/// Ask for the bottom `tab`: as [`request_inspector_tab`], for the bottom panels (`N98`).
+pub fn request_bottom_tab(editor: &mut Editor, tab: BottomTab) {
+    editor.ui.bottom_tab = tab;
+    if editor.ui.dock.shown_bottom == tab {
+        editor.ui.dock.shown_bottom = if tab == BottomTab::Timeline {
+            BottomTab::States
+        } else {
+            BottomTab::Timeline
+        };
+    }
 }
 
 /// A click on an inspector's dock tab makes it the current inspector, so the

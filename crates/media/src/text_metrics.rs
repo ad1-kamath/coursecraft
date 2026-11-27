@@ -17,6 +17,27 @@ pub const INTER_ITALIC: &[u8] = include_bytes!("../fonts/Inter-Italic.ttf");
 /// Bundled Inter Bold Italic font bytes (single copy shared across the workspace).
 pub const INTER_BOLD_ITALIC: &[u8] = include_bytes!("../fonts/Inter-BoldItalic.ttf");
 
+/// Bundled symbol fallback (a subset of DejaVu Sans, renamed as its licence requires).
+///
+/// It draws the common UI symbols Inter lacks, such as the check, cross and star marks.
+pub const SYMBOLS_FALLBACK: &[u8] = include_bytes!("../fonts/SymbolsFallback.ttf");
+
+/// Return `true` when a bundled font (Inter Regular or the symbol fallback) has a glyph for `ch`.
+///
+/// Whitespace and control characters count as drawable because they need no glyph.
+#[must_use]
+pub fn bundled_fonts_can_draw(ch: char) -> bool {
+    if ch.is_whitespace() || ch.is_control() {
+        return true;
+    }
+    [INTER_REGULAR, SYMBOLS_FALLBACK].iter().any(|bytes| {
+        skrifa::FontRef::new(bytes)
+            .ok()
+            .and_then(|font| font.charmap().map(ch))
+            .is_some_and(|gid| gid != GlyphId::NOTDEF)
+    })
+}
+
 /// Horizontal padding added on each side of a point-text box (8.0 px total).
 pub const POINT_TEXT_PAD_X: f32 = 4.0;
 /// Vertical padding added on each side of a point-text box (4.0 px total).
@@ -610,6 +631,17 @@ pub fn grow_text_box_height(content_h: f32, insets: TextBoxInsets) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bundled_fonts_draw_ui_symbols_and_reject_unbundled_scripts() {
+        for ch in [
+            '\u{2715}', '\u{2713}', '\u{2714}', '\u{2717}', '\u{2605}', '\u{2606}', '\u{2192}',
+            '\u{2022}', 'a', ' ',
+        ] {
+            assert!(bundled_fonts_can_draw(ch), "{ch:?}");
+        }
+        assert!(!bundled_fonts_can_draw('\u{0928}'));
+    }
 
     fn plain_run(text: &str, size: f32) -> MeasuredRun<'_> {
         MeasuredRun {

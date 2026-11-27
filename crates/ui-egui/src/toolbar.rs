@@ -153,6 +153,7 @@ pub fn insert_table(editor: &mut Editor) {
         "object.add",
         serde_json::json!({
             "slide": editor.selection.slide,
+            "layer": editor.selection.layer,
             "kind": kind,
             "frame": frame,
         }),
@@ -619,7 +620,7 @@ pub fn show_toolbar(editor: &mut Editor, ui: &mut Ui, requests: &mut Vec<EditorR
     )
     .clicked()
     {
-        editor.ui.inspector_tab = InspectorTab::Course;
+        crate::dock::request_inspector_tab(editor, InspectorTab::Course);
     }
 
     // Slide tab toggle
@@ -633,7 +634,7 @@ pub fn show_toolbar(editor: &mut Editor, ui: &mut Ui, requests: &mut Vec<EditorR
     )
     .clicked()
     {
-        editor.ui.inspector_tab = InspectorTab::Slide;
+        crate::dock::request_inspector_tab(editor, InspectorTab::Slide);
     }
 
     // Animate tab toggle
@@ -647,7 +648,7 @@ pub fn show_toolbar(editor: &mut Editor, ui: &mut Ui, requests: &mut Vec<EditorR
     )
     .clicked()
     {
-        editor.ui.inspector_tab = InspectorTab::Animate;
+        crate::dock::request_inspector_tab(editor, InspectorTab::Animate);
     }
 
     // Format tab toggle
@@ -661,7 +662,7 @@ pub fn show_toolbar(editor: &mut Editor, ui: &mut Ui, requests: &mut Vec<EditorR
     )
     .clicked()
     {
-        editor.ui.inspector_tab = InspectorTab::Format;
+        crate::dock::request_inspector_tab(editor, InspectorTab::Format);
     }
 
     // Thin vertical separator

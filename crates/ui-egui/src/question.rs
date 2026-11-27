@@ -93,6 +93,8 @@ pub struct QuestionState {
     pub return_if_wrong: bool,
     pub one_per_target: bool,
     pub correct_when: Option<Condition>,
+    /// The question's own frame, kept as authored; the panel does not edit it.
+    pub frame: Option<coursecraft_course::Rect>,
     pub selected_region: Option<String>,
 
     /// Prompt field rect for headless tests.
@@ -134,6 +136,7 @@ impl Default for QuestionState {
             return_if_wrong: false,
             one_per_target: true,
             correct_when: None,
+            frame: None,
             selected_region: None,
             prompt_edit_rect: None,
             scroll_offset_y: 0.0,
@@ -191,6 +194,7 @@ impl QuestionState {
             self.return_if_wrong = q.return_if_wrong;
             self.one_per_target = q.one_per_target;
             self.correct_when = q.correct_when.clone();
+            self.frame = q.frame;
             if let Some(ref r_id) = self.selected_region {
                 if !q.regions.iter().any(|r| &r.id == r_id) {
                     self.selected_region = q.regions.first().map(|r| r.id.clone());
@@ -221,6 +225,7 @@ impl QuestionState {
             self.return_if_wrong = false;
             self.one_per_target = true;
             self.correct_when = None;
+            self.frame = None;
             self.selected_region = None;
         }
     }
@@ -251,6 +256,7 @@ impl QuestionState {
             return_if_wrong: self.return_if_wrong,
             one_per_target: self.one_per_target,
             correct_when: self.correct_when.clone(),
+            frame: self.frame,
         }
     }
 }
@@ -275,9 +281,10 @@ pub(crate) fn prompt_overlap_names(
     course: &coursecraft_course::Course,
     slide: &Slide,
 ) -> Vec<String> {
-    let prompt = coursecraft_render::question_prompt_rect(
+    let prompt = coursecraft_render::question_prompt_rect_in(
         course.slide_size.w as f32,
         course.slide_size.h as f32,
+        slide.question.as_ref().and_then(|q| q.frame.as_ref()),
     );
     slide
         .objects
@@ -2003,7 +2010,9 @@ fn show_drag_drop(
     let p = coursecraft_render::palette(ui.ctx());
     ui.horizontal(|ui| {
         ui.label(coursecraft_render::caption("Drag items & targets").color(p.text_secondary));
-        let can_add = n < 20 && !available_new_items.is_empty() && !target_candidates.is_empty();
+        // A new pair needs an item and a different object for it to land on (`N102`).
+        let new_pair = new_drag_pair(&available_new_items, &target_candidates);
+        let can_add = n < 20 && new_pair.is_some();
         let btn = egui::Button::new(coursecraft_render::body("+ Add item").color(p.accent_text))
             .fill(Color32::TRANSPARENT);
         if ui
@@ -2013,12 +2022,7 @@ fn show_drag_drop(
             )
             .clicked()
         {
-            let new_item = available_new_items[0].clone();
-            let new_target = target_candidates
-                .iter()
-                .find(|t| *t != &new_item)
-                .cloned()
-                .unwrap_or_else(|| target_candidates[0].clone());
+            let (new_item, new_target) = new_pair.clone().unwrap_or_default();
             structural.push((
                 "question.add_drag_item",
                 serde_json::json!({
@@ -2253,15 +2257,22 @@ fn attempts_ui(editor: &mut crate::Editor, ui: &mut Ui, slide: &Slide, committed
     }
 }
 
+/// The next drag item and the object it lands on: two different objects (`N102`).
+pub(crate) fn new_drag_pair(items: &[String], targets: &[String]) -> Option<(String, String)> {
+    items.iter().find_map(|item| {
+        targets
+            .iter()
+            .find(|t| *t != item)
+            .map(|target| (item.clone(), target.clone()))
+    })
+}
+
 fn shuffle_ui(editor: &mut crate::Editor, ui: &mut Ui, committed: &mut bool) {
     match editor.ui.question.kind {
         QuestionKind::Sequence | QuestionKind::Matching => {
             ui.label("Shuffled each attempt");
         }
-        QuestionKind::MultipleChoice
-        | QuestionKind::MultipleResponse
-        | QuestionKind::TrueFalse
-        | QuestionKind::FillIn => {
+        QuestionKind::MultipleChoice | QuestionKind::MultipleResponse | QuestionKind::TrueFalse => {
             if ui
                 .checkbox(&mut editor.ui.question.shuffle, "Shuffle choices")
                 .changed()
@@ -2269,7 +2280,9 @@ fn shuffle_ui(editor: &mut crate::Editor, ui: &mut Ui, committed: &mut bool) {
                 *committed = true;
             }
         }
-        QuestionKind::Hotspot
+        // A fill-in question has blanks, not choices to shuffle (`N102`).
+        QuestionKind::FillIn
+        | QuestionKind::Hotspot
         | QuestionKind::DragDrop
         | QuestionKind::Likert
         | QuestionKind::ShortAnswer

@@ -22,7 +22,7 @@ switch to its tab, except when the object is just inserted.
 |---|---|---|
 | Drawing Tools | **Format** | a shape, text box, hotspot, marker, slider, dial, input, or text being edited |
 | Button Tools | **Format** | a button (instead of Drawing Tools) |
-| Picture Tools | **Format** | an image (also for a state image being edited) |
+| Picture Tools | **Format** | an image |
 | Video Tools | **Options** | a video |
 | Audio Tools | **Options** | an audio object |
 | Table Tools | **Design**, **Layout** | a table or a table cell |
@@ -41,7 +41,7 @@ Modes replace the tab strip:
 | Feedback layouts | File, **Feedback Layouts**, Home, Insert, View, Help |
 | Question form view | File, **Question**, Slides, Help |
 | Preview | File, **Preview** |
-| Edit state (canvas state editing, M29) | the normal strip plus an **Editing State** caption with a **State** tab (Done, state picker, Reset property) |
+| Edit state (canvas state editing, M29) | the normal strip; no **Editing State** tab yet, Done and the state picker are in the States panel |
 
 ## Drawing Tools › Format
 
@@ -72,8 +72,10 @@ Modes replace the tab strip:
 | | Align Icon | SS | `object.update` `{icon_align}` | ⛔ | left, right, top, bottom, centre |
 | | Icon Color | SS | `object.update` `{icon_color}` | ⛔ | |
 | | Remove Icon | S | `object.update` `{icon: null}` | ⛔ | |
-| Button Styles ↘ | style gallery | G | `object.apply_style` | ✅ | |
-| | Button Fill / Border / Effects | SS | as Shape Fill / Outline / Effect | ✅ / 🟡 | |
+| Button Styles ↘ | Format inspector (label, fill) | G | `object.apply_style` | ✅ | Shape Style only styles shapes (N94) |
+| | Button Fill | SS | Format inspector Fill row | ✅ | |
+| | Button Border | SS | button borders | ⛔ | a button has no outline yet; drawn disabled (N94) |
+| | Button Effects | SS | as Shape Effect | ✅ | |
 | Arrange and Align | as Drawing Tools | | | ✅ | |
 | Size and Position ↘ | X, Y, Width, Height | N | `object.update` | ✅ | |
 | Publish | Preview | LS | | ✅ | |
@@ -93,7 +95,7 @@ already creates them (M29), check the set matches.
 | Picture Styles ↘ | style gallery | G | `object.apply_style` | ⛔ | frames, bevels: needs picture style presets |
 | | Picture Shape | SS | `object.set_crop` `{mask}` | ⛔ | crop to shape |
 | | Picture Border | SS | `object.update` `{outline}` | ✅ | drawn disabled: ribbon wiring (Format inspector) |
-| | Picture Effects | SS | `object.set_shadow`, `object.set_glow` | 🟡 | as Shape Effect |
+| | Picture Effects | SS | `object.set_shadow`, `object.set_glow` | ⛔ | drawn disabled (ribbon wiring, Format inspector) | |
 | Arrange and Align | as Drawing Tools | | | ✅ | |
 | Size and Position ↘ | Zoom Picture | L | `object.update` `{zoom_on_click}` | ⛔ | learner clicks to enlarge |
 | | Crop | L | `object.set_crop` | ✅ | starts crop mode on the canvas (`crop.rs`) |
@@ -116,7 +118,7 @@ Mirrors Audio Tools plus video specifics.
 | | Video Controls: Show / Hide | C | `object.set_media` `{controls}` | ✅ |
 | | Compression | C | — | ⛔ |
 | Closed Captions | Add / Import / Export / Delete | | `object.set_captions` | 🟡 Import Captions ✅ wired |
-| Cue points | Add Cue / Question at time | | `video.add_cue`, `video.add_question_cue` | ✅ (CourseCraft extra) |
+| Cue points | Add Cue / Question at time | | `video.add_cue`, `video.add_question_cue` | ⛔ (no ribbon control; cues are added in the timeline) |
 | Publish | Preview | LS | | ✅ |
 
 ## Audio Tools › Options

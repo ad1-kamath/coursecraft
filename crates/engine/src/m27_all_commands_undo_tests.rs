@@ -159,6 +159,7 @@ fn make_empty_question(kind: QuestionKind, prompt: &str) -> Question {
         return_if_wrong: false,
         one_per_target: true,
         correct_when: None,
+        frame: None,
     }
 }
 

@@ -270,7 +270,12 @@ impl PointerState {
                             drag.moved = true;
                         }
                         if drag.moved {
-                            let offset = drag.start_offset - delta * drag.ratio;
+                            // Content drags follow the finger (opposite); thumb drags follow the thumb.
+                            let offset = if drag.on_thumb {
+                                drag.start_offset + delta * drag.ratio
+                            } else {
+                                drag.start_offset - delta * drag.ratio
+                            };
                             let offset = coursecraft_course::clamp_panel_offset(
                                 drag.content_height,
                                 drag.viewport,
@@ -626,6 +631,8 @@ fn input_value_at(item: &DrawItem, slide_pos: Pos2) -> Option<Value> {
     if !slide_pos.x.is_finite() || !slide_pos.y.is_finite() {
         return None;
     }
+    // The control is painted rotated and flipped, so measure along its own axes.
+    let slide_pos = crate::compose::item_local_point(item, slide_pos);
     match &item.visual {
         Visual::Slider {
             min,
@@ -803,6 +810,9 @@ fn lifted_items(items: &[DrawItem], drag: &ItemDrag) -> Vec<DrawItem> {
         if is_target_item {
             let mut copy = item.clone();
             copy.rect = copy.rect.translate(delta);
+            if let Some(mask) = &mut copy.anim.mask {
+                mask.frame = mask.frame.translate(delta);
+            }
             lifted.push(copy);
         } else {
             out.push(item.clone());
@@ -837,15 +847,22 @@ fn open_draggable_specs(player: &Player<'_>) -> Vec<(String, Vec<String>)> {
         return Vec::new();
     };
     let mut specs = Vec::new();
+    // A disabled or hidden object, or a base object under a modal layer, cannot be picked up.
+    let blocked =
+        |id: &str| is_object_disabled_or_hidden(player, id) || blocked_by_modal_layer(player, id);
     for object in &slide.objects {
-        if let Some(drag) = &object.drag {
+        if let Some(drag) = &object.drag
+            && !blocked(&object.id)
+        {
             specs.push((object.id.clone(), drag.targets.clone()));
         }
     }
     for layer_id in &player.state().visible_layers {
         if let Some(layer) = slide.layers.iter().find(|l| &l.id == layer_id) {
             for object in &layer.objects {
-                if let Some(drag) = &object.drag {
+                if let Some(drag) = &object.drag
+                    && !is_object_disabled_or_hidden(player, &object.id)
+                {
                     specs.push((object.id.clone(), drag.targets.clone()));
                 }
             }
@@ -871,6 +888,8 @@ pub struct SlideView {
     current_slide_id: Option<String>,
     active_transition: Option<ActiveTransition>,
     last_bg: Option<Color>,
+    /// Id of the base slide while a lightbox is open, so closing it is not a slide change.
+    lightbox_base_slide_id: Option<String>,
     /// Base slide items frozen under an open lightbox.
     lightbox_base_items: Vec<DrawItem>,
     lightbox_base_bg: Option<Color>,
@@ -971,6 +990,14 @@ impl SlideView {
         self.active_transition.is_some()
     }
 
+    /// The running transition's effect (tests).
+    #[cfg(test)]
+    pub(crate) fn active_transition_effect(&self) -> Option<coursecraft_course::TransitionEffect> {
+        self.active_transition
+            .as_ref()
+            .map(|t| t.transition.effect.clone())
+    }
+
     /// Present the slide view inside `ui`, painting the slide and returning pointer inputs.
     pub fn show(
         &mut self,
@@ -993,6 +1020,8 @@ impl SlideView {
         mut media: Option<(&mut MediaCache, &dyn MediaSource)>,
         covered_rects: &[Rect],
     ) -> Vec<Input> {
+        // Entrances, exits and emphasis sample with the same preference as the rest of the view.
+        player.set_reduced_motion(self.reduced_motion);
         let size = ui.available_size();
         if !size.x.is_finite() || !size.y.is_finite() || size.x <= 0.0 || size.y <= 0.0 {
             self.last_items.clear();
@@ -1038,6 +1067,7 @@ impl SlideView {
             if self.lightbox_opened_at.is_none() {
                 self.lightbox_base_items = self.last_items.clone();
                 self.lightbox_base_bg = self.last_bg.clone();
+                self.lightbox_base_slide_id = self.current_slide_id.clone();
                 self.lightbox_opened_at = Some(now);
             }
         } else if self.lightbox_opened_at.take().is_some() {
@@ -1045,20 +1075,29 @@ impl SlideView {
             self.lightbox_base_bg = None;
             self.lightbox_box = None;
             self.lightbox_transform = None;
+            // Closing the lightbox returns to the same base slide: no slide change.
+            if let Some(base) = self.lightbox_base_slide_id.take() {
+                self.current_slide_id = Some(base);
+            }
         }
 
         if let Some(ref prev_id) = self.current_slide_id
             && Some(prev_id) != current_id.as_ref()
             && !lightbox_open
-            && let Some(slide) = current_slide
-            && let Some(ref trans) = slide.transition
         {
-            self.active_transition = Some(ActiveTransition {
-                transition: trans.clone(),
-                start_time: now,
-                prev_items: self.last_items.clone(),
-                prev_bg: self.last_bg.clone(),
-            });
+            // A slide without a transition also ends one still running.
+            self.active_transition = current_slide
+                .and_then(|slide| slide.transition.as_ref())
+                .map(|trans| ActiveTransition {
+                    transition: if self.reduced_motion {
+                        coursecraft_logic::animation::reduced_motion_transition(trans)
+                    } else {
+                        trans.clone()
+                    },
+                    start_time: now,
+                    prev_items: self.last_items.clone(),
+                    prev_bg: self.last_bg.clone(),
+                });
         }
         self.current_slide_id = current_id;
         self.last_bg = current_bg;
@@ -1341,7 +1380,8 @@ impl SlideView {
                 StrokeKind::Inside,
             );
 
-            let painted = without_widget_text(display);
+            let painted =
+                blank_live_widget_text(display, &mut |i| widget_inert(player, display, i));
             let box_painter = painter.with_clip_rect(box_rect);
             paint::paint_background(&box_painter, &active_t, theme, slide_bg, (0.0, 0.0));
             paint::paint_items(
@@ -1354,7 +1394,8 @@ impl SlideView {
                 (0.0, 0.0),
             );
         } else {
-            let painted = without_widget_text(display);
+            let painted =
+                blank_live_widget_text(display, &mut |i| widget_inert(player, display, i));
             paint::paint_background(&painter, &t, theme, slide_bg, (0.0, 0.0));
             paint::paint_items(
                 &painter,
@@ -1382,7 +1423,7 @@ impl SlideView {
 
         if self.active_transition.is_none() || lightbox_open {
             inputs.extend(show_question_widgets(ui, player, &active_t, &items, theme));
-            inputs.extend(self.show_text_entry_widgets(ui, &active_t, &items, theme));
+            inputs.extend(self.show_text_entry_widgets(ui, player, &active_t, &items, theme));
         }
 
         self.last_items = items;
@@ -1396,9 +1437,25 @@ fn is_object_disabled_or_hidden(player: &Player<'_>, id: &str) -> bool {
 }
 
 fn has_click_trigger(triggers: &[coursecraft_course::Trigger], id: &str) -> bool {
-    triggers
+    triggers.iter().any(|t| {
+        !t.disabled
+            && matches!(&t.when, coursecraft_course::Event::Click { object } if object == id)
+    })
+}
+
+/// Whether a visible `prevent_base_clicks` layer blocks `id`, a base or master object.
+fn blocked_by_modal_layer(player: &Player<'_>, id: &str) -> bool {
+    let Some(slide) = player.current_slide() else {
+        return false;
+    };
+    if slide.object(id).is_some_and(|(_, layer)| layer.is_some()) {
+        return false;
+    }
+    player
+        .state()
+        .visible_layers
         .iter()
-        .any(|t| matches!(&t.when, coursecraft_course::Event::Click { object } if object == id))
+        .any(|lid| slide.layer(lid).is_some_and(|l| l.prevent_base_clicks))
 }
 
 fn is_object_clickable(player: &Player<'_>, id: &str) -> bool {
@@ -1454,6 +1511,7 @@ fn is_object_clickable(player: &Player<'_>, id: &str) -> bool {
         obj.kind,
         coursecraft_course::ObjectKind::Button { .. }
             | coursecraft_course::ObjectKind::Marker { .. }
+            | coursecraft_course::ObjectKind::Video { .. }
     ) || obj.kind.input_kind().is_some()
     {
         return true;
@@ -1481,7 +1539,9 @@ fn hover_cursor_icon(
         }
         Hit::DragItem(_) => Some(egui::CursorIcon::Grab),
         Hit::TextLink { object, .. } => {
-            if is_object_disabled_or_hidden(player, &object) {
+            if is_object_disabled_or_hidden(player, &object)
+                || blocked_by_modal_layer(player, &object)
+            {
                 None
             } else {
                 Some(egui::CursorIcon::PointingHand)
@@ -1509,6 +1569,7 @@ impl SlideView {
     fn show_text_entry_widgets(
         &mut self,
         ui: &mut Ui,
+        player: &Player<'_>,
         t: &SlideTransform,
         items: &[DrawItem],
         theme: Option<&coursecraft_course::Theme>,
@@ -1537,7 +1598,7 @@ impl SlideView {
             else {
                 continue;
             };
-            if item.dimmed {
+            if item.dimmed || widget_inert(player, items, item) {
                 continue;
             }
             let Hit::Object(object) = &item.hit else {
@@ -1547,6 +1608,14 @@ impl SlideView {
             if !screen.is_positive() {
                 continue;
             }
+            // A field inside a scrolling panel is clipped to the panel's viewport.
+            let clip = item.clip_rect.map_or(t.slide_rect(), |c| {
+                t.to_screen_rect(c).intersect(t.slide_rect())
+            });
+            if !clip.intersects(screen) {
+                continue;
+            }
+            host.set_clip_rect(clip);
             let id = crate::focus::input_text_id(object);
             let has_focus = host.memory(|m| m.has_focus(id));
             let mut buffer = if has_focus {
@@ -1557,6 +1626,20 @@ impl SlideView {
             } else {
                 current.clone()
             };
+            // Focus left this field since the last frame (Tab, or a click elsewhere):
+            // commit the text it held instead of resetting it to the old value.
+            let mut committed = false;
+            if !has_focus
+                && let Some(pending) = self.text_buffers.remove(object)
+                && pending != *current
+            {
+                inputs.push(Input::SetInputValue {
+                    object: object.clone(),
+                    value: Value::Text(pending.clone()),
+                });
+                buffer = pending;
+                committed = true;
+            }
             apply_slide_widget_style(
                 host.style_mut(),
                 &font,
@@ -1594,7 +1677,7 @@ impl SlideView {
             let enter = !*multiline
                 && response.has_focus()
                 && host.input(|i| i.key_pressed(egui::Key::Enter));
-            if (enter || response.lost_focus()) && buffer != *current {
+            if !committed && (enter || response.lost_focus()) && buffer != *current {
                 inputs.push(Input::SetInputValue {
                     object: object.clone(),
                     value: Value::Text(buffer),
@@ -1609,7 +1692,17 @@ impl SlideView {
 /// Items for painting while live widgets are on top: the answer boxes keep their
 /// frames, but the fill-in text and the matching value are drawn by the widgets
 /// themselves, so they are blanked here to avoid drawing them twice.
+#[cfg(test)]
 pub(crate) fn without_widget_text(items: &[DrawItem]) -> std::borrow::Cow<'_, [DrawItem]> {
+    blank_live_widget_text(items, &mut |_| false)
+}
+
+/// Like [`without_widget_text`], but keeps the text of items `inert` accepts: no live
+/// widget is drawn for them, so the painter must draw their text.
+fn blank_live_widget_text<'a>(
+    items: &'a [DrawItem],
+    inert: &mut dyn FnMut(&DrawItem) -> bool,
+) -> std::borrow::Cow<'a, [DrawItem]> {
     let needs = items.iter().any(|i| {
         matches!(
             i.visual,
@@ -1621,7 +1714,7 @@ pub(crate) fn without_widget_text(items: &[DrawItem]) -> std::borrow::Cow<'_, [D
     }
     let mut out = items.to_vec();
     for item in &mut out {
-        if item.dimmed {
+        if item.dimmed || inert(item) {
             continue;
         }
         match &mut item.visual {
@@ -1642,6 +1735,43 @@ pub(crate) fn without_widget_text(items: &[DrawItem]) -> std::borrow::Cow<'_, [D
         }
     }
     std::borrow::Cow::Owned(out)
+}
+
+/// Whether `item`'s live widget must not be drawn: a modal layer (`prevent_base_clicks`)
+/// blocks the base slide, or a visible layer object overlaps it and would sit under the
+/// widget. The painter then draws the item's own text, below the layer.
+fn widget_inert(player: &Player<'_>, items: &[DrawItem], item: &DrawItem) -> bool {
+    if !matches!(
+        item.visual,
+        Visual::FillIn { .. } | Visual::MatchRow { .. } | Visual::TextEntry { .. }
+    ) {
+        return false;
+    }
+    let Some(slide) = player.current_slide() else {
+        return false;
+    };
+    let on_layer = |hit: &Hit| match hit {
+        Hit::Object(id) => slide.object(id).is_some_and(|(_, layer)| layer.is_some()),
+        _ => false,
+    };
+    if !on_layer(&item.hit)
+        && player
+            .state()
+            .visible_layers
+            .iter()
+            .any(|l| slide.layer(l).is_some_and(|l| l.prevent_base_clicks))
+    {
+        return true;
+    }
+    if on_layer(&item.hit) {
+        return false;
+    }
+    items.iter().any(|other| {
+        other.hit != item.hit
+            && on_layer(&other.hit)
+            && other.opacity > 0.0
+            && other.rect.intersects(item.rect)
+    })
 }
 
 /// Light slide styling for the question widgets, scoped to their own `Ui`/popups.
@@ -1757,6 +1887,10 @@ fn show_fill_in(
     else {
         return;
     };
+    if widget_inert(player, items, item) {
+        return;
+    }
+    let locked = player.question_locked();
     let multiline = matches!(
         &item.visual,
         Visual::FillIn {
@@ -1802,6 +1936,7 @@ fn show_fill_in(
     let response = ui.put(
         screen,
         edit.id(crate::focus::fill_in_id())
+            .interactive(!locked)
             .frame(egui::Frame::NONE.inner_margin(egui::Margin::symmetric(pad_x, pad_y)))
             .hint_text(hint)
             .text_color(style.text)
@@ -1836,6 +1971,10 @@ fn show_matching(
         let Visual::MatchRow { id, value, .. } = &item.visual else {
             continue;
         };
+        if widget_inert(player, items, item) {
+            continue;
+        }
+        let locked = player.question_locked();
         let row = t.to_screen_rect(item.rect);
         let scale = t.scale();
         let combo_w = (row.width() * 0.46).max(1.0);
@@ -1872,6 +2011,9 @@ fn show_matching(
                 st.spacing.button_padding = egui::vec2(8.0, 3.0);
                 st.spacing.item_spacing = egui::vec2(0.0, 2.0);
             }));
+        if locked {
+            child.disable();
+        }
         let combo_response = combo
             .show_ui(&mut child, |ui| {
                 let is_clear = current.is_none();
@@ -2231,5 +2373,226 @@ mod transition_paint_tests {
             ..SlideLook::REST
         });
         assert_ne!(px(&none, 100, 50)[..3], [255, 0, 0]);
+    }
+}
+
+#[cfg(test)]
+mod neon_player_tests {
+    use super::*;
+    use coursecraft_course::Course;
+    use serde_json::json;
+
+    fn course(slides: serde_json::Value, variables: serde_json::Value) -> &'static Course {
+        let course = Course::from_json(
+            &json!({
+                "schema_version": 1,
+                "id": "neon-view",
+                "title": "Neon View",
+                "variables": variables,
+                "scenes": [{ "id": "sc", "title": "Scene", "slides": slides }]
+            })
+            .to_string(),
+        )
+        .expect("valid course");
+        Box::leak(Box::new(course))
+    }
+
+    fn started(course: &'static Course) -> Player<'static> {
+        let mut player = Player::new(course).expect("player");
+        player.handle(&Input::Start);
+        player
+    }
+
+    fn frame(ctx: &egui::Context, view: &mut SlideView, player: &Player<'_>, time: f64) {
+        let raw = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(1280.0, 720.0))),
+            time: Some(time),
+            ..Default::default()
+        };
+        let full = ctx.run_ui(raw, |ui| {
+            let _ = view.show(ui, player, None);
+        });
+        full.drop_without_applying_deltas();
+    }
+
+    fn mid(a: Pos2, b: Pos2) -> Pos2 {
+        egui::pos2((a.x + b.x) * 0.5, (a.y + b.y) * 0.5)
+    }
+
+    #[test]
+    fn n27_slider_values_follow_rotation_and_flip() {
+        for (rotation, flip_h) in [(90.0, false), (0.0, true), (180.0, false)] {
+            let course = course(
+                json!([{ "id": "s1", "title": "S", "objects": [{
+                    "id": "input",
+                    "kind": { "type": "slider", "variable": "n", "min": 0, "max": 100, "step": 10 },
+                    "frame": { "x": 100.0, "y": 100.0, "w": 200.0, "h": 100.0 },
+                    "rotation": rotation, "flip_h": flip_h
+                }] }]),
+                json!([{ "name": "n", "value": 0 }]),
+            );
+            let player = started(course);
+            let items = crate::compose::compose(&player);
+            let item = items
+                .iter()
+                .find(|i| i.hit == Hit::Object("input".into()))
+                .expect("slider");
+            // The painted left and right edges of the slider, wherever they ended up.
+            let corners = crate::compose::item_corners(item);
+            let left = mid(corners[0], corners[3]);
+            let right = mid(corners[1], corners[2]);
+            assert_eq!(
+                input_value_at(item, left),
+                Some(Value::Number(0.0)),
+                "left edge, rotation {rotation}, flip {flip_h}"
+            );
+            assert_eq!(
+                input_value_at(item, right),
+                Some(Value::Number(100.0)),
+                "right edge, rotation {rotation}, flip {flip_h}"
+            );
+        }
+    }
+
+    #[test]
+    fn n32_closing_a_lightbox_runs_no_transition_and_a_plain_slide_ends_one() {
+        let course = course(
+            json!([
+                { "id": "a", "title": "A",
+                  "transition": { "type": "fade", "duration_ms": 1000 },
+                  "objects": [{ "id": "open", "kind": { "type": "button", "label": "Open" },
+                                "frame": { "x": 0.0, "y": 0.0, "w": 100.0, "h": 40.0 } }],
+                  "triggers": [{ "action": { "action": "lightbox_slide", "slide": "box" },
+                                 "when": { "event": "click", "object": "open" } }] },
+                { "id": "box", "title": "Box", "objects": [] },
+                { "id": "b", "title": "B",
+                  "transition": { "type": "fade", "duration_ms": 1000 }, "objects": [] },
+                { "id": "c", "title": "C", "objects": [] }
+            ]),
+            json!([]),
+        );
+        let mut player = started(course);
+        let ctx = egui::Context::default();
+        let mut view = SlideView::new();
+        let mut time = 0.0;
+        let mut next = |view: &mut SlideView, player: &Player<'_>| {
+            time += 0.1;
+            frame(&ctx, view, player, time);
+        };
+        next(&mut view, &player);
+        player.handle(&Input::Click {
+            object: "open".into(),
+        });
+        assert!(player.lightbox_open());
+        next(&mut view, &player);
+        next(&mut view, &player);
+        player.handle(&Input::CloseLightbox);
+        next(&mut view, &player);
+        assert!(
+            view.active_transition.is_none(),
+            "closing the lightbox is not a slide change"
+        );
+
+        player.handle(&Input::Jump { slide: "b".into() });
+        next(&mut view, &player);
+        assert!(view.active_transition.is_some(), "b has a transition");
+        player.handle(&Input::Jump { slide: "c".into() });
+        next(&mut view, &player);
+        assert!(
+            view.active_transition.is_none(),
+            "c has none, so b's transition must not keep running"
+        );
+    }
+
+    fn modal_course() -> &'static Course {
+        course(
+            json!([{ "id": "s1", "title": "S",
+              "objects": [
+                { "id": "open", "kind": { "type": "button", "label": "Open" },
+                  "frame": { "x": 0.0, "y": 0.0, "w": 100.0, "h": 40.0 } },
+                { "id": "entry", "kind": { "type": "text_entry", "variable": "t" },
+                  "frame": { "x": 100.0, "y": 100.0, "w": 300.0, "h": 40.0 } },
+                { "id": "dragme", "kind": { "type": "button", "label": "Drag" },
+                  "frame": { "x": 500.0, "y": 300.0, "w": 100.0, "h": 40.0 },
+                  "drag": { "targets": ["zone"] } },
+                { "id": "off", "initial_state": "disabled",
+                  "states": [{ "name": "disabled" }],
+                  "kind": { "type": "button", "label": "Off" },
+                  "frame": { "x": 500.0, "y": 400.0, "w": 100.0, "h": 40.0 },
+                  "drag": { "targets": ["zone"] } },
+                { "id": "zone", "kind": { "type": "button", "label": "Zone" },
+                  "frame": { "x": 700.0, "y": 300.0, "w": 100.0, "h": 100.0 } },
+                { "id": "vid", "kind": { "type": "video", "src": "v.mp4", "autoplay": false },
+                  "frame": { "x": 0.0, "y": 300.0, "w": 200.0, "h": 100.0 } },
+                { "id": "dead", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" },
+                  "frame": { "x": 0.0, "y": 500.0, "w": 100.0, "h": 40.0 } },
+                { "id": "live", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" },
+                  "frame": { "x": 200.0, "y": 500.0, "w": 100.0, "h": 40.0 } }
+              ],
+              "layers": [
+                { "id": "modal", "name": "Modal", "prevent_base_clicks": true,
+                  "objects": [{ "id": "modal-box", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" },
+                                "frame": { "x": 50.0, "y": 50.0, "w": 400.0, "h": 200.0 } }] },
+                { "id": "toast", "name": "Toast",
+                  "objects": [{ "id": "toast-box", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" },
+                                "frame": { "x": 150.0, "y": 90.0, "w": 100.0, "h": 60.0 } }] }
+              ],
+              "triggers": [
+                { "when": { "event": "click", "object": "open" },
+                  "action": { "action": "show_layer", "layer": "modal" } },
+                { "when": { "event": "click", "object": "dead" }, "disabled": true,
+                  "action": { "action": "show_layer", "layer": "toast" } },
+                { "when": { "event": "click", "object": "live" },
+                  "action": { "action": "show_layer", "layer": "toast" } }
+              ] }]),
+            json!([{ "name": "t", "value": "" }]),
+        )
+    }
+
+    fn text_entry_inert(player: &Player<'_>) -> bool {
+        let items = crate::compose::compose(player);
+        let item = items
+            .iter()
+            .find(|i| matches!(i.visual, Visual::TextEntry { .. }))
+            .expect("text entry item");
+        widget_inert(player, &items, item)
+    }
+
+    #[test]
+    fn n7_live_widgets_stay_inert_under_modal_and_overlapping_layers() {
+        let mut player = started(modal_course());
+        assert!(!text_entry_inert(&player));
+        player.handle(&Input::Click {
+            object: "open".into(),
+        });
+        assert!(text_entry_inert(&player), "modal layer blocks the base");
+
+        // A layer that does not block clicks still covers the field where they overlap.
+        let mut player = started(modal_course());
+        player.handle(&Input::Click {
+            object: "live".into(),
+        });
+        assert!(text_entry_inert(&player), "toast overlaps the field");
+    }
+
+    #[test]
+    fn n33_draggable_specs_skip_disabled_and_modal_blocked_objects() {
+        let mut player = started(modal_course());
+        let ids = |specs: Vec<(String, Vec<String>)>| -> Vec<String> {
+            specs.into_iter().map(|(id, _)| id).collect()
+        };
+        assert_eq!(ids(open_draggable_specs(&player)), vec!["dragme"]);
+        player.handle(&Input::Click {
+            object: "open".into(),
+        });
+        assert!(ids(open_draggable_specs(&player)).is_empty());
+    }
+
+    #[test]
+    fn n33_cursor_ignores_disabled_triggers_and_covers_videos() {
+        let player = started(modal_course());
+        assert!(!is_object_clickable(&player, "dead"));
+        assert!(is_object_clickable(&player, "live"));
+        assert!(is_object_clickable(&player, "vid"));
     }
 }

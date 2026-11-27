@@ -6,6 +6,7 @@ Third-party assets shipped with CourseCraft. Every asset added must get a row he
 |---|---|---|---|---|
 | `crates/render/fonts/Inter-*.ttf` | Inter, subset | The Inter Project Authors | https://github.com/rsms/inter | SIL Open Font License 1.1, in `crates/render/fonts/OFL.txt` |
 | `crates/render/fonts/Phosphor*.ttf` | Phosphor Icons, subset | Phosphor Icons | https://github.com/phosphor-icons/homepage | MIT, in `crates/render/fonts/LICENSE-Phosphor.txt` |
+| `crates/media/fonts/SymbolsFallback.ttf` | CourseCraft Symbols, a 39-glyph subset of DejaVu Sans (renamed, as its licence requires) | Bitstream, Inc., Tavmjong Bah and the DejaVu contributors | https://dejavu-fonts.github.io | Bitstream Vera licence, in `crates/media/fonts/LICENSE-DejaVu.txt` |
 | `crates/spell/dictionaries/en_US.*` | English (US) Hunspell dictionary, version 2020.12.07 | Kevin Atkinson and the SCOWL contributors | https://github.com/wooorm/dictionaries (from http://wordlist.sourceforge.net) | SCOWL licence (MIT/BSD-style), in `crates/spell/dictionaries/LICENSE-en_US.txt` |
 
 The images, sound and video under `examples/showcase/media/` were made for this project and carry the project's license.

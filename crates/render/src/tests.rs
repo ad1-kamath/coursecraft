@@ -3759,11 +3759,12 @@ fn transition_sampling_fade_and_push() {
     assert_eq!(s0.next.offset, (0.0, 0.0));
 
     let s_mid = sample_transition(&fade, 0.5, slide_size);
-    assert!((s_mid.prev.alpha - 0.5).abs() < 1e-4);
+    // The old slide stays opaque; only the new one fades in on top (no backdrop dip).
+    assert_eq!(s_mid.prev.alpha, 1.0);
     assert!((s_mid.next.alpha - 0.5).abs() < 1e-4);
 
     let s1 = sample_transition(&fade, 1.0, slide_size);
-    assert_eq!(s1.prev.alpha, 0.0);
+    assert_eq!(s1.prev.alpha, 1.0);
     assert_eq!(s1.next.alpha, 1.0);
 
     // Push from Left: enters from Left (moves from -w to 0), prev moves from 0 to +w
@@ -5037,6 +5038,32 @@ mod offscreen_tests {
     }
 
     #[test]
+    fn lottie_ends_when_the_sped_animation_ends_not_the_timeline_clock() {
+        let course = make_course(serde_json::json!({
+            "id": "slide-lottie",
+            "title": "Lottie",
+            "objects": [{
+                "id": "anim1",
+                "kind": { "type": "lottie", "src": "tiny.json", "autoplay": true,
+                          "loop": false, "speed": 0.5 },
+                "frame": { "x": 400, "y": 200, "w": 400, "h": 400 }
+            }]
+        }));
+        let media = LottieMediaSource {
+            json: tiny_lottie_json().into_bytes().into(),
+        };
+        let mut player = Player::new(&course).expect("player");
+        player.handle(&Input::Start);
+        let mut cache = crate::media::MediaCache::new();
+        let _ = cache.lottie_view("tiny.json", &media);
+        // The animation lasts 1 s; at half speed it ends at 2 s on the timeline.
+        player.handle(&Input::Tick { ms: 1000 });
+        assert!(cache.lottie_ended(&player).is_empty());
+        player.handle(&Input::Tick { ms: 1000 });
+        assert_eq!(cache.lottie_ended(&player).len(), 1);
+    }
+
+    #[test]
     fn lottie_frame_zero_and_mid_animation_differ_where_the_rectangle_moved() {
         let course = make_course(serde_json::json!({
             "id": "slide-lottie",
@@ -5232,6 +5259,118 @@ mod offscreen_tests {
         // Far outside the text frame (e.g. 50, 50), all pixels are pure background white
         let outside = pixel_at(&img, 50, 50);
         assert_eq!(outside, [255, 255, 255, 255]);
+    }
+
+    fn flipped_text_course(extra: serde_json::Value) -> Course {
+        let mut object = serde_json::json!({
+            "id": "txt1",
+            "flip_h": true,
+            "kind": {
+                "type": "text",
+                "text": "HHHH",
+                "style": { "color": "#000000", "size": 32, "bold": true }
+            },
+            "frame": { "x": 440, "y": 330, "w": 400, "h": 60 }
+        });
+        if let (Some(target), Some(extra)) = (object.as_object_mut(), extra.as_object()) {
+            for (key, value) in extra {
+                target.insert(key.clone(), value.clone());
+            }
+        }
+        make_course(serde_json::json!({
+            "id": "slide_flip", "title": "Flip", "background": "#FFFFFF",
+            "objects": [object]
+        }))
+    }
+
+    #[test]
+    fn link_hit_follows_unmirrored_text_of_a_flipped_box() {
+        use crate::compose::{ResolvedLinkRect, compose_object, item_link_at};
+        let course = flipped_text_course(serde_json::json!({ "rotation": 90 }));
+        let object = &course.scenes[0].slides[0].objects[0];
+        let mut item = compose_object(object, "normal").expect("item");
+        // A link over the left tenth of the (unmirrored, text-space) frame.
+        item.links = vec![ResolvedLinkRect {
+            link: coursecraft_course::Link::Url {
+                url: "https://example.com".into(),
+            },
+            rect: egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(0.1, 1.0)),
+            text: "H".into(),
+        }];
+        // Rotated 90 degrees counter-clockwise on screen, the left end is at the bottom.
+        let centre = item.rect.center();
+        let bottom = egui::pos2(centre.x, centre.y + 190.0);
+        let top = egui::pos2(centre.x, centre.y - 190.0);
+        assert!(item_link_at(&item, bottom).is_some());
+        assert!(item_link_at(&item, top).is_none());
+    }
+
+    #[test]
+    fn rotated_flipped_text_stays_with_its_box() {
+        // A box turned 90 degrees with flip_h turns counter-clockwise on screen (the
+        // mesh pass rotates, then mirrors), so its left end, where the text starts,
+        // ends up at the bottom. The text must follow, not turn the other way.
+        let course = flipped_text_course(serde_json::json!({ "rotation": 90 }));
+        let opts = RenderOptions {
+            width: 1280,
+            mode: RenderMode::Authoring,
+            layers: Vec::new(),
+            at_ms: None,
+        };
+        let img = render_slide_rgba(&course, "slide_flip", &opts, &DummyMedia).expect("render");
+        let (mut top, mut bottom) = (0, 0);
+        for y in 150..570 {
+            for x in 600..680 {
+                if pixel_at(&img, x, y)[0] < 128 {
+                    if y < 360 {
+                        top += 1;
+                    } else {
+                        bottom += 1;
+                    }
+                }
+            }
+        }
+        assert!(
+            bottom > 20 && bottom > top * 3,
+            "text should start at the bottom (top {top}, bottom {bottom})"
+        );
+    }
+
+    #[test]
+    fn flipped_text_shadow_follows_the_unmirrored_text() {
+        let course = flipped_text_course(serde_json::json!({
+            "shadow": { "color": "#FF0000", "offset_x": 30.0, "offset_y": 0.0, "blur": 0.0 }
+        }));
+        let opts = RenderOptions {
+            width: 1280,
+            mode: RenderMode::Authoring,
+            layers: Vec::new(),
+            at_ms: None,
+        };
+        let img = render_slide_rgba(&course, "slide_flip", &opts, &DummyMedia).expect("render");
+        let (mut red_x, mut red_n, mut black_x, mut black_n) = (0u64, 0u64, 0u64, 0u64);
+        for y in 320..400 {
+            for x in 400..900 {
+                let p = pixel_at(&img, x, y);
+                if p[0] > 200 && p[1] < 80 && p[2] < 80 {
+                    red_x += u64::from(x);
+                    red_n += 1;
+                } else if p[0] < 60 && p[1] < 60 && p[2] < 60 {
+                    black_x += u64::from(x);
+                    black_n += 1;
+                }
+            }
+        }
+        assert!(
+            red_n > 0 && black_n > 0,
+            "both the shadow and the text are drawn"
+        );
+        // Shadow and glyphs overlap: the shadow sits about 30 px to the right of them.
+        let shift = (red_x / red_n) as i64 - (black_x / black_n) as i64;
+        assert!(
+            (15..=45).contains(&shift),
+            "shadow should sit about 30 px right of the text, got {shift}"
+        );
     }
 
     #[test]
@@ -6069,6 +6208,20 @@ mod caption_tests {
         assert_eq!(frame.object, "video1");
         assert_eq!(frame.kind, MediaKind::Video);
         assert_eq!(frame.text, "video words");
+    }
+
+    #[test]
+    fn desktop_video_caption_is_left_to_the_player_frame() {
+        // NullBackend (like the desktop backend) has no DOM caption box, so the
+        // frame must draw video captions itself.
+        let (player, mut driver, backend) = setup(false, true);
+        let view = SlideView::new();
+        backend.set_position_ms("video1", 1_500);
+        let frame = driver
+            .caption_frame(&player, Some(&CaptionSource), &view)
+            .expect("caption");
+        assert_eq!(frame.kind, MediaKind::Video);
+        assert!(!frame.dom);
     }
 
     #[test]
@@ -8097,6 +8250,36 @@ fn video_frame_draws_as_texture_instead_of_poster() {
     });
     output3.textures_delta.clear();
     output3.drop_without_applying_deltas();
+}
+
+#[test]
+fn every_new_video_frame_is_uploaded_even_when_addresses_repeat() {
+    use crate::media::MediaCache;
+    use coursecraft_playback::VideoFrame;
+    use std::sync::Arc;
+
+    let ctx = egui::Context::default();
+    let mut cache = MediaCache::new();
+    // Each frame is freed before the next is made, so the allocator may hand the
+    // same address out again. A raw-pointer identity would skip some uploads.
+    let mut missed = 0;
+    for shade in 0..64u8 {
+        let frame = Arc::new(VideoFrame {
+            pts_ms: u64::from(shade),
+            width: 4,
+            height: 4,
+            rgba: [shade, 0, 0, 255].repeat(16),
+        });
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let _ = cache.video_texture(ui.ctx(), "vid1", &frame);
+        });
+        if output.textures_delta.set.is_empty() {
+            missed += 1;
+        }
+        output.textures_delta.clear();
+        output.drop_without_applying_deltas();
+    }
+    assert_eq!(missed, 0, "every frame must reach the texture");
 }
 
 #[test]
@@ -10160,4 +10343,247 @@ fn pt_08_inline_edit_layout_job_respects_wrap_false() {
         2,
         "explicit newline must still break lines when wrap=false"
     );
+}
+
+// ---------------------------------------------------------------- reduced motion
+
+fn reduced_motion_course() -> Course {
+    let json = serde_json::json!({
+        "schema_version": 1,
+        "id": "reduced-motion",
+        "title": "Reduced Motion",
+        "scenes": [{
+            "id": "sc",
+            "title": "Scene",
+            "slides": [
+                {
+                    "id": "s1",
+                    "title": "One",
+                    "duration_ms": 5000,
+                    "objects": [{
+                        "id": "box",
+                        "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" },
+                        "frame": { "x": 300.0, "y": 200.0, "w": 100.0, "h": 100.0 },
+                        "entrance": {
+                            "effect": { "type": "fly_in", "from": "left" },
+                            "duration_ms": 1000,
+                            "easing": "linear"
+                        }
+                    }]
+                },
+                {
+                    "id": "s2",
+                    "title": "Two",
+                    "transition": { "type": "push", "from": "right", "duration_ms": 600 },
+                    "objects": []
+                }
+            ]
+        }]
+    })
+    .to_string();
+    Course::from_json(&json).expect("valid course")
+}
+
+fn show_once(
+    frame: &mut crate::player_frame::PlayerFrame,
+    player: &Player<'_>,
+    view: &mut SlideView,
+) {
+    use crate::media::{MediaCache, MediaFetch, MediaSource};
+    use crate::offscreen::render_ui;
+    struct NoMedia;
+    impl MediaSource for NoMedia {
+        fn get(&self, _src: &str) -> MediaFetch {
+            MediaFetch::Missing
+        }
+    }
+    let mut cache = MediaCache::new();
+    let media = NoMedia;
+    render_ui(
+        640,
+        480,
+        1.0,
+        |_ctx| {},
+        |ctx| {
+            ctx.root_ui(|ui| {
+                frame.show(ui, player, view, Some((&mut cache, &media)));
+            });
+        },
+    )
+    .expect("render");
+}
+
+#[test]
+fn reduced_motion_reaches_logic_and_turns_a_transition_into_a_fade() {
+    use crate::player_frame::PlayerFrame;
+    use coursecraft_course::TransitionEffect;
+    for reduced in [false, true] {
+        let course = reduced_motion_course();
+        let mut player = Player::new(&course).expect("player");
+        player.handle(&Input::Start);
+        player.handle(&Input::Tick { ms: 500 });
+        let mut frame = PlayerFrame::new();
+        frame.reduced_motion = reduced;
+        let mut view = SlideView::new();
+        view.set_reduced_motion(reduced);
+        show_once(&mut frame, &player, &mut view);
+        assert_eq!(player.reduced_motion(), reduced, "flag reaches logic");
+        let travel = player
+            .sample_object("box")
+            .map_or(0.0, |s| s.offset.0.abs());
+        assert_eq!(travel > 1.0, !reduced, "entrance flies unless reduced");
+
+        player.handle(&Input::GoTo { slide: "s2".into() });
+        show_once(&mut frame, &player, &mut view);
+        let effect = view.active_transition_effect().expect("transition runs");
+        assert_eq!(effect == TransitionEffect::Fade, reduced, "{effect:?}");
+    }
+}
+
+fn panel_layer_course() -> Course {
+    Course::from_json(
+        &serde_json::json!({
+            "schema_version": 1,
+            "id": "panel-layer",
+            "title": "Panel layer",
+            "scenes": [{ "id": "sc", "title": "Scene", "slides": [{
+                "id": "s1",
+                "title": "One",
+                "objects": [
+                    { "id": "panel", "name": "Panel",
+                      "kind": { "type": "scroll_panel", "content_height": 600.0 },
+                      "frame": { "x": 100.0, "y": 100.0, "w": 300.0, "h": 200.0 } },
+                    { "id": "a", "name": "A", "panel": "panel",
+                      "kind": { "type": "button", "label": "A", "fill": "#2F6FEB" },
+                      "frame": { "x": 120.0, "y": 120.0, "w": 100.0, "h": 50.0 } },
+                    { "id": "m1", "name": "Marker",
+                      "kind": { "type": "marker", "title": "Info", "color": "#FF0000" },
+                      "frame": { "x": 600.0, "y": 400.0, "w": 40.0, "h": 40.0 } },
+                    { "id": "btn", "name": "Show",
+                      "kind": { "type": "button", "label": "Show" },
+                      "frame": { "x": 600.0, "y": 500.0, "w": 100.0, "h": 50.0 } }
+                ],
+                "triggers": [{
+                    "when": { "event": "click", "object": "btn" },
+                    "action": { "action": "show_layer", "layer": "modal" }
+                }],
+                "layers": [{
+                    "id": "modal", "name": "Modal", "duration_ms": 5000,
+                    "hide_other_layers": false, "hide_base_objects": false,
+                    "objects": [{
+                        "id": "cover",
+                        "kind": { "type": "shape", "shape": "rectangle", "fill": "#FFFFFF" },
+                        "frame": { "x": 0.0, "y": 0.0, "w": 1280.0, "h": 720.0 }
+                    }]
+                }]
+            }] }]
+        })
+        .to_string(),
+    )
+    .expect("panel layer course")
+}
+
+#[test]
+fn scrollbar_copy_sits_below_a_layer_and_draws_once() {
+    let course = panel_layer_course();
+    let mut player = Player::new(&course).expect("playable");
+    player.handle(&Input::Start);
+    player.handle(&Input::Click {
+        object: "btn".into(),
+    });
+    let items = compose(&player);
+    let bars: Vec<usize> = items
+        .iter()
+        .enumerate()
+        .filter(|(_, item)| {
+            item.hit == Hit::None
+                && matches!(item.visual, Visual::ScrollPanel { thumb: Some(_), .. })
+        })
+        .map(|(at, _)| at)
+        .collect();
+    assert_eq!(bars.len(), 1, "one scrollbar copy");
+    let cover = items
+        .iter()
+        .position(|item| item.hit == Hit::Object("cover".into()))
+        .expect("layer item");
+    assert!(bars[0] < cover, "a layer covers the scrollbar");
+    let child = items
+        .iter()
+        .position(|item| item.hit == Hit::Object("a".into()))
+        .expect("child");
+    assert!(bars[0] > child, "the scrollbar covers the panel's children");
+}
+
+#[test]
+fn open_base_marker_stays_below_a_visible_layer() {
+    let course = panel_layer_course();
+    let mut player = Player::new(&course).expect("playable");
+    player.handle(&Input::Start);
+    player.handle(&Input::Click {
+        object: "btn".into(),
+    });
+    player.handle(&Input::MarkerToggled {
+        object: "m1".into(),
+    });
+    let items = compose(&player);
+    let marker = items
+        .iter()
+        .position(|item| matches!(item.visual, Visual::Marker { open: true, .. }))
+        .expect("open marker");
+    let cover = items
+        .iter()
+        .position(|item| item.hit == Hit::Object("cover".into()))
+        .expect("layer item");
+    assert!(marker < cover);
+}
+
+#[test]
+fn web_overlays_hide_when_a_scroll_panel_clips_them() {
+    use crate::layout::SlideTransform;
+    let course = Course::from_json(
+        &serde_json::json!({
+            "schema_version": 1,
+            "id": "panel-video",
+            "title": "Panel video",
+            "scenes": [{ "id": "sc", "title": "Scene", "slides": [{
+                "id": "s1",
+                "title": "One",
+                "objects": [
+                    { "id": "panel", "name": "Panel",
+                      "kind": { "type": "scroll_panel", "content_height": 600.0 },
+                      "frame": { "x": 100.0, "y": 100.0, "w": 300.0, "h": 200.0 } },
+                    { "id": "inside", "name": "In", "panel": "panel",
+                      "kind": { "type": "video", "src": "v.mp4" },
+                      "frame": { "x": 120.0, "y": 120.0, "w": 100.0, "h": 50.0 } },
+                    { "id": "cut", "name": "Cut", "panel": "panel",
+                      "kind": { "type": "video", "src": "v.mp4" },
+                      "frame": { "x": 120.0, "y": 250.0, "w": 100.0, "h": 100.0 } },
+                    { "id": "free", "name": "Free",
+                      "kind": { "type": "video", "src": "v.mp4" },
+                      "frame": { "x": 500.0, "y": 250.0, "w": 100.0, "h": 100.0 } }
+                ]
+            }] }]
+        })
+        .to_string(),
+    )
+    .expect("panel video course");
+    let mut player = Player::new(&course).expect("playable");
+    player.handle(&Input::Start);
+    let items = compose(&player);
+    let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 720.0));
+    let transform =
+        SlideTransform::fit(screen, coursecraft_course::Size { w: 1280, h: 720 }).expect("fit");
+    let overlay = |id: &str| {
+        let item = items
+            .iter()
+            .find(|item| item.hit == Hit::Object(id.into()))
+            .expect("item");
+        crate::compose::overlay_screen_rect(&transform, item)
+    };
+    assert!(overlay("inside").is_some());
+    assert!(
+        overlay("cut").is_none(),
+        "partly outside the panel viewport"
+    );
+    assert!(overlay("free").is_some());
 }

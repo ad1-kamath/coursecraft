@@ -403,10 +403,91 @@ fn autosave_path_for_named_and_untitled() {
 
     // Untitled project
     let auto_untitled = autosave_path_for_project(None, config_dir);
+    let (pid, start) = *crate::autosave::session_id();
     assert_eq!(
         auto_untitled,
-        PathBuf::from("/app/config/coursecraft/untitled.autosave.ccraft")
+        PathBuf::from(format!(
+            "/app/config/coursecraft/untitled-{pid}-{start}.autosave.ccraft"
+        ))
     );
+}
+
+/// A process id no system hands out, for a window that has ended.
+const DEAD_PID: u32 = 2_000_000_000;
+
+#[test]
+fn each_untitled_session_gets_its_own_autosave_file() {
+    use crate::autosave::untitled_autosave_path_for;
+    let cfg = Path::new("/cfg");
+    let a = untitled_autosave_path_for(cfg, 100, 5);
+    let b = untitled_autosave_path_for(cfg, 101, 5);
+    let c = untitled_autosave_path_for(cfg, 100, 6);
+    assert_eq!(a, PathBuf::from("/cfg/untitled-100-5.autosave.ccraft"));
+    assert!(a != b && a != c && b != c);
+}
+
+#[test]
+fn the_restore_filter_offers_only_autosaves_of_ended_sessions() {
+    use crate::autosave::{
+        orphaned_untitled_autosaves, untitled_autosave_path_for, write_owner_marker,
+    };
+    let dir = scratch_dir("test-orphan-filter");
+    let course = Course::from_json(HELLO_JSON).expect("valid course");
+    let live = untitled_autosave_path_for(&dir, 111, 1);
+    let ended = untitled_autosave_path_for(&dir, 222, 1);
+    write_autosave(&course, &[], &live).unwrap();
+    write_autosave(&course, &[], &ended).unwrap();
+    // An unrelated file is never offered.
+    std::fs::write(dir.join("prefs.json"), b"{}").unwrap();
+    let alive = |pid: u32| pid == 111;
+    let offered = orphaned_untitled_autosaves(&dir, &alive);
+    assert_eq!(offered, vec![ended.clone()]);
+    // The owner marker wins over the pid in the name.
+    std::fs::write(dir.join("untitled-222-1.autosave.ccraft.owner"), b"111").unwrap();
+    assert!(orphaned_untitled_autosaves(&dir, &alive).is_empty());
+    let _ = write_owner_marker;
+}
+
+#[test]
+fn an_unreadable_liveness_check_never_offers_the_autosave() {
+    use crate::autosave::{orphaned_untitled_autosaves, untitled_autosave_path_for};
+    let dir = scratch_dir("test-orphan-unknown-alive");
+    let course = Course::from_json(HELLO_JSON).expect("valid course");
+    write_autosave(&course, &[], &untitled_autosave_path_for(&dir, 333, 1)).unwrap();
+    // The check reports "alive" when it cannot tell.
+    assert!(orphaned_untitled_autosaves(&dir, &|_| true).is_empty());
+}
+
+#[test]
+fn the_shared_autosave_of_older_builds_is_offered_once() {
+    use crate::autosave::orphaned_untitled_autosaves;
+    let dir = scratch_dir("test-legacy-untitled");
+    let course = Course::from_json(HELLO_JSON).expect("valid course");
+    let legacy = dir.join("untitled.autosave.ccraft");
+    write_autosave(&course, &[], &legacy).unwrap();
+    let offered = orphaned_untitled_autosaves(&dir, &crate::autosave::process_is_alive);
+    assert_eq!(offered.len(), 1);
+    assert!(!legacy.exists(), "the legacy file was migrated");
+    // The migrated file keeps being offered until it is restored or discarded.
+    assert_eq!(
+        orphaned_untitled_autosaves(&dir, &crate::autosave::process_is_alive),
+        offered
+    );
+}
+
+#[test]
+fn a_second_window_does_not_offer_the_first_windows_live_autosave() {
+    let dir = scratch_dir("test-second-window");
+    let cfg = dir.join("cfg");
+    std::fs::create_dir_all(&cfg).unwrap();
+    let course = Course::from_json(HELLO_JSON).expect("valid course");
+    // The autosave of this very process counts as a live window.
+    let own = autosave_path_for_project(None, &cfg);
+    write_autosave(&course, &[], &own).unwrap();
+    let mut app = test_app(Some(cfg));
+    app.startup(None, false);
+    assert!(app.restore_prompt.is_none());
+    assert!(own.is_file(), "the live autosave is untouched");
 }
 
 #[test]
@@ -559,7 +640,7 @@ fn untitled_autosave_skipped_without_config_dir() {
     assert_eq!(autosave_target_path(None, None), None);
     assert_eq!(
         autosave_target_path(None, Some(Path::new("/cfg"))),
-        Some(PathBuf::from("/cfg/untitled.autosave.ccraft"))
+        Some(crate::autosave::untitled_autosave_path(Path::new("/cfg")))
     );
     assert_eq!(
         autosave_target_path(Some(Path::new("/p/a.ccraft")), None),
@@ -692,7 +773,8 @@ fn untitled_recovery_prompt_and_restore() {
 
     // Leftover autosave triggers a prompt with no file path.
     let course = Course::from_json(HELLO_JSON).expect("valid course");
-    let auto = autosave_path_for_project(None, &cfg);
+    let (pid, start) = (DEAD_PID, 1);
+    let auto = crate::autosave::untitled_autosave_path_for(&cfg, pid, start);
     write_autosave(&course, &[], &auto).unwrap();
     let mut app = test_app(Some(cfg.clone()));
     app.startup(None, false);
@@ -704,6 +786,11 @@ fn untitled_recovery_prompt_and_restore() {
     app.finish_open(&prompt.autosave_path, prompt.file_path.clone(), true);
     assert!(app.project.path.is_none());
     assert!(app.project.is_dirty(&app.editor.session));
+
+    // Restore through the prompt moves the ended session's file to this session.
+    app.restore_autosave(&prompt);
+    assert!(!auto.exists(), "the ended session's file is gone");
+    assert!(autosave_path_for_project(None, &cfg).is_file());
 
     // No config dir: never prompts.
     let mut app = test_app(None);
@@ -1720,4 +1807,37 @@ fn startup_opens_ccraft_project_with_spaces_in_path() {
     assert_eq!(app.project.path.as_deref(), Some(path.as_path()));
     assert!(!app.editor.ui.show_welcome);
     assert_eq!(app.editor.session.course.title, expected_title);
+}
+
+#[test]
+fn bare_course_json_opens_with_its_web_folder_files() {
+    let dir = scratch_dir("test-bare-json-web-folder");
+    let course = r#"{
+      "schema_version": 1, "id": "web", "title": "Web",
+      "scenes": [{ "id": "sc1", "title": "S", "slides": [{ "id": "s1", "title": "S",
+        "duration_ms": 1000, "objects": [{ "id": "site",
+          "kind": { "type": "web", "source": { "type": "folder", "path": "web/site" } },
+          "frame": { "x": 0, "y": 0, "w": 100, "h": 100 } }] }] }]
+    }"#;
+    std::fs::write(dir.join("course.json"), course).unwrap();
+    std::fs::create_dir_all(dir.join("media/web/site/js")).unwrap();
+    std::fs::write(dir.join("media/web/site/index.html"), b"<html></html>").unwrap();
+    std::fs::write(dir.join("media/web/site/js/app.js"), b"run()").unwrap();
+
+    let (_, media) = open_from(&dir.join("course.json")).expect("opens");
+    let mut names: Vec<&str> = media.iter().map(|(name, _)| name.as_str()).collect();
+    names.sort_unstable();
+    assert_eq!(names, vec!["web/site/index.html", "web/site/js/app.js"]);
+}
+
+#[cfg(unix)]
+#[test]
+fn web_folder_import_rejects_a_name_that_cannot_be_saved() {
+    let dir = scratch_dir("test-web-folder-unsafe-name");
+    let folder = dir.join("site");
+    std::fs::create_dir_all(&folder).unwrap();
+    std::fs::write(folder.join("index.html"), b"<html></html>").unwrap();
+    std::fs::write(folder.join("note:1.txt"), b"x").unwrap();
+    let error = import_web_folder(&folder, &[]).expect_err("an unsafe name must fail");
+    assert!(error.contains("can't be used"), "{error}");
 }

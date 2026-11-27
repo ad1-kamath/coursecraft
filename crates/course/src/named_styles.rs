@@ -2,7 +2,25 @@
 //! box still looks like the style it is linked to. Pure data, no behaviour the
 //! renderer or player reads.
 
-use crate::{Course, ListKind, NamedTextStyle, Object, ObjectKind, Paragraph, TextStyle};
+use crate::{Course, ListKind, NamedTextStyle, Object, ObjectKind, Paragraph, TextRun, TextStyle};
+
+/// Strip the look from every run (bold to shadow, including highlight and
+/// shadow) and keep the text and links.
+pub fn clear_run_look(runs: &mut [TextRun]) {
+    for run in runs {
+        run.bold = None;
+        run.italic = None;
+        run.underline = None;
+        run.strikethrough = None;
+        run.baseline = None;
+        run.letter_spacing = None;
+        run.size = None;
+        run.color = None;
+        run.font = None;
+        run.highlight = None;
+        run.shadow = None;
+    }
+}
 
 /// How a text box relates to its named style.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,17 +76,7 @@ pub fn apply_named_style(
         *paragraphs = list;
     }
     if clear_overrides {
-        for run in runs.iter_mut() {
-            run.bold = None;
-            run.italic = None;
-            run.underline = None;
-            run.strikethrough = None;
-            run.baseline = None;
-            run.letter_spacing = None;
-            run.size = None;
-            run.color = None;
-            run.font = None;
-        }
+        clear_run_look(runs);
         if runs.iter().all(|run| run.link.is_none()) {
             runs.clear();
         }

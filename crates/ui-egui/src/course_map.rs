@@ -825,6 +825,7 @@ fn has_open_modal_or_preview(editor: &Editor) -> bool {
         || ui.pending_delete_master.is_some()
         || ui.confirm_delete_library_template.is_some()
         || ui.pending_remove_font.is_some()
+        || editor.edit_keys_blocked()
 }
 
 /// Course map keyboard: arrows move the selection in play order, Enter

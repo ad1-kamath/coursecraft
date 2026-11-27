@@ -535,6 +535,19 @@ fn clamped_range(start: usize, end: usize, total_chars: usize) -> (usize, usize)
     }
 }
 
+/// Like [`clamped_range`], for case changes and Clear Formatting: `None` when the
+/// selection is empty after clamping (`start == end` other than `0..0`, or both
+/// past the end), so there is nothing to change.
+fn selection_range(start: usize, end: usize, total_chars: usize) -> Option<(usize, usize)> {
+    if start == 0 && end == 0 {
+        return Some((0, 0));
+    }
+    let s_clamp = start.min(total_chars);
+    let e_clamp = end.min(total_chars);
+    let range = (s_clamp.min(e_clamp), s_clamp.max(e_clamp));
+    (range.0 != range.1).then_some(range)
+}
+
 pub(super) fn text_clear_formatting(s: &mut Session, p: &Json) -> Result<Json> {
     const C: &str = "text.clear_formatting";
     let was_valid = s.is_playable();
@@ -548,7 +561,9 @@ pub(super) fn text_clear_formatting(s: &mut Session, p: &Json) -> Result<Json> {
     let Some(parts) = text_parts_at(&mut obj.kind, p, C)? else {
         return Err(bad(C, format!("object {oid:?} is not a text object")));
     };
-    let range = clamped_range(start, end, parts.text.chars().count());
+    let Some(range) = selection_range(start, end, parts.text.chars().count()) else {
+        return Ok(Json::Null);
+    };
     *parts.runs = coursecraft_course::clear_formatting_in_range(parts.runs, parts.text, range);
     refit_text_frame(obj);
     keep_valid(s, was_valid)?;
@@ -583,7 +598,9 @@ pub(super) fn text_change_case(s: &mut Session, p: &Json) -> Result<Json> {
     } else {
         parts.runs.iter().map(|r| r.text.as_str()).collect()
     };
-    let range = clamped_range(start, end, plain.chars().count());
+    let Some(range) = selection_range(start, end, plain.chars().count()) else {
+        return Ok(Json::Null);
+    };
     let (new_plain, new_runs) =
         coursecraft_course::change_case_in_range(parts.runs, &plain, range, change);
     if new_plain.len() > super::MAX_TEXT {

@@ -1464,3 +1464,132 @@ fn focus_order_candidates_list_layers_after_the_base_and_skip_plain_shapes() {
     assert_eq!(got[1].id, "inlayer");
     assert_eq!(got[1].layer.as_deref(), Some("l1"));
 }
+
+// ---- Neon accessibility verification (N117, N118) ----
+
+fn slide_with_one_text(runs: Value) -> Course {
+    course(json!([{
+        "id": "s1",
+        "title": "S",
+        "objects": [{
+            "id": "txt",
+            "kind": { "type": "text", "text": "x", "runs": runs },
+            "frame": { "x": 10.0, "y": 10.0, "w": 120.0, "h": 300.0 }
+        }]
+    }]))
+}
+
+#[test]
+fn n117_focus_ring_wraps_the_parent_not_its_state_badge() {
+    let c = course(json!([{
+        "id": "s1",
+        "title": "S",
+        "objects": [{
+            "id": "btn",
+            "initial_state": "done",
+            "kind": { "type": "button", "label": "Go" },
+            "frame": { "x": 100.0, "y": 200.0, "w": 160.0, "h": 48.0 },
+            "states": [{ "name": "done", "extras": [{
+                "id": "badge",
+                "frame": { "x": 144.0, "y": -8.0, "w": 24.0, "h": 24.0 },
+                "kind": { "type": "shape", "shape": "ellipse", "fill": "#22C55E" }
+            }] }]
+        }]
+    }]));
+    let player = player(&c);
+    let items = crate::compose::compose(&player);
+    assert!(items.iter().any(|i| i.is_state_extra), "badge is composed");
+    let rect =
+        super::target_rect(&player, &FocusTarget::Object("btn".into()), &items).expect("ring rect");
+    assert!(
+        rect.width() > 100.0,
+        "ring must wrap the button, not the 24px badge: {rect:?}"
+    );
+}
+
+#[test]
+fn n117_second_link_ring_skips_the_lines_of_a_wrapped_first_link() {
+    let long = "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi ";
+    let c = slide_with_one_text(json!([
+        { "text": long, "link": { "type": "url", "url": "https://a.invalid" } },
+        { "text": "second", "link": { "type": "url", "url": "https://b.invalid" } }
+    ]));
+    let player = player(&c);
+    let ctx = egui::Context::default();
+    crate::install_fonts(&ctx);
+    let mut items = crate::compose::compose(&player);
+    let full = ctx.run_ui(egui::RawInput::default(), |_ui| {
+        crate::text_layout::fill_item_links(&ctx, &mut items);
+    });
+    full.drop_without_applying_deltas();
+    let link = |index: usize| FocusTarget::Link {
+        object: "txt".into(),
+        index,
+        link: coursecraft_course::Link::Url { url: String::new() },
+    };
+    let first = super::target_rect(&player, &link(0), &items).expect("first link");
+    let second = super::target_rect(&player, &link(1), &items).expect("second link");
+    assert!(
+        first.height() > second.height() * 1.5,
+        "link 0 wraps over several lines, link 1 is one line: {first:?} {second:?}"
+    );
+    assert!(second.min.y >= first.min.y, "{first:?} {second:?}");
+}
+
+fn press(
+    ctx: &egui::Context,
+    focus: &mut FocusManager,
+    player: &Player<'_>,
+    key: egui::Key,
+) -> Vec<Input> {
+    update(ctx, focus, player, vec![real_key(key)])
+}
+
+#[test]
+fn n118_space_reaches_key_triggers_when_nothing_is_focusable() {
+    let c = course(json!([{ "id": "s1", "title": "S", "objects": [] }]));
+    let player = player(&c);
+    let ctx = egui::Context::default();
+    let mut focus = FocusManager::new();
+    focus.set_chrome_visibility(super::ChromeVisibility::none());
+    let first = press(&ctx, &mut focus, &player, egui::Key::Space);
+    assert!(
+        first.contains(&Input::KeyPressed {
+            key: "space".into()
+        }),
+        "first Space was swallowed: {first:?}"
+    );
+    let second = press(&ctx, &mut focus, &player, egui::Key::Space);
+    assert!(
+        second.contains(&Input::KeyPressed {
+            key: "space".into()
+        }),
+        "second Space was swallowed: {second:?}"
+    );
+}
+
+#[test]
+fn n118_slide_key_triggers_do_not_fire_behind_the_open_drawer() {
+    let c = course(json!([{ "id": "s1", "title": "S", "objects": [button("b")] }]));
+    let player = player(&c);
+    let ctx = egui::Context::default();
+    let mut focus = FocusManager::new();
+    let mut drawer = true;
+    let raw = egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::pos2(0.0, 0.0),
+            egui::vec2(800.0, 450.0),
+        )),
+        events: vec![real_key(egui::Key::A)],
+        ..Default::default()
+    };
+    let mut inputs = Vec::new();
+    let full = ctx.run_ui(raw, |ui| {
+        inputs = focus.update(ui, &player, true, true, &mut drawer, None);
+    });
+    full.drop_without_applying_deltas();
+    assert!(
+        !inputs.contains(&Input::KeyPressed { key: "a".into() }),
+        "key trigger fired behind the modal drawer: {inputs:?}"
+    );
+}

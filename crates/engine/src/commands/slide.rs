@@ -89,30 +89,128 @@ pub(super) fn scene_delete(s: &mut Session, p: &Json) -> Result<Json> {
         .map(|sl| sl.id.clone())
         .collect();
     s.course.scenes.remove(pos);
-    let removed = if was_valid {
-        let mut needles = vec![format!("scene {sid:?} does not exist")];
-        for deleted_sid in &deleted_sids {
-            needles.push(format!("slide {deleted_sid:?} does not exist"));
-        }
-        let remaining_sids: Vec<String> = s
-            .course
-            .slides()
-            .chain(s.course.banks.iter().flat_map(|b| b.slides.iter()))
-            .filter(|sl| {
-                !sl.triggers.is_empty() || sl.layers.iter().any(|l| !l.triggers.is_empty())
-            })
-            .map(|sl| sl.id.clone())
-            .collect();
-        let mut total = 0;
-        for other_sid in &remaining_sids {
-            total += remove_dangling_triggers(s, other_sid, &needles);
-        }
-        total
-    } else {
-        0
-    };
+    let removed = clean_after_slides_removed(s, was_valid, &deleted_sids, Some(&sid));
     keep_valid(s, was_valid)?;
     Ok(json!({ "removed_triggers": removed }))
+}
+
+/// Remove everything that pointed at slides (or a scene) that are gone, in the
+/// same undo step: jump and lightbox triggers, text links, `start_slide` and
+/// the quiz tracking slide. Returns how many triggers were removed.
+fn clean_after_slides_removed(
+    s: &mut Session,
+    was_valid: bool,
+    deleted_sids: &[String],
+    deleted_scene: Option<&str>,
+) -> usize {
+    let gone: BTreeSet<&str> = deleted_sids.iter().map(String::as_str).collect();
+    if s.course
+        .start_slide
+        .as_deref()
+        .is_some_and(|id| gone.contains(id))
+    {
+        s.course.start_slide = None;
+    }
+    if let Some(quiz) = s.course.tracking.quiz.as_mut()
+        && quiz.slide.as_deref().is_some_and(|id| gone.contains(id))
+    {
+        // No slide means the course's graded quiz is evaluated on submit.
+        quiz.slide = None;
+    }
+    clear_links_to_slides(&mut s.course, &gone);
+    if !was_valid {
+        return 0;
+    }
+    let mut needles: Vec<String> = deleted_sids
+        .iter()
+        .map(|deleted_sid| format!("slide {deleted_sid:?} does not exist"))
+        .collect();
+    if let Some(scene) = deleted_scene {
+        needles.push(format!("scene {scene:?} does not exist"));
+    }
+    let remaining_sids: Vec<String> = s
+        .course
+        .slides()
+        .chain(s.course.banks.iter().flat_map(|b| b.slides.iter()))
+        .filter(|sl| !sl.triggers.is_empty() || sl.layers.iter().any(|l| !l.triggers.is_empty()))
+        .map(|sl| sl.id.clone())
+        .collect();
+    let mut total = 0;
+    for other_sid in &remaining_sids {
+        total += remove_dangling_triggers(s, other_sid, &needles);
+    }
+    total
+}
+
+/// Drop every `Link::Slide` text link whose slide is in `gone`.
+fn clear_links_to_slides(course: &mut Course, gone: &BTreeSet<&str>) {
+    fn clear(runs: &mut [TextRun], gone: &BTreeSet<&str>) {
+        for run in runs {
+            if matches!(&run.link, Some(Link::Slide { slide }) if gone.contains(slide.as_str())) {
+                run.link = None;
+            }
+        }
+    }
+    fn clear_shape_text(text: &mut Option<coursecraft_course::ShapeText>, gone: &BTreeSet<&str>) {
+        if let Some(text) = text {
+            clear(&mut text.runs, gone);
+        }
+    }
+    fn clear_object(object: &mut Object, gone: &BTreeSet<&str>) {
+        match &mut object.kind {
+            ObjectKind::Text { runs, .. } | ObjectKind::Marker { runs, .. } => clear(runs, gone),
+            ObjectKind::Shape { text, .. } => clear_shape_text(text, gone),
+            ObjectKind::Path { path } => clear_shape_text(&mut path.text, gone),
+            ObjectKind::Table { rows, .. } => {
+                for cell in rows.iter_mut().flat_map(|row| row.cells.iter_mut()) {
+                    clear(&mut cell.runs, gone);
+                }
+            }
+            _ => {}
+        }
+        for state in &mut object.states {
+            if let Some(runs) = &mut state.runs {
+                clear(runs, gone);
+            }
+            for extra in &mut state.extras {
+                match &mut extra.kind {
+                    coursecraft_course::StateExtraKind::Text { runs, .. } => clear(runs, gone),
+                    coursecraft_course::StateExtraKind::Shape { text, .. } => {
+                        clear_shape_text(text, gone);
+                    }
+                    coursecraft_course::StateExtraKind::Path { path } => {
+                        clear_shape_text(&mut path.text, gone);
+                    }
+                    coursecraft_course::StateExtraKind::Image { .. } => {}
+                }
+            }
+        }
+    }
+    fn clear_slide(slide: &mut Slide, gone: &BTreeSet<&str>) {
+        for object in &mut slide.objects {
+            clear_object(object, gone);
+        }
+        for layer in &mut slide.layers {
+            for object in &mut layer.objects {
+                clear_object(object, gone);
+            }
+        }
+    }
+    for slide in course
+        .scenes
+        .iter_mut()
+        .flat_map(|scene| scene.slides.iter_mut())
+        .chain(course.masters.iter_mut())
+        .chain(course.templates.iter_mut())
+        .chain(
+            course
+                .banks
+                .iter_mut()
+                .flat_map(|bank| bank.slides.iter_mut()),
+        )
+    {
+        clear_slide(slide, gone);
+    }
 }
 
 pub(super) fn slide_add(s: &mut Session, p: &Json) -> Result<Json> {
@@ -251,8 +349,9 @@ pub(super) fn slide_delete(s: &mut Session, p: &Json) -> Result<Json> {
             "slide {id:?} does not exist"
         )));
     }
+    let removed = clean_after_slides_removed(s, was_valid, std::slice::from_ref(&id), None);
     keep_valid(s, was_valid)?;
-    Ok(Json::Null)
+    Ok(json!({ "removed_triggers": removed }))
 }
 
 pub(super) fn slide_move(s: &mut Session, p: &Json) -> Result<Json> {
@@ -1639,6 +1738,46 @@ fn variable_exists(course: &Course, name: &str) -> bool {
     coursecraft_course::builtin_variable_kind(name).is_some() || course.variable(name).is_some()
 }
 
+/// A variable name inside a copy. A `Timer.<id>.Remaining` variable belongs to
+/// a timer on the slide, so it follows that timer to its new id (and the
+/// trigger goes when the timer was not copied). Any other name must exist.
+fn remap_variable_name(
+    name: &mut String,
+    objects: &BTreeMap<String, String>,
+    course: &Course,
+) -> bool {
+    if let Some(timer) = coursecraft_course::timer_id_for_remaining_variable(name) {
+        let Some(new_id) = objects.get(timer) else {
+            return false;
+        };
+        *name = coursecraft_course::timer_remaining_variable(new_id);
+        return true;
+    }
+    variable_exists(course, name)
+}
+
+fn remap_value_source(
+    value: &mut coursecraft_course::ValueSource,
+    objects: &BTreeMap<String, String>,
+    course: &Course,
+) -> bool {
+    match value {
+        coursecraft_course::ValueSource::Variable { variable } => {
+            remap_variable_name(variable, objects, course)
+        }
+        coursecraft_course::ValueSource::Constant(_) => true,
+    }
+}
+
+/// A media target: the course's background audio is not on any slide, so it
+/// stays as it is while the course still has it.
+fn remap_media_object(id: &mut String, r: &Remap<'_>) -> bool {
+    if id == coursecraft_course::BACKGROUND_AUDIO_ID {
+        return r.course.background_audio.is_some();
+    }
+    remap_object(id, r)
+}
+
 fn remap_event(event: &mut Event, r: &Remap<'_>) -> bool {
     match event {
         Event::TimelineStarts { layer }
@@ -1650,14 +1789,14 @@ fn remap_event(event: &mut Event, r: &Remap<'_>) -> bool {
         Event::Click { object }
         | Event::HoverStart { object }
         | Event::HoverEnd { object }
-        | Event::MediaEnds { object }
         | Event::MarkerOpened { object }
         | Event::MarkerClosed { object } => remap_object(object, r),
+        Event::MediaEnds { object } => remap_media_object(object, r),
         Event::CueReached { object, .. } => remap_object(object, r),
         Event::StateChanges { object, .. } | Event::AnimationCompletes { object, .. } => {
             remap_object(object, r)
         }
-        Event::VariableChanges { variable } => variable_exists(r.course, variable),
+        Event::VariableChanges { variable } => remap_variable_name(variable, r.objects, r.course),
         Event::KeyPressed { object, .. } => match object {
             Some(obj) => remap_object(obj, r),
             None => true,
@@ -1693,10 +1832,10 @@ fn remap_action(action: &mut Action, r: &Remap<'_>) -> bool {
             Some(id) => remap_layer(id, r),
             None => r.owner_layer.is_some(),
         },
-        Action::ChangeState { object, .. }
-        | Action::PlayMedia { object }
+        Action::PlayMedia { object }
         | Action::PauseMedia { object }
-        | Action::StopMedia { object }
+        | Action::StopMedia { object } => remap_media_object(object, r),
+        Action::ChangeState { object, .. }
         | Action::StartTimer { timer: object }
         | Action::PauseTimer { timer: object }
         | Action::ResetTimer { timer: object }
@@ -1704,11 +1843,10 @@ fn remap_action(action: &mut Action, r: &Remap<'_>) -> bool {
         Action::SetVariable {
             variable, value, ..
         } => {
-            variable_exists(r.course, variable)
+            remap_variable_name(variable, r.objects, r.course)
                 && value
-                    .as_ref()
-                    .and_then(|v| v.as_variable())
-                    .is_none_or(|v| variable_exists(r.course, v))
+                    .as_mut()
+                    .is_none_or(|v| remap_value_source(v, r.objects, r.course))
         }
         Action::PauseTimeline
         | Action::ResumeTimeline
@@ -1744,10 +1882,8 @@ fn remap_condition(condition: &mut Condition, r: &Remap<'_>) -> bool {
         Condition::Compare {
             variable, value, ..
         } => {
-            variable_exists(r.course, variable)
-                && value
-                    .as_variable()
-                    .is_none_or(|v| variable_exists(r.course, v))
+            remap_variable_name(variable, r.objects, r.course)
+                && remap_value_source(value, r.objects, r.course)
         }
         Condition::ObjectState { object, .. } => remap_object(object, r),
     }
@@ -1828,6 +1964,30 @@ fn sanitize_copied_object_links(
         }
         _ => {}
     }
+    for state in &mut obj.states {
+        if let Some(runs) = &mut state.runs {
+            sanitize_copied_runs(runs, course, self_pair, allow_missing_jump);
+        }
+        for extra in &mut state.extras {
+            match &mut extra.kind {
+                coursecraft_course::StateExtraKind::Text { runs, .. } => {
+                    sanitize_copied_runs(runs, course, self_pair, allow_missing_jump);
+                }
+                coursecraft_course::StateExtraKind::Shape {
+                    text: Some(shape_text),
+                    ..
+                } => {
+                    sanitize_copied_runs(
+                        &mut shape_text.runs,
+                        course,
+                        self_pair,
+                        allow_missing_jump,
+                    );
+                }
+                _ => {}
+            }
+        }
+    }
 }
 
 fn sanitize_copied_slide_links_and_player(
@@ -1868,7 +2028,23 @@ fn remap_condition_targets(condition: &mut Condition, targets: &BTreeMap<String,
                 *object = new_id.clone();
             }
         }
-        Condition::Compare { .. } => {}
+        Condition::Compare {
+            variable, value, ..
+        } => {
+            // A timer variable follows its timer. A name with no copied timer
+            // stays as it is, and validation reports it.
+            if let Some(new_id) = coursecraft_course::timer_id_for_remaining_variable(variable)
+                .and_then(|timer| targets.get(timer))
+            {
+                *variable = coursecraft_course::timer_remaining_variable(new_id);
+            }
+            if let coursecraft_course::ValueSource::Variable { variable } = value
+                && let Some(new_id) = coursecraft_course::timer_id_for_remaining_variable(variable)
+                    .and_then(|timer| targets.get(timer))
+            {
+                *variable = coursecraft_course::timer_remaining_variable(new_id);
+            }
+        }
     }
 }
 

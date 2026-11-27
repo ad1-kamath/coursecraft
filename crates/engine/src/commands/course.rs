@@ -314,7 +314,26 @@ pub(super) fn course_set_background_audio(s: &mut Session, p: &Json) -> Result<J
     let looping: Option<bool> = opt(C, p, "loop")?;
 
     match map.get("src") {
-        Some(Json::Null) => s.course.background_audio = None,
+        Some(Json::Null) => {
+            s.course.background_audio = None;
+            // Triggers that play, pause or stop the background audio have
+            // nothing left to act on, so they go with it.
+            if was_valid {
+                let needles = vec!["the course has no background audio".to_owned()];
+                let slide_ids: Vec<String> = s
+                    .course
+                    .slides()
+                    .chain(s.course.banks.iter().flat_map(|b| b.slides.iter()))
+                    .filter(|sl| {
+                        !sl.triggers.is_empty() || sl.layers.iter().any(|l| !l.triggers.is_empty())
+                    })
+                    .map(|sl| sl.id.clone())
+                    .collect();
+                for slide_id in &slide_ids {
+                    super::remove_dangling_triggers(s, slide_id, &needles);
+                }
+            }
+        }
         Some(Json::String(src)) => {
             let src = text(C, src.clone(), "src")?;
             let audio = s
@@ -440,7 +459,9 @@ fn font_src_is_valid(src: &str) -> bool {
         && src
             .split('/')
             .all(|segment| !segment.is_empty() && segment != "." && segment != "..")
-        && (lower.ends_with(".ttf") || lower.ends_with(".otf"))
+        && [".ttf", ".otf", ".ttc", ".otc"]
+            .iter()
+            .any(|ext| lower.ends_with(ext))
 }
 
 pub(super) fn course_add_font(s: &mut Session, p: &Json) -> Result<Json> {
@@ -456,7 +477,7 @@ pub(super) fn course_add_font(s: &mut Session, p: &Json) -> Result<Json> {
     if !font_src_is_valid(&src) {
         return Err(bad(
             C,
-            "`src` must be a .ttf or .otf media path under fonts/",
+            "`src` must be a .ttf, .otf, .ttc or .otc media path under fonts/",
         ));
     }
     if s.course.fonts.len() >= MAX_FONT_FACES {
@@ -575,6 +596,9 @@ pub(super) fn course_replace(s: &mut Session, p: &Json) -> Result<Json> {
 
     let mut replaced = 0usize;
     let mut skipped = 0usize;
+    // Looking up a string can fill in a state's `text` from its runs, so keep
+    // the course as it was to restore it when nothing matches.
+    let before = s.course.clone();
     if !query.is_empty() {
         let locations: Vec<Location> = course_string_locations(&s.course)
             .into_iter()
@@ -603,6 +627,7 @@ pub(super) fn course_replace(s: &mut Session, p: &Json) -> Result<Json> {
         }
     }
     if replaced == 0 {
+        s.course = before;
         s.skip_undo = true;
         return Ok(json!({ "replaced": 0, "skipped_variable_refs": skipped }));
     }

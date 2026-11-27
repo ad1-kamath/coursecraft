@@ -117,12 +117,23 @@ pub(super) fn layer_delete(s: &mut Session, p: &Json) -> Result<Json> {
     let sid: String = req(C, p, "slide")?;
     let lid: String = req(C, p, "layer")?;
     let slide = slide_mut(s, &sid)?;
-    let deleted_oids: Vec<String> = slide
-        .layers
-        .iter()
-        .find(|l| l.id == lid)
-        .map(|l| l.objects.iter().map(|o| o.id.clone()).collect())
-        .unwrap_or_default();
+    let (deleted_oids, deleted_timers, deleted_gids): (Vec<String>, Vec<String>, Vec<String>) =
+        slide
+            .layers
+            .iter()
+            .find(|l| l.id == lid)
+            .map(|l| {
+                (
+                    l.objects.iter().map(|o| o.id.clone()).collect(),
+                    l.objects
+                        .iter()
+                        .filter(|o| matches!(o.kind, coursecraft_course::ObjectKind::Timer { .. }))
+                        .map(|o| o.id.clone())
+                        .collect(),
+                    l.groups.iter().map(|g| g.id.clone()).collect(),
+                )
+            })
+            .unwrap_or_default();
     let before = slide.layers.len();
     slide.layers.retain(|l| l.id != lid);
     if slide.layers.len() == before {
@@ -130,12 +141,41 @@ pub(super) fn layer_delete(s: &mut Session, p: &Json) -> Result<Json> {
             "layer {lid:?} is not on slide {sid:?}"
         )));
     }
+    // A drop target on the deleted layer is no longer a target, and a question
+    // no longer shows the layer as its feedback.
+    let slide = slide_mut(s, &sid)?;
+    for object in slide
+        .objects
+        .iter_mut()
+        .chain(slide.layers.iter_mut().flat_map(|l| l.objects.iter_mut()))
+    {
+        if let Some(drag) = object.drag.as_mut() {
+            drag.targets.retain(|target| !deleted_oids.contains(target));
+        }
+    }
+    if let Some(question) = slide.question.as_mut() {
+        for feedback in [
+            &mut question.correct_layer,
+            &mut question.incorrect_layer,
+            &mut question.try_again_layer,
+        ] {
+            if feedback.as_deref() == Some(lid.as_str()) {
+                *feedback = None;
+            }
+        }
+    }
     // Triggers that show, hide or start from the layer (or reference objects on it) go with it.
     let removed = if was_valid {
         let mut needles = vec![format!("layer {lid:?} is not on slide")];
-        for oid in &deleted_oids {
+        for oid in deleted_oids.iter().chain(deleted_gids.iter()) {
             needles.push(format!("object {oid:?} is not on slide"));
             needles.push(format!("target {oid:?} is not on slide"));
+        }
+        for timer in &deleted_timers {
+            needles.push(format!(
+                "variable {:?} does not exist",
+                coursecraft_course::timer_remaining_variable(timer)
+            ));
         }
         remove_dangling_triggers(s, &sid, &needles)
     } else {
@@ -210,7 +250,7 @@ pub(super) fn layer_duplicate(s: &mut Session, p: &Json) -> Result<Json> {
             })?;
 
         let mut taken: BTreeSet<String> = slide.local_ids().map(str::to_owned).collect();
-        let mut taken_groups: BTreeSet<String> = all_group_ids(slide).into_iter().collect();
+        taken.extend(all_group_ids(slide));
         let new_layer_id = fresh_id_in("layer", &taken);
         taken.insert(new_layer_id.clone());
 
@@ -231,12 +271,26 @@ pub(super) fn layer_duplicate(s: &mut Session, p: &Json) -> Result<Json> {
             object.id = new_id;
             if let Some(old_group) = object.group.clone() {
                 let new_group = group_map.entry(old_group).or_insert_with(|| {
-                    let fresh = fresh_id_in("group", &taken_groups);
-                    taken_groups.insert(fresh.clone());
+                    let fresh = fresh_id_in("group", &taken);
+                    taken.insert(fresh.clone());
                     fresh
                 });
                 object.group = Some(new_group.clone());
             }
+        }
+        // Group records carry the group's id too: give them the copy's ids, and
+        // let triggers inside the copy that name an interactive group follow.
+        for record in &mut copy.groups {
+            let new_group = group_map
+                .entry(record.id.clone())
+                .or_insert_with(|| {
+                    let fresh = fresh_id_in("group", &taken);
+                    taken.insert(fresh.clone());
+                    fresh
+                })
+                .clone();
+            object_map.insert(record.id.clone(), new_group.clone());
+            record.id = new_group;
         }
 
         let mut layer_map: BTreeMap<String, String> = slide

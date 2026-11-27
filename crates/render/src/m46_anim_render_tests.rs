@@ -307,3 +307,22 @@ fn by_paragraph_reveals_the_first_paragraph_first() {
     assert!(dark_rows(&half, 100, mid) > 5, "first paragraph shows");
     assert_eq!(dark_rows(&half, mid, 300), 0, "second paragraph not yet");
 }
+
+#[test]
+fn rectangular_clip_turns_with_the_object() {
+    // Left half of the frame, then a quarter turn clockwise: the top half shows. A clip
+    // that stayed axis-aligned on the screen would still show the left half.
+    let img = render_with(&ObjectSample {
+        rotation_deg: 90.0,
+        clip: Some(coursecraft_logic::ClipFrac {
+            min_x: 0.0,
+            min_y: 0.0,
+            max_x: 0.5,
+            max_y: 1.0,
+        }),
+        ..ObjectSample::IDENTITY
+    });
+    assert_eq!(px(&img, 600, 300), RED);
+    assert_eq!(px(&img, 600, 420), WHITE);
+    assert_eq!(px(&img, 680, 420), WHITE);
+}

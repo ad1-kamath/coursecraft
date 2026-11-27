@@ -790,8 +790,10 @@ pub fn show_menu_bar(editor: &mut Editor, ui: &mut Ui, requests: &mut Vec<Editor
                 ui.close();
             }
 
-            if ui.button("Welcome screen").clicked() {
+            if ui.button(tl!("Welcome screen")).clicked() {
                 editor.ui.show_welcome = true;
+                // The Start page, not the section of the File page that was open last.
+                editor.ui.file_page.section = crate::file_page::FileSection::Start;
                 ui.close();
             }
 
@@ -1341,7 +1343,7 @@ pub(crate) fn clipboard_rules(editor: &Editor) -> ClipboardRules {
 /// Paste: through the system clipboard on the desktop, else the editor's own.
 pub(crate) fn paste_now(editor: &mut Editor, ctx: &egui::Context) {
     if editor.file_ops_available {
-        ctx.send_viewport_cmd(egui::ViewportCommand::RequestPaste);
+        crate::clipboard::request_system_paste(editor, ctx, None);
     } else {
         crate::clipboard::paste_private(editor);
     }
@@ -1688,7 +1690,7 @@ pub(crate) fn show_object_row_menu(editor: &mut Editor, ui: &mut Ui) {
             let slide_id = editor.selection.slide.clone();
             editor.enter_edit_state(&slide_id, &obj_id, &state_name);
         }
-        editor.ui.bottom_tab = crate::BottomTab::States;
+        crate::dock::request_bottom_tab(editor, crate::BottomTab::States);
         ui.close();
     }
 
@@ -2060,14 +2062,16 @@ fn render_registry_menu_item(
 
     if cmd.id == "variable.add" {
         if menu_button(ui, label, cmd.shortcut, true, None).clicked() {
-            editor.ui.bottom_tab = crate::BottomTab::Variables;
+            crate::dock::request_bottom_tab(editor, crate::BottomTab::Variables);
             ui.close();
         }
         return;
     }
 
     if cmd.id == "trigger.add" {
-        if menu_button(ui, label, cmd.shortcut, true, None).clicked() {
+        let master = editor.ui.master_view;
+        let reason = master.then_some("Not available in Master View");
+        if menu_button(ui, label, cmd.shortcut, !master, reason).clicked() {
             crate::toolbar::insert_trigger(editor);
             ui.close();
         }
@@ -2075,7 +2079,9 @@ fn render_registry_menu_item(
     }
 
     if cmd.id == "results.insert" || cmd.id == "certificate.insert" {
-        if menu_button(ui, label, cmd.shortcut, true, None).clicked() {
+        let master = editor.ui.master_view;
+        let reason = master.then_some("Not available in Master View");
+        if menu_button(ui, label, cmd.shortcut, !master, reason).clicked() {
             if cmd.id == "results.insert" {
                 crate::toolbar::insert_results_slide(editor);
             } else {
@@ -2350,9 +2356,14 @@ fn render_extra_category_items(
             crate::toolbar::insert_text_box(editor);
             ui.close();
         }
+        let master = editor.ui.master_view;
         if ui
-            .add_enabled(!state_locked, egui::Button::new("Table"))
-            .on_disabled_hover_text(state_tip)
+            .add_enabled(!state_locked && !master, egui::Button::new("Table"))
+            .on_disabled_hover_text(if master {
+                "Not available in Master View"
+            } else {
+                state_tip
+            })
             .clicked()
         {
             crate::toolbar::insert_table(editor);
@@ -2443,11 +2454,25 @@ fn render_extra_category_items(
             ui.close();
         }
         ui.separator();
-        if ui.button("Record narration…").clicked() {
+        let audio_off = state_locked || master;
+        let audio_tip = if master {
+            "Not available in Master View"
+        } else {
+            state_tip
+        };
+        if ui
+            .add_enabled(!audio_off, egui::Button::new("Record narration…"))
+            .on_disabled_hover_text(audio_tip)
+            .clicked()
+        {
             editor.open_record_narration();
             ui.close();
         }
-        if ui.button("Narration from text…").clicked() {
+        if ui
+            .add_enabled(!audio_off, egui::Button::new("Narration from text…"))
+            .on_disabled_hover_text(audio_tip)
+            .clicked()
+        {
             editor.open_speech_dialog();
             ui.close();
         }

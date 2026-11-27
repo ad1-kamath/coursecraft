@@ -8226,3 +8226,42 @@ fn m39_heading_font_is_validated_like_the_body_font() {
     c.theme.heading_font = Some("Inter".into());
     assert!(c.validate().iter().all(|i| i.path != "/theme/heading_font"));
 }
+
+#[test]
+fn image_shape_circle_is_an_alias_of_ellipse_and_saves_as_ellipse() {
+    let json = r##"{"schema_version":1,"id":"c","title":"T","slide_size":{"w":1280,"h":720},"scenes":[{"id":"sc0","title":"S","slides":[{"id":"s0","title":"Slide","objects":[
+        {"id":"pic","kind":{"type":"image","src":"media/a.png","alt":"A","shape":"circle"},"frame":{"x":0,"y":0,"w":100,"h":100}}
+    ]}]}]}"##;
+    let course = Course::from_json(json).expect("circle is accepted");
+    let saved = serde_json::to_string(&course).expect("serialise");
+    assert!(saved.contains(r#""shape":"ellipse""#), "{saved}");
+    assert!(!saved.contains("circle"), "{saved}");
+    let again = Course::from_json(&saved).expect("reload");
+    assert_eq!(again, course);
+
+    let bad = json.replace("\"circle\"", "\"blob\"");
+    let err = Course::from_json(&bad)
+        .expect_err("unknown shape")
+        .to_string();
+    assert!(err.contains("blob"), "{err}");
+    assert!(err.contains("ellipse") && err.contains("circle"), "{err}");
+}
+
+#[test]
+fn huge_paragraph_start_at_is_a_warning_not_an_error() {
+    let json = r##"{"schema_version":1,"id":"c","title":"T","slide_size":{"w":1280,"h":720},"scenes":[{"id":"sc0","title":"S","slides":[{"id":"s0","title":"Slide","objects":[
+        {"id":"t","kind":{"type":"text","text":"Item","paragraphs":[{"list":"number","number_scheme":"roman_uc_period","start_at":4294967295}]},"frame":{"x":0,"y":0,"w":100,"h":100}}
+    ]}]}]}"##;
+    let course = Course::from_json(json).expect("old files with a large start_at still load");
+    let issues = course.validate();
+    assert!(
+        !issues.iter().any(|i| i.severity == Severity::Error),
+        "{issues:?}"
+    );
+    assert!(
+        issues
+            .iter()
+            .any(|i| i.severity == Severity::Warning && i.path.ends_with("start_at")),
+        "{issues:?}"
+    );
+}

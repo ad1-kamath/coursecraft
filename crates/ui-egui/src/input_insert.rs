@@ -60,6 +60,7 @@ fn insert(
             "object.add".to_owned(),
             json!({
                 "slide": editor.selection.slide,
+                "layer": editor.selection.layer,
                 "kind": kind_json,
                 "frame": frame,
                 "name": name,

@@ -38,6 +38,9 @@ pub struct CaptionFrame {
     pub kind: MediaKind,
     /// Video object's screen rect on the slide, when it has one.
     pub rect: Option<Rect>,
+    /// True when the backend draws this caption itself (a DOM box over a web
+    /// video); the player frame then leaves it alone.
+    pub dom: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -580,8 +583,7 @@ impl MediaDriver {
             let rect = transform.filter(|_| !transitioning).and_then(|t| {
                 items.iter().find_map(|item| match &item.hit {
                     Hit::Object(id) if id == vid && matches!(item.visual, Visual::Video { .. }) => {
-                        let r = t.to_screen_rect(item.rect);
-                        Some([r.min.x, r.min.y, r.width(), r.height()])
+                        crate::compose::overlay_screen_rect(&t, item)
                     }
                     _ => None,
                 })
@@ -642,6 +644,7 @@ impl MediaDriver {
                 text,
                 kind,
                 rect,
+                dom: kind == MediaKind::Video && self.backend.shows_video_captions(),
             };
             match &chosen {
                 None => chosen = Some(candidate),
@@ -674,7 +677,7 @@ impl MediaDriver {
     /// This writes to the DOM only when the cue text changes, never every frame.
     pub fn present_captions(&mut self, frame: Option<&CaptionFrame>, on: bool) {
         let active = if on {
-            frame.filter(|frame| frame.kind == MediaKind::Video)
+            frame.filter(|frame| frame.dom)
         } else {
             None
         };

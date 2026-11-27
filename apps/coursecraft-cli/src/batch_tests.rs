@@ -248,3 +248,64 @@ fn the_batch_examples_run() {
         assert!(!failed(run_batch(&job).unwrap()), "{name}");
     }
 }
+
+#[test]
+fn iso_bmff_brand_tells_audio_and_images_from_video() {
+    use crate::batch::{MediaKind, kind_from_bytes};
+    let boxed = |brand: &[u8; 4]| {
+        let mut bytes = vec![0, 0, 0, 0x18];
+        bytes.extend_from_slice(b"ftyp");
+        bytes.extend_from_slice(brand);
+        bytes
+    };
+    assert_eq!(kind_from_bytes(&boxed(b"M4A ")), Some(MediaKind::Audio));
+    assert_eq!(kind_from_bytes(&boxed(b"avif")), Some(MediaKind::Image));
+    assert_eq!(kind_from_bytes(&boxed(b"heic")), Some(MediaKind::Image));
+    assert_eq!(kind_from_bytes(&boxed(b"isom")), Some(MediaKind::Video));
+    assert_eq!(kind_from_bytes(&boxed(b"mp42")), Some(MediaKind::Video));
+}
+
+#[test]
+fn a_font_can_replace_a_font_but_not_a_picture() {
+    let dir = scratch("replace-other");
+    let font = vec![("fonts/body.ttf".to_owned(), b"OLD-FONT-BYTES".to_vec())];
+    let pic = vec![("pic.png".to_owned(), PNG.to_vec())];
+    let mut media = font;
+    media.extend(pic);
+    let course = make(&dir, "lesson.ccraft", &media);
+    let new_font = dir.join("new.ttf");
+    std::fs::write(&new_font, b"NEW-FONT-BYTES").unwrap();
+    let script = script(&dir, "[]");
+
+    let mut a = args(script.clone(), vec![course.clone()]);
+    a.in_place = true;
+    a.replace_media = vec![format!("fonts/body.ttf={}", new_font.display())];
+    assert!(!failed(run_batch(&a).unwrap()), "font for font is allowed");
+    let project = open_project(&std::fs::read(&course).unwrap()).unwrap();
+    let swapped = project
+        .media
+        .iter()
+        .find(|(name, _)| name == "fonts/body.ttf")
+        .unwrap();
+    assert_eq!(swapped.1, b"NEW-FONT-BYTES");
+
+    let mut b = args(script, vec![course]);
+    b.in_place = true;
+    b.replace_media = vec![format!("pic.png={}", new_font.display())];
+    assert!(
+        failed(run_batch(&b).unwrap()),
+        "a font cannot replace a picture"
+    );
+}
+
+#[test]
+fn colliding_package_names_each_get_their_own_file() {
+    use crate::batch::unique_package_path;
+    let mut taken = std::collections::HashSet::new();
+    let a = unique_package_path(PathBuf::from("out/lesson.zip"), &mut taken);
+    let b = unique_package_path(PathBuf::from("out/lesson.zip"), &mut taken);
+    let c = unique_package_path(PathBuf::from("out/lesson.zip"), &mut taken);
+    assert_eq!(a, PathBuf::from("out/lesson.zip"));
+    assert_eq!(b, PathBuf::from("out/lesson-2.zip"));
+    assert_eq!(c, PathBuf::from("out/lesson-3.zip"));
+}

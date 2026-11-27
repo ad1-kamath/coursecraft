@@ -964,6 +964,9 @@ pub struct TriggerFormState {
     pub javascript_code: String,
     pub lightbox_slide_id: String,
     pub timer_object: String,
+    /// The timer of a Timer Ends event; apart from `timer_object` (the timer an action
+    /// starts, pauses or resets), so a trigger can use two timers (`N90`).
+    pub event_timer_object: String,
 
     // When fields
     pub event_tag: EventKindTag,
@@ -1024,6 +1027,13 @@ impl TriggerFormState {
             .and_then(|o| o.motion_paths.first())
             .map(|p| p.id.clone())
             .unwrap_or_default();
+        let first_timer_id = slide
+            .objects
+            .iter()
+            .chain(slide.layers.iter().flat_map(|l| l.objects.iter()))
+            .find(|o| matches!(o.kind, coursecraft_course::ObjectKind::Timer { .. }))
+            .map(|o| o.id.clone())
+            .unwrap_or_default();
         let first_cue = slide
             .objects
             .iter()
@@ -1062,13 +1072,8 @@ impl TriggerFormState {
             move_path_object: first_obj_id.clone(),
             move_path_id: first_path_id,
             javascript_code: String::new(),
-            timer_object: slide
-                .objects
-                .iter()
-                .chain(slide.layers.iter().flat_map(|l| l.objects.iter()))
-                .find(|o| matches!(o.kind, coursecraft_course::ObjectKind::Timer { .. }))
-                .map(|o| o.id.clone())
-                .unwrap_or_default(),
+            timer_object: first_timer_id.clone(),
+            event_timer_object: first_timer_id,
             lightbox_slide_id: course
                 .slides()
                 .find(|other| other.id != slide.id)
@@ -1312,7 +1317,7 @@ impl TriggerFormState {
             }
             Event::TimerEnds { timer } => {
                 s.event_tag = EventKindTag::TimerEnds;
-                s.timer_object = timer.clone();
+                s.event_timer_object = timer.clone();
             }
             Event::Submit => s.event_tag = EventKindTag::Submit,
             Event::AnimationCompletes { object, path } => {
@@ -1575,7 +1580,7 @@ impl TriggerFormState {
                 }
             }
             EventKindTag::TimerEnds => Event::TimerEnds {
-                timer: self.timer_object.clone(),
+                timer: self.event_timer_object.clone(),
             },
         };
 
@@ -2627,22 +2632,22 @@ fn trigger_row<R>(ui: &mut Ui, label: &str, add_field: impl FnOnce(&mut Ui) -> R
 }
 
 /// Pick one of the slide's timers (base layer and layers).
-fn timer_picker(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, salt: &str) {
+fn timer_picker(value: &mut String, ui: &mut Ui, slide: &Slide, salt: &str) {
     trigger_row(ui, "Timer", |ui| {
         tall_combo(ui, salt)
-            .selected_text(object_label(slide, &form.timer_object))
+            .selected_text(object_label(slide, value))
             .show_ui(ui, |ui| {
                 for obj in &slide.objects {
                     if matches!(obj.kind, coursecraft_course::ObjectKind::Timer { .. }) {
                         let label = object_name(slide, &obj.id);
-                        ui.selectable_value(&mut form.timer_object, obj.id.clone(), label);
+                        ui.selectable_value(value, obj.id.clone(), label);
                     }
                 }
                 for l in &slide.layers {
                     for obj in &l.objects {
                         if matches!(obj.kind, coursecraft_course::ObjectKind::Timer { .. }) {
                             let label = object_label(slide, &obj.id);
-                            ui.selectable_value(&mut form.timer_object, obj.id.clone(), label);
+                            ui.selectable_value(value, obj.id.clone(), label);
                         }
                     }
                 }
@@ -2650,7 +2655,12 @@ fn timer_picker(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, salt: &
     });
 }
 
-fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, course: &Course) {
+pub(crate) fn render_action_fields(
+    form: &mut TriggerFormState,
+    ui: &mut Ui,
+    slide: &Slide,
+    course: &Course,
+) {
     match form.action_tag {
         ActionTag::JumpToSlide => {
             trigger_row(ui, "Target", |ui| {
@@ -2791,6 +2801,10 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
 
             // Find states available on this object or interactive group
             let available_states = available_states_for_target(slide, &form.change_state_object);
+            // A state of the previous target may not exist on this one (`N101`).
+            if !available_states.contains(&form.change_state_state) {
+                form.change_state_state = available_states.first().cloned().unwrap_or_default();
+            }
 
             trigger_row(ui, "State", |ui| {
                 tall_combo(ui, "action_change_state_st_combo")
@@ -2830,6 +2844,10 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
                 ValueKind::Text => vec![VarOp::Assign],
             };
 
+            // The operator of the previous variable's type may not fit this one (`N101`).
+            if !valid_ops.contains(&form.set_var_op) {
+                form.set_var_op = VarOp::Assign;
+            }
             trigger_row(ui, "Operator", |ui| {
                 let op_name = match form.set_var_op {
                     VarOp::Assign => "Assign (=)",
@@ -3004,6 +3022,10 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
                     .object(&form.move_path_object)
                     .map(|(o, _)| o.motion_paths.iter().map(|p| p.id.clone()).collect())
                     .unwrap_or_default();
+                // A path of the previous object does not exist on this one (`N101`).
+                if !paths.contains(&form.move_path_id) {
+                    form.move_path_id = paths.first().cloned().unwrap_or_default();
+                }
                 let current_text = if form.move_path_id.is_empty() {
                     "Select path".to_owned()
                 } else {
@@ -3072,7 +3094,7 @@ fn render_action_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide,
             });
         }
         ActionTag::StartTimer | ActionTag::PauseTimer | ActionTag::ResetTimer => {
-            timer_picker(form, ui, slide, "action_timer_obj_combo");
+            timer_picker(&mut form.timer_object, ui, slide, "action_timer_obj_combo");
         }
         ActionTag::PauseTimeline
         | ActionTag::ResumeTimeline
@@ -3518,6 +3540,13 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
                         options.push((p.id.clone(), format!("Path: {}", p.id)));
                     }
                 }
+                // A path of the previous object does not exist on this one (`N101`).
+                if !options
+                    .iter()
+                    .any(|(val, _)| *val == form.anim_complete_which)
+                {
+                    form.anim_complete_which = "entrance".to_owned();
+                }
                 let current_text = if form.anim_complete_which.is_empty()
                     || form.anim_complete_which == "entrance"
                 {
@@ -3535,7 +3564,12 @@ fn render_event_fields(form: &mut TriggerFormState, ui: &mut Ui, slide: &Slide, 
             });
         }
         EventKindTag::TimerEnds => {
-            timer_picker(form, ui, slide, "event_timer_obj_combo");
+            timer_picker(
+                &mut form.event_timer_object,
+                ui,
+                slide,
+                "event_timer_obj_combo",
+            );
         }
     }
 }

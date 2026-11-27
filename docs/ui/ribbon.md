@@ -150,7 +150,7 @@ Shown when the Course Map view tab is active.
 | | Select All | S | `ui:edit.selectAll` | ✅ | from Edit › Select All |
 | Slide | New Slide | LS | as Course Map | ✅ | |
 | | Apply Layout | SS | `slide.set_master` | ✅ | |
-| | Focus Order | S | `ui:focusOrder` | ✅ | Focus Order window (`focus_order.rs`): reorder, drag, reset; OK sets `focus_order` 1..n in one undo step |
+| | Focus Order | S | `ui:focusOrder` | ✅ | Focus Order window (`focus_order.rs`): grouped by layer (base first, each layer a section; reorder inside a section only), drag, reset; OK sets `focus_order` 1..n in one undo step; closes when the slide or course changes under it. Lists only keyboard-focusable objects: the player reads text and pictures to a screen reader in drawing order, so a reading-order list for them is a feature gap |
 | | Duplicate | S | `slide.duplicate` | ✅ | |
 | Font ↘ | Text Styles | LS | `text_style.apply`, `text_style.create` | ✅ | ▾ course styles, New Style from Selection, Manage Styles… |
 | | Font family | C | `text.style_range` `{font}` | ✅ | ▾ the inspector's font picker (`font_picker::show_font_list`): search, the course's fonts, recent and installed fonts, Add font… |
@@ -162,8 +162,8 @@ Shown when the Course Map view tab is active.
 | | Strikethrough | T | `text.style_range` | ✅ | |
 | | Character Spacing | SS | `text.style_range` `{letter_spacing}` | ✅ | ▾ Very Tight … Very Loose; exact value in the Text panel |
 | | Change Case | SS | `text.change_case` | ✅ | ▾ Sentence case, lowercase, UPPERCASE, Capitalize Each Word, tOGGLE cASE |
-| | Highlight | SS | `text.style_range` `{highlight}` | ✅ | ▾ theme colours, 8 standard colours, No Color |
-| | Font Color | SS | `text.style_range` `{color}` | ✅ | ▾ the inspector's colour picker (`properties::color_picker_body`): eyedropper, palette, theme and recent swatches, colour wheel (one change per drag) |
+| | Highlight | SS | `text.style_range` `{highlight}` | ✅ | a bar under the icon shows the last colour picked (yellow at first); the main part applies it, ▾ lists theme colours, 8 standard colours, No Color |
+| | Font Color | SS | `text.style_range` `{color}` | ✅ | a bar under the icon shows the last colour picked (the theme accent at first); the main part applies it, ▾ opens the inspector's colour picker (`properties::color_picker_body`): eyedropper, palette, theme and recent swatches, colour wheel (one change per drag) |
 | | Spelling | S | `ui:spellCheck` | ✅ | `spell_check.rs` |
 | | ↘ Font | — | `UiAction::PanelAt(Text, Font)` | ✅ | opens the Text settings panel at Font ([panels.md](panels.md)) |
 | Paragraph ↘ | Bullets | SS | `text.set_paragraphs` `{list}` | ✅ | toggles on the paragraphs at the selection; bullet symbols in the Text panel |
@@ -202,7 +202,7 @@ Shown when the Course Map view tab is active.
 | | Shape | LS | `object.add` `{shape}` | ✅ | `shape_gallery.rs` |
 | | Caption | LS | `object.add` `{shape: callout}` | ✅ | opens the shape gallery filtered to Callouts (`shape_gallery.rs`) |
 | | Video | LS | `object.add` `{video}` | 🟡 | ▾ Video from File… ✅, From Website (embed) ✅ (`web_insert.rs`), Record Webcam ⛔, Media Library… ✅ |
-| | Audio | LS | `object.add` `{audio}` | 🟡 | ▾ Audio from File… ✅, Media Library… ✅, Record Mic… ✅ (`record_narration.rs`), Text-to-Speech… ✅ (`audio_ai.rs`), AI Audio ▸ ⛔, Background Audio ▸ ✅ (`course.set_background_audio`), Options… ⛔ |
+| | Audio | LS | `object.add` `{audio}` | 🟡 | ▾ Audio from File… ✅, Media Library… ✅, Record Mic… ✅ (`record_narration.rs`), Text-to-Speech… ✅ (`audio_ai.rs`), AI Audio ▸ ⛔, Background Audio ▸ ⛔ (not in the menu; set it in Course Settings, `course.set_background_audio`), Options… ⛔ |
 | | Web Object | L | `object.add` `{web}` | ✅ | `web_insert.rs` |
 | | Animation (Lottie) | L | `object.set_lottie` | ✅ | CourseCraft extra; place after Web Object |
 | Text | Text Box | LS | `object.add` `{text}` | ✅ | |
@@ -246,7 +246,7 @@ Shown when the Course Map view tab is active.
 | Setup | Slide Size | L | `course.set_slide_size` | ✅ | `slide_size_dialog.rs`. In the code: Colors and Fonts open the theme window; Background Styles waits for ribbon wiring (↘ opens the Slide inspector) |
 | Themes | theme gallery | G | `course.set_theme` | ✅ | `ribbon/gallery.rs`: eight built-in themes of our own (accent, background, text), ▾ shows them all, the current one is marked; Colors and Fonts open the theme window (`theme_dialog.rs`) |
 | Theme options | Colors | SS | `theme.set_palette` | ✅ | ▾ palettes, Create New Theme Colors… (`theme.set_palette_color`) |
-| | Fonts | SS | `UiAction::Themes` → `course.set_theme` `{font, heading_font}` | ✅ | opens the Theme dialog; ▾ lists font pairs (heading / body) and Create New Theme Fonts… |
+| | Fonts | SS | `UiAction::ThemeFonts` → `course.set_theme` `{font, heading_font}` | ✅ | the main button opens the Create New Theme Fonts window (heading and body fonts) directly; ▾ lists font pairs (heading / body) and Create New Theme Fonts… |
 | Background ↘ | Background Styles | SS | `slide.set_background` | ✅ | |
 | | Hide Background Graphics | K | `slide.update` `{hide_master_graphics}` | ⛔ | |
 | Publish | Preview | LS | | ✅ | |
@@ -274,8 +274,8 @@ Shown when the Course Map view tab is active.
 | | emphasis list | G | `object.set_emphasis` | ✅ | in the Animate inspector's Emphasis card (one row each), not in the ribbon |
 | | Duration / Effect Options / Delete | | `object.set_emphasis`, `object.remove_emphasis` | ✅ | in the Emphasis card: Start, Duration, Repeat, ▶ and Remove per emphasis |
 | Motion Paths | Add Motion Path | LS | `object.add_motion_path` | ✅ | |
-| | Duration, Name | N, C | `object.update_motion_path` | ✅ | |
-| | Path Options | LS | `object.update_motion_path` | 🟡 | |
+| | Duration, Name | N, C | `object.update_motion_path` | ⛔ | edited in the Animate panel; no ribbon control yet |
+| | Path Options | LS | `object.update_motion_path` | ⛔ | no ribbon control yet |
 | Size and Position ↘ | Size and Position | L | `UiAction::PanelAt(SizePosition, Size)` | ✅ | the button and ↘ open the Size and Position settings panel (`object.set_frame`, `object.set_rotation`, `object.flip`, `object.lock`) |
 | Publish | Preview | LS | | ✅ | |
 
@@ -312,7 +312,7 @@ CourseCraft's own tab: every AI control in one place, so Home keeps only editing
 | | Insert Audio | LS | `ui:narration.fromText` | 🟡 | ▾ Narration from Text… ✅ (`audio_ai.rs`), Sound Effect ⛔, Music ⛔ |
 | Assess | Quiz | L | `ui:ai.quiz` (new) | ⛔ | draft a quiz from the course text through the user's agent |
 | | Question | L | `ui:ai.question` (new) | ⛔ | |
-| | Suggest Alt Text | L | `ui:alt.suggest` | ✅ | from Project › Suggest Alt Text… (`alt_text.rs`) |
+| | Suggest Alt Text | L | `ui:alt.suggest` | ✅ | drawn in the Write group in the ribbon (`ai.alt_text`); from Project › Suggest Alt Text… (`alt_text.rs`) |
 | Agents | Connect an AI Agent…, AI Settings…, Allow automation | S×3 | `ui:ai.*` | ✅ | moved from Help |
 
 ## Help

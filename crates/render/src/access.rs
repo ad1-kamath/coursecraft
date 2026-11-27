@@ -92,6 +92,195 @@ pub struct AccessTree {
     pub nodes: Vec<AccessNode>,
 }
 
+impl AccessNode {
+    /// An input control the learner cannot use right now (disabled, behind a
+    /// modal layer, scrolled away). It has no keyboard target, so a DOM layer
+    /// must draw it disabled instead of as a live, focusable control.
+    #[must_use]
+    pub fn is_disabled_input(&self) -> bool {
+        self.target.is_none()
+            && matches!(
+                self.role,
+                AccessRole::TextBox
+                    | AccessRole::TextArea
+                    | AccessRole::Slider
+                    | AccessRole::Checkbox
+                    | AccessRole::Radio
+                    | AccessRole::RadioGroup
+                    | AccessRole::Select
+            )
+    }
+
+    /// Does this node pick up and carry a draggable item (a drag question item
+    /// or a draggable object)?
+    #[must_use]
+    pub fn is_drag_control(&self) -> bool {
+        self.key.starts_with("drag:")
+    }
+}
+
+/// Is a drag item currently held? Only drag controls count: other nodes use
+/// `pressed` for toggles such as captions, mute or a drawer tab.
+#[must_use]
+pub fn drag_is_held(tree: &AccessTree) -> bool {
+    tree.nodes
+        .iter()
+        .any(|node| node.is_drag_control() && node.pressed == Some(true))
+}
+
+/// What the DOM layer does with a `keydown` on one of its elements.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DomKeyAction {
+    /// Leave the key to the browser.
+    Ignore,
+    /// Cancel the browser default and hand the key to the focus manager.
+    Forward,
+    /// Cancel the browser default and activate the element's target, for
+    /// roles with no native activation (a link without `href`, a list item).
+    Activate,
+}
+
+const LETTER_KEYS: [egui::Key; 36] = [
+    egui::Key::A,
+    egui::Key::B,
+    egui::Key::C,
+    egui::Key::D,
+    egui::Key::E,
+    egui::Key::F,
+    egui::Key::G,
+    egui::Key::H,
+    egui::Key::I,
+    egui::Key::J,
+    egui::Key::K,
+    egui::Key::L,
+    egui::Key::M,
+    egui::Key::N,
+    egui::Key::O,
+    egui::Key::P,
+    egui::Key::Q,
+    egui::Key::R,
+    egui::Key::S,
+    egui::Key::T,
+    egui::Key::U,
+    egui::Key::V,
+    egui::Key::W,
+    egui::Key::X,
+    egui::Key::Y,
+    egui::Key::Z,
+    egui::Key::Num0,
+    egui::Key::Num1,
+    egui::Key::Num2,
+    egui::Key::Num3,
+    egui::Key::Num4,
+    egui::Key::Num5,
+    egui::Key::Num6,
+    egui::Key::Num7,
+    egui::Key::Num8,
+    egui::Key::Num9,
+];
+
+/// Map a DOM `KeyboardEvent.key` to the egui key the focus manager reads.
+#[must_use]
+pub fn map_dom_key(key: &str) -> Option<egui::Key> {
+    use egui::Key;
+    match key {
+        "ArrowUp" => return Some(Key::ArrowUp),
+        "ArrowDown" => return Some(Key::ArrowDown),
+        "ArrowLeft" => return Some(Key::ArrowLeft),
+        "ArrowRight" => return Some(Key::ArrowRight),
+        "Home" => return Some(Key::Home),
+        "End" => return Some(Key::End),
+        "PageUp" => return Some(Key::PageUp),
+        "PageDown" => return Some(Key::PageDown),
+        "Enter" => return Some(Key::Enter),
+        " " | "Spacebar" => return Some(Key::Space),
+        "Escape" | "Esc" => return Some(Key::Escape),
+        "Tab" => return Some(Key::Tab),
+        _ => {}
+    }
+    let mut chars = key.chars();
+    let (Some(c), None) = (chars.next(), chars.next()) else {
+        return None;
+    };
+    let c = c.to_ascii_lowercase();
+    let index = match c {
+        'a'..='z' => usize::from(u8::try_from(c).ok()? - b'a'),
+        '0'..='9' => 26 + usize::from(u8::try_from(c).ok()? - b'0'),
+        _ => return None,
+    };
+    LETTER_KEYS.get(index).copied()
+}
+
+/// Decide what a `keydown` does on the element for node `node_key` with
+/// `role` and `target`. `drag_held` is [`drag_is_held`]; `command` is true when
+/// Ctrl, Alt or Meta is down (browser and assistive shortcuts, never forwarded).
+#[must_use]
+pub fn dom_key_action(
+    role: AccessRole,
+    node_key: &str,
+    target: &FocusTarget,
+    key: egui::Key,
+    drag_held: bool,
+    command: bool,
+) -> DomKeyAction {
+    use egui::Key;
+    if command {
+        return DomKeyAction::Ignore;
+    }
+    let arrow = matches!(
+        key,
+        Key::ArrowUp | Key::ArrowDown | Key::ArrowLeft | Key::ArrowRight
+    );
+    // Roles with no native activation get Enter (and Space for list items).
+    match role {
+        AccessRole::Link if key == Key::Enter => return DomKeyAction::Activate,
+        AccessRole::ListItem if matches!(key, Key::Enter | Key::Space) => {
+            return DomKeyAction::Activate;
+        }
+        _ => {}
+    }
+    let text_like = matches!(
+        role,
+        AccessRole::TextBox | AccessRole::TextArea | AccessRole::Select
+    );
+    let drag_control = node_key.starts_with("drag:")
+        || matches!(target, FocusTarget::Hotspot | FocusTarget::DragItem(_));
+    let control_key = arrow
+        || matches!(key, Key::Enter | Key::Space | Key::Escape)
+        || (key == Key::Tab && drag_held);
+    let match_key =
+        matches!(target, FocusTarget::MatchRow(_)) && matches!(key, Key::ArrowUp | Key::ArrowDown);
+    let scroll_key = node_key.starts_with("scroll:")
+        && matches!(
+            key,
+            Key::ArrowUp | Key::ArrowDown | Key::PageUp | Key::PageDown | Key::Home | Key::End
+        );
+    // Arrows, Home, End and Escape on a control that is not a text field are
+    // slide navigation, sliders and drawers. Letters and digits reach the
+    // slide's key triggers, which the canvas would otherwise never hear.
+    let chrome_key = !text_like
+        && (matches!(
+            key,
+            Key::ArrowLeft | Key::ArrowRight | Key::Home | Key::End | Key::Escape
+        ) || LETTER_KEYS.contains(&key));
+    let text_key = role == AccessRole::TextBox && key == Key::Enter;
+    let input_key = matches!(
+        role,
+        AccessRole::Slider | AccessRole::Checkbox | AccessRole::RadioGroup
+    ) && (arrow || matches!(key, Key::Home | Key::End | Key::Enter | Key::Space));
+    if (drag_control && control_key)
+        || match_key
+        || scroll_key
+        || chrome_key
+        || text_key
+        || input_key
+    {
+        DomKeyAction::Forward
+    } else {
+        DomKeyAction::Ignore
+    }
+}
+
 /// Build the reading order for the current player frame.
 ///
 /// Interactive nodes appear in exactly the order of
@@ -132,6 +321,33 @@ pub fn build_access_tree(
     // with its dismiss button first in the focus order right beside it.
     notice_nodes(player, frame, items, slide, &list, &mut nodes);
 
+    // The ended card covers the slide: it is all a screen reader gets, and no
+    // slide control stays reachable behind it.
+    if frame.ended {
+        let course = player.course();
+        for (suffix, string_key) in [("title", "courseComplete"), ("hint", "closeWindow")] {
+            nodes.push(AccessNode {
+                key: format!("ended:{suffix}"),
+                role: if suffix == "title" {
+                    AccessRole::Heading
+                } else {
+                    AccessRole::Text
+                },
+                label: course.chrome_string(string_key).to_owned(),
+                value: None,
+                options: Vec::new(),
+                checked: None,
+                pressed: None,
+                expanded: None,
+                hint: None,
+                target: None,
+                rect: Rect::NOTHING,
+                screen: false,
+            });
+        }
+        return AccessTree { title, nodes };
+    }
+
     // A lightbox is a modal dialog named by its slide's title. Everything that
     // follows belongs to it in the reading order.
     if player.lightbox_open() {
@@ -169,6 +385,13 @@ pub fn build_access_tree(
         rect: Rect::NOTHING,
         screen: false,
     });
+
+    // The open outline drawer is modal: nothing behind it may be read or
+    // reached, so only its own controls (the chrome, in focus order) follow.
+    if frame.drawer_open() && !player.lightbox_open() {
+        push_chrome_nodes(player, frame, items, slide, &list, &mut nodes);
+        return AccessTree { title, nodes };
+    }
 
     // Master text and image alternatives are read before the slide's own.
     // Master objects are never in the keyboard focus list.
@@ -212,9 +435,23 @@ pub fn build_access_tree(
     // 6. Visible layers, bottom to top, each in composition order.
     push_layer_nodes(player, frame, items, slide, &list, &mut nodes);
 
-    // 7. Chrome, in focus order. The notice's dismiss button was read with the
-    // notice text instead, first in the focus order.
-    for target in &list {
+    // 7. Chrome, in focus order.
+    push_chrome_nodes(player, frame, items, slide, &list, &mut nodes);
+
+    AccessTree { title, nodes }
+}
+
+/// Chrome nodes in focus order. The notice's dismiss button and the review
+/// exit were read with their banners instead, first in the focus order.
+fn push_chrome_nodes(
+    player: &Player<'_>,
+    frame: &PlayerFrame,
+    items: &[DrawItem],
+    slide: &Slide,
+    list: &[FocusTarget],
+    nodes: &mut Vec<AccessNode>,
+) {
+    for target in list {
         if target.is_chrome()
             && target != &FocusTarget::Chrome(ChromeButton::DismissNotice)
             && target != &FocusTarget::Chrome(ChromeButton::ExitReview)
@@ -223,8 +460,6 @@ pub fn build_access_tree(
             nodes.push(node);
         }
     }
-
-    AccessTree { title, nodes }
 }
 
 /// Read visible slide layers from bottom to top, each in composition order.
@@ -334,7 +569,7 @@ fn push_base_nodes(
             expanded: None,
             hint: None,
             target: None,
-            rect: question_prompt_rect(player),
+            rect: question_prompt_rect(player, question),
             screen: false,
         });
         for target in list {
@@ -1145,10 +1380,7 @@ fn target_node(
                 .object(object)
                 .and_then(|(obj, _)| object_item(items, obj));
             let rect = if let Some(item) = item {
-                item.links
-                    .get(*index)
-                    .map(|link| link_rect(item.rect, link))
-                    .unwrap_or(item.rect)
+                crate::compose::link_group_rect(item, *index).unwrap_or(item.rect)
             } else {
                 slide
                     .object(object)
@@ -1280,6 +1512,8 @@ fn target_node(
             Some(AccessNode {
                 key: if object.drag.is_some() {
                     format!("drag:{}:{}", slide.id, object.id)
+                } else if matches!(object.kind, ObjectKind::ScrollPanel { .. }) {
+                    format!("scroll:{}:{}", slide.id, object.id)
                 } else {
                     format!("object:{}:{}", slide.id, object.id)
                 },
@@ -1404,12 +1638,13 @@ fn target_node(
                     AccessRole::TextBox
                 },
                 label: player.display_text(&question.prompt),
-                value: mark_value(player, mark).or_else(|| Some(player.text_entry().to_owned())),
+                // The mark is a description: the answer stays the value.
+                value: Some(player.text_entry().to_owned()),
                 options: Vec::new(),
                 checked: None,
                 pressed: None,
                 expanded: None,
-                hint: None,
+                hint: mark_value(player, mark),
                 target: Some(target.clone()),
                 rect: item.map_or(Rect::NOTHING, |i| i.rect),
                 screen: false,
@@ -1446,13 +1681,12 @@ fn target_node(
                 key: format!("match:{}:{}", slide.id, pair.id),
                 role: AccessRole::Select,
                 label: player.display_text(&pair.left),
-                value: mark_value(player, mark)
-                    .or_else(|| Some(player.match_for(left).unwrap_or_default().to_owned())),
+                value: Some(player.match_for(left).unwrap_or_default().to_owned()),
                 options,
                 checked: None,
                 pressed: None,
                 expanded: None,
-                hint: None,
+                hint: mark_value(player, mark),
                 target: Some(target.clone()),
                 rect: item.map_or(Rect::NOTHING, |i| i.rect),
                 screen: false,
@@ -1497,6 +1731,7 @@ fn target_node(
                 })
                 .or_else(|| (!object.name.is_empty()).then(|| player.display_text(&object.name)))
                 .unwrap_or_else(|| object.id.clone());
+            append_extra_labels(player, items, object, &mut label);
             let drag = frame.focus().drag_visual();
             let held = drag.as_ref().is_some_and(|drag| &drag.item == id);
             let target_id = if held {
@@ -2009,6 +2244,11 @@ fn push_link_nodes(
     let item = slide
         .object(object_id)
         .and_then(|(obj, _)| object_item(items, obj));
+    // An object that is not composed (hidden, outside its timing window, on a
+    // hidden layer) offers no links, exactly as it offers no other node.
+    if item.is_none() {
+        return;
+    }
     let fallback = item
         .map(|item| item.rect)
         .or_else(|| slide.object(object_id).map(|(obj, _)| object_rect(obj)))
@@ -2020,7 +2260,7 @@ fn push_link_nodes(
         .unwrap_or(Rect::NOTHING);
     for (index, link) in links.into_iter().enumerate() {
         let rect = item
-            .and_then(|item| item.links.get(index).map(|link| link_rect(item.rect, link)))
+            .and_then(|item| crate::compose::link_group_rect(item, index))
             .unwrap_or(fallback);
         nodes.push(AccessNode {
             key: format!("{key_prefix}:link:{index}"),
@@ -2041,21 +2281,6 @@ fn push_link_nodes(
             screen: false,
         });
     }
-}
-
-fn link_rect(frame: Rect, link: &crate::compose::ResolvedLinkRect) -> Rect {
-    let width = frame.width();
-    let height = frame.height();
-    Rect::from_min_max(
-        egui::pos2(
-            frame.min.x + link.rect.min.x * width,
-            frame.min.y + link.rect.min.y * height,
-        ),
-        egui::pos2(
-            frame.min.x + link.rect.max.x * width,
-            frame.min.y + link.rect.max.y * height,
-        ),
-    )
 }
 
 fn link_label(player: &Player<'_>, link: &Link) -> String {
@@ -2080,6 +2305,9 @@ fn push_master_nodes(player: &Player<'_>, slide: &Slide, nodes: &mut Vec<AccessN
         return;
     };
     for object in &master.objects {
+        if object.initial_state == "hidden" {
+            continue;
+        }
         if let Some(node) = master_content_node(player, master, object) {
             nodes.push(node);
         }
@@ -2150,9 +2378,9 @@ fn master_content_node(player: &Player<'_>, master: &Slide, object: &Object) -> 
     })
 }
 
-fn question_prompt_rect(player: &Player<'_>) -> Rect {
+fn question_prompt_rect(player: &Player<'_>, question: &coursecraft_course::Question) -> Rect {
     let size = player.course().slide_size;
-    crate::compose::question_prompt_rect(size.w as f32, size.h as f32)
+    crate::compose::question_prompt_rect_in(size.w as f32, size.h as f32, question.frame.as_ref())
 }
 
 fn sequence_order(player: &Player<'_>, question: &coursecraft_course::Question) -> Vec<String> {

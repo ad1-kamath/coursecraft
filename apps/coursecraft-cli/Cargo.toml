@@ -37,6 +37,7 @@ coursecraft-lti.workspace = true
 coursecraft-lti-server = { path = "../../apps/coursecraft-lti" }
 coursecraft-strict-lms.workspace = true
 ureq.workspace = true
+zip.workspace = true
 
 [lints]
 workspace = true

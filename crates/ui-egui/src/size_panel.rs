@@ -44,6 +44,31 @@ struct Target {
     all_locked: bool,
     /// The single selected object's picture source and crop, when it is a picture.
     picture: Option<(String, Option<coursecraft_course::CropRect>)>,
+    /// The rotation of the first selected object (`N104`).
+    rotation: f32,
+    /// The selected objects do not all have the same rotation.
+    mixed_rotation: bool,
+    /// While a state of the single selected object is edited: its name and what it overrides.
+    state: Option<StateOverrides>,
+}
+
+/// The rotation and flips the edited state overrides (`N92`).
+struct StateOverrides {
+    name: String,
+    rotation: Option<f32>,
+    flip_h: Option<bool>,
+    flip_v: Option<bool>,
+}
+
+/// Runs `add` in a disabled area with the Edit-State Mode tooltip when `locked`, else plainly.
+fn gated(ui: &mut Ui, locked: bool, add: impl FnOnce(&mut Ui)) {
+    if locked {
+        ui.add_enabled_ui(false, add)
+            .response
+            .on_disabled_hover_text(tl!(crate::STATE_LOCK_TOOLTIP));
+    } else {
+        add(ui);
+    }
 }
 
 fn target(editor: &Editor) -> Option<Target> {
@@ -71,13 +96,53 @@ fn target(editor: &Editor) -> Option<Target> {
             coursecraft_course::ObjectKind::Image { src, crop, .. } => Some((src.clone(), *crop)),
             _ => None,
         });
+    let rotations: Vec<f32> = ids
+        .iter()
+        .filter_map(|id| slide.object(id).map(|(o, _)| o.rotation))
+        .collect();
+    let rotation = rotations.first().copied().unwrap_or(0.0);
+    let mixed_rotation = rotations.iter().any(|r| (*r - rotation).abs() > 1e-3);
+    let state = editor
+        .ui
+        .editing_state
+        .as_ref()
+        .filter(|s| s.slide_id == slide.id && ids.len() == 1 && s.object_id == ids[0])
+        .and_then(|s| {
+            let (object, _) = slide.object(&s.object_id)?;
+            let def = object.states.iter().find(|st| st.name == s.state_name)?;
+            Some(StateOverrides {
+                name: def.name.clone(),
+                rotation: def.rotation,
+                flip_h: def.flip_h,
+                flip_v: def.flip_v,
+            })
+        });
     Some(Target {
         slide: slide.id.clone(),
         ids,
         one,
         all_locked,
         picture,
+        rotation,
+        mixed_rotation,
+        state,
     })
+}
+
+/// What the Scale fields measure against for an object that is not a picture: the object, the size
+/// it had when the base was taken, and the frame size it had then.
+type ScaleBase = (String, f32, f32, f32, f32);
+
+/// The size the Scale fields measure against, for an object with no original size of its own.
+///
+/// `stored` is the base kept from the last frame. It still holds when the object's frame is the
+/// one the base was last seen with (or the one the Scale field itself set). Any other change to the
+/// size (a drag on the canvas, an undo, a Size field) takes a new base from the current size.
+pub(crate) fn scale_base(stored: Option<&ScaleBase>, id: &str, frame: (f32, f32)) -> (f32, f32) {
+    match stored {
+        Some((sid, bw, bh, fw, fh)) if sid == id && (*fw, *fh) == frame => (*bw, *bh),
+        _ => frame,
+    }
 }
 
 /// The least and most a Scale field accepts, in percent.
@@ -155,6 +220,8 @@ enum Origin {
 
 fn sections(editor: &mut Editor, ui: &mut Ui, actions: &mut Vec<(&'static str, Json)>) {
     let Some(t) = target(editor) else {
+        // Nothing is selected: the next selection takes a fresh Scale base.
+        ui.data_mut(|d| d.remove::<ScaleBase>(egui::Id::unique("size_panel_scale_base")));
         section_header(&mut editor.ui.panels, ui, Section::Size);
         ui.label(
             egui::RichText::new(tl!("Select an object to set its size and position."))
@@ -172,7 +239,8 @@ fn sections(editor: &mut Editor, ui: &mut Ui, actions: &mut Vec<(&'static str, J
     let one_only = tl!("Select one object to set its size and position.");
 
     section_header(&mut editor.ui.panels, ui, Section::Size);
-    match t.one {
+    let state_locked = t.state.is_some();
+    gated(ui, state_locked, |ui| match t.one {
         Some((frame, ..)) => {
             let set_frame = |frame: Rect| {
                 (
@@ -220,13 +288,23 @@ fn sections(editor: &mut Editor, ui: &mut Ui, actions: &mut Vec<(&'static str, J
                     .and_then(|natural| original_size(natural, *crop))
             });
             let base_id = egui::Id::unique("size_panel_scale_base");
-            let stored = ui.data(|d| d.get_temp::<(String, f32, f32)>(base_id));
-            let base = match (original, stored) {
-                (Some(o), _) => o,
-                (None, Some((id, w, h))) if id == t.ids[0] => (w, h),
-                _ => (frame.w, frame.h),
+            let stored = ui.data(|d| d.get_temp::<ScaleBase>(base_id));
+            let base = match original {
+                Some(o) => o,
+                None => scale_base(stored.as_ref(), &t.ids[0], (frame.w, frame.h)),
             };
-            ui.data_mut(|d| d.insert_temp(base_id, (t.ids[0].clone(), base.0, base.1)));
+            ui.data_mut(|d| {
+                d.insert_temp(
+                    base_id,
+                    (t.ids[0].clone(), base.0, base.1, frame.w, frame.h),
+                );
+            });
+            // A Scale field sets the frame itself, so it keeps the base.
+            let keep_base = |ui: &Ui, new: Rect| {
+                ui.data_mut(|d| {
+                    d.insert_temp(base_id, (t.ids[0].clone(), base.0, base.1, new.w, new.h));
+                });
+            };
             inspector_row(ui, tl!("Scale width"), |ui| {
                 if let Some(pct) = committed_number(
                     ui,
@@ -235,7 +313,9 @@ fn sections(editor: &mut Editor, ui: &mut Ui, actions: &mut Vec<(&'static str, J
                     SCALE_RANGE,
                     "%",
                 ) {
-                    actions.push(set_frame(scaled_frame(frame, base, pct, true, lock_aspect)));
+                    let new = scaled_frame(frame, base, pct, true, lock_aspect);
+                    keep_base(ui, new);
+                    actions.push(set_frame(new));
                 }
             });
             inspector_row(ui, tl!("Scale height"), |ui| {
@@ -246,13 +326,9 @@ fn sections(editor: &mut Editor, ui: &mut Ui, actions: &mut Vec<(&'static str, J
                     SCALE_RANGE,
                     "%",
                 ) {
-                    actions.push(set_frame(scaled_frame(
-                        frame,
-                        base,
-                        pct,
-                        false,
-                        lock_aspect,
-                    )));
+                    let new = scaled_frame(frame, base, pct, false, lock_aspect);
+                    keep_base(ui, new);
+                    actions.push(set_frame(new));
                 }
             });
             if t.picture.is_some() {
@@ -281,11 +357,16 @@ fn sections(editor: &mut Editor, ui: &mut Ui, actions: &mut Vec<(&'static str, J
                     .color(coursecraft_render::palette(ui.ctx()).text_secondary),
             );
         }
-    }
+    });
 
     inspector_separator(ui);
     section_header(&mut editor.ui.panels, ui, Section::Rotate);
-    let rotation = t.one.map_or(0.0, |(_, r, ..)| r);
+    // In Edit-State Mode the state's own rotation shows, and changes patch the state, never the
+    // base object (`N92`).
+    let rotation = match &t.state {
+        Some(state) => state.rotation.unwrap_or(t.rotation),
+        None => t.rotation,
+    };
     inspector_row(ui, tl!("Rotation"), |ui| {
         if let Some(degrees) = committed_number(
             ui,
@@ -294,94 +375,185 @@ fn sections(editor: &mut Editor, ui: &mut Ui, actions: &mut Vec<(&'static str, J
             -360.0..=360.0,
             "°",
         ) {
-            actions.push((
-                "object.set_rotation",
-                json!({ "slide": t.slide, "objects": objects, "degrees": degrees }),
-            ));
+            actions.push(match &t.state {
+                Some(state) => (
+                    "object.patch_state",
+                    json!({
+                        "slide": t.slide,
+                        "object": t.ids[0],
+                        "name": state.name,
+                        "patch": { "rotation": degrees },
+                    }),
+                ),
+                None => (
+                    "object.set_rotation",
+                    json!({ "slide": t.slide, "objects": objects, "degrees": degrees }),
+                ),
+            });
         }
     });
+    if t.mixed_rotation {
+        ui.label(
+            egui::RichText::new(tl!("The rotations differ. The first object's is shown."))
+                .color(coursecraft_render::palette(ui.ctx()).text_secondary),
+        );
+    }
     ui.horizontal_wrapped(|ui| {
         for (label, axis) in [
             (tl!("Flip horizontal"), "horizontal"),
             (tl!("Flip vertical"), "vertical"),
         ] {
             if ui.button(label).clicked() {
-                actions.push((
-                    "object.flip",
-                    json!({ "slide": t.slide, "objects": objects, "axis": axis }),
-                ));
+                actions.push(match &t.state {
+                    Some(state) => {
+                        let (field, now) = if axis == "horizontal" {
+                            ("flip_h", state.flip_h.or(t.one.map(|o| o.2)))
+                        } else {
+                            ("flip_v", state.flip_v.or(t.one.map(|o| o.3)))
+                        };
+                        (
+                            "object.patch_state",
+                            json!({
+                                "slide": t.slide,
+                                "object": t.ids[0],
+                                "name": state.name,
+                                "patch": { field: !now.unwrap_or(false) },
+                            }),
+                        )
+                    }
+                    None => (
+                        "object.flip",
+                        json!({ "slide": t.slide, "objects": objects, "axis": axis }),
+                    ),
+                });
             }
         }
     });
 
     inspector_separator(ui);
     section_header(&mut editor.ui.panels, ui, Section::Position);
-    if let Some((frame, ..)) = t.one {
-        inspector_row(ui, tl!("From"), |ui| {
-            egui::ComboBox::from_id_salt("size_panel_origin_combo")
-                .selected_text(match origin {
-                    Origin::TopLeft => tl!("Top left corner"),
-                    Origin::Centre => tl!("Centre"),
-                })
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut origin, Origin::TopLeft, tl!("Top left corner"));
-                    ui.selectable_value(&mut origin, Origin::Centre, tl!("Centre"));
-                });
-        });
-        let (dx, dy) = match origin {
-            Origin::TopLeft => (0.0, 0.0),
-            Origin::Centre => (frame.w / 2.0, frame.h / 2.0),
-        };
-        let set_pos = |x: f32, y: f32| {
-            (
-                "object.set_frame",
-                json!({ "slide": t.slide, "object": t.ids[0], "frame": Rect { x, y, ..frame } }),
-            )
-        };
-        inspector_row(ui, tl!("Horizontal"), |ui| {
-            if let Some(x) = committed_value(
-                ui,
-                egui::Id::unique(("size_panel_x", origin == Origin::Centre)),
-                frame.x + dx,
-                -MAX_SPAN..=MAX_SPAN,
-            ) {
-                actions.push(set_pos(x - dx, frame.y));
-            }
-        });
-        inspector_row(ui, tl!("Vertical"), |ui| {
-            if let Some(y) = committed_value(
-                ui,
-                egui::Id::unique(("size_panel_y", origin == Origin::Centre)),
-                frame.y + dy,
-                -MAX_SPAN..=MAX_SPAN,
-            ) {
-                actions.push(set_pos(frame.x, y - dy));
-            }
-        });
-    } else {
-        ui.label(
-            egui::RichText::new(one_only)
-                .color(coursecraft_render::palette(ui.ctx()).text_secondary),
-        );
-    }
+    gated(ui, state_locked, |ui| {
+        if let Some((frame, ..)) = t.one {
+            inspector_row(ui, tl!("From"), |ui| {
+                egui::ComboBox::from_id_salt("size_panel_origin_combo")
+                    .selected_text(match origin {
+                        Origin::TopLeft => tl!("Top left corner"),
+                        Origin::Centre => tl!("Centre"),
+                    })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut origin, Origin::TopLeft, tl!("Top left corner"));
+                        ui.selectable_value(&mut origin, Origin::Centre, tl!("Centre"));
+                    });
+            });
+            let (dx, dy) = match origin {
+                Origin::TopLeft => (0.0, 0.0),
+                Origin::Centre => (frame.w / 2.0, frame.h / 2.0),
+            };
+            let set_pos = |x: f32, y: f32| {
+                (
+                    "object.set_frame",
+                    json!({ "slide": t.slide, "object": t.ids[0], "frame": Rect { x, y, ..frame } }),
+                )
+            };
+            inspector_row(ui, tl!("Horizontal"), |ui| {
+                if let Some(x) = committed_value(
+                    ui,
+                    egui::Id::unique(("size_panel_x", origin == Origin::Centre)),
+                    frame.x + dx,
+                    -MAX_SPAN..=MAX_SPAN,
+                ) {
+                    actions.push(set_pos(x - dx, frame.y));
+                }
+            });
+            inspector_row(ui, tl!("Vertical"), |ui| {
+                if let Some(y) = committed_value(
+                    ui,
+                    egui::Id::unique(("size_panel_y", origin == Origin::Centre)),
+                    frame.y + dy,
+                    -MAX_SPAN..=MAX_SPAN,
+                ) {
+                    actions.push(set_pos(frame.x, y - dy));
+                }
+            });
+        } else {
+            ui.label(
+                egui::RichText::new(one_only)
+                    .color(coursecraft_render::palette(ui.ctx()).text_secondary),
+            );
+        }
+    });
 
     inspector_separator(ui);
     let mut locked = t.all_locked;
-    if ui
-        .checkbox(&mut locked, tl!("Lock position and size"))
-        .on_hover_text(tl!(
-            "Locked objects cannot be moved or resized on the canvas."
-        ))
-        .changed()
-    {
-        actions.push((
-            "object.lock",
-            json!({ "slide": t.slide, "objects": objects, "locked": locked }),
-        ));
-    }
+    gated(ui, state_locked, |ui| {
+        if ui
+            .checkbox(&mut locked, tl!("Lock position and size"))
+            .on_hover_text(tl!(
+                "Locked objects cannot be moved or resized on the canvas."
+            ))
+            .changed()
+        {
+            actions.push((
+                "object.lock",
+                json!({ "slide": t.slide, "objects": objects, "locked": locked }),
+            ));
+        }
+    });
 
     ui.data_mut(|d| {
         d.insert_temp(lock_id, lock_aspect);
         d.insert_temp(origin_id, origin);
     });
+}
+
+#[cfg(test)]
+mod neon_tests {
+    use super::*;
+    use crate::test_harness::TestHarness;
+
+    fn course() -> coursecraft_course::Course {
+        serde_json::from_value(json!({
+            "schema_version": 1, "id": "c", "title": "C",
+            "slide_size": { "w": 1280, "h": 720 },
+            "scenes": [{ "id": "sc", "title": "S", "slides": [{
+                "id": "s1", "title": "One",
+                "objects": [
+                    { "id": "a", "frame": { "x": 10.0, "y": 10.0, "w": 100.0, "h": 50.0 },
+                      "rotation": 45.0,
+                      "kind": { "type": "shape", "shape": "rectangle", "fill": "#336699" },
+                      "states": [{ "name": "hover" }] },
+                    { "id": "b", "frame": { "x": 200.0, "y": 10.0, "w": 100.0, "h": 50.0 },
+                      "rotation": 45.0,
+                      "kind": { "type": "shape", "shape": "rectangle", "fill": "#336699" } }
+                ]
+            }] }]
+        }))
+        .expect("course")
+    }
+
+    /// `N104`: two objects with the same rotation show that rotation, not 0.
+    #[test]
+    fn n104_multi_selection_shows_the_shared_rotation() {
+        let mut h = TestHarness::new(course());
+        h.editor
+            .selection
+            .set_many(["a".to_owned(), "b".to_owned()]);
+        let t = target(&h.editor).expect("target");
+        assert!((t.rotation - 45.0).abs() < 1e-3);
+        assert!(!t.mixed_rotation);
+        assert!(t.state.is_none());
+    }
+
+    /// `N92`: in Edit-State Mode the panel knows the edited state.
+    #[test]
+    fn n92_edit_state_mode_targets_the_state() {
+        let mut h = TestHarness::new(course());
+        h.editor.selection.set_many(["a".to_owned()]);
+        h.editor.enter_edit_state("s1", "a", "hover");
+        let t = target(&h.editor).expect("target");
+        let state = t.state.expect("the edited state");
+        assert_eq!(state.name, "hover");
+        // The panel draws without error and offers nothing to change the base frame.
+        h.idle_frame();
+    }
 }

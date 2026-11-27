@@ -436,14 +436,21 @@ fn save_template(editor: &mut Editor) {
 
 /// A choice on the right side: a wide button with a line of help.
 fn choice(ui: &mut Ui, label: &str, help: &str, enabled: bool, why: &str) -> bool {
+    let (label, help) = (tl!(label), tl!(help));
+    choice_text(ui, label, help, enabled, why)
+}
+
+/// [`choice`] for text that is not interface text: a file name and its path. They never go
+/// through the lookup (a file called `Save` stays `Save`), and read left to right (`N106`).
+fn choice_text(ui: &mut Ui, label: &str, help: &str, enabled: bool, why: &str) -> bool {
     let resp = ui
         .add_enabled(
             enabled,
-            Button::new(RichText::new(tl!(label)).size(15.0)).min_size(vec2(320.0, 34.0)),
+            Button::new(RichText::new(label).size(15.0)).min_size(vec2(320.0, 34.0)),
         )
         .on_disabled_hover_text(why);
     if !help.is_empty() {
-        ui.label(coursecraft_render::small(tl!(help)));
+        ui.label(coursecraft_render::small(help));
     }
     ui.add_space(8.0);
     resp.clicked()
@@ -490,8 +497,16 @@ fn section_detail(
                                 ui.allocate_exact_size(vec2(96.0, 54.0), egui::Sense::hover());
                             crate::welcome::paint_recent_thumbnail(ui, preview, thumb);
                             ui.add_space(8.0);
-                            ui.vertical(|ui| choice(ui, name, full_path, true, ""))
-                                .inner
+                            ui.vertical(|ui| {
+                                choice_text(
+                                    ui,
+                                    &craft_i18n::ltr(name),
+                                    &craft_i18n::ltr(full_path),
+                                    true,
+                                    "",
+                                )
+                            })
+                            .inner
                         })
                         .inner;
                     if clicked {

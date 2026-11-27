@@ -98,6 +98,9 @@ Layers and Notes move from the Timeline panel to Workspace panels of their own, 
 4. **Every panel closes,** except Canvas. A closed panel comes back from its ↘, from View ›
    Panels, or from the context menu entry that names it. Docking off (Preferences › Interface):
    the panel opens as a floating window with a ×.
+   Tab names stay whole: A tab is never narrower than the longest inspector name (Animate). When
+   tabs do not fit, the rest go to the tab strip's … menu, which lists every name in full. A tab cut
+   to "Ani…" is a bug (`inspector_tab_names_are_never_cut_to_three_letters`).
 5. **One body of code per section.** A section (Font, Fill, Position…) is one function drawn in
    two modes: *quick* in an inspector, *full* in its panel. An inspector section header carries
    its own ↘ that opens the full panel at that section. No control is written twice.

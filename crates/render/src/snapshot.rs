@@ -43,6 +43,7 @@ fn snapshot_player_state<'a>(
     course: &'a Course,
     slide: Option<&str>,
     paused: bool,
+    at_end: bool,
 ) -> Result<(Player<'a>, String), RenderError> {
     let mut player = Player::new(course).map_err(playable_error)?;
     player.handle(&Input::Start);
@@ -72,7 +73,13 @@ fn snapshot_player_state<'a>(
         }
     }
     if target.duration_ms > 0 {
-        state.base.ms = target.duration_ms / 2;
+        // The ended view shows the slide at its real end, so objects that enter late (after the
+        // midpoint, or after a pause point) are in it. Every other view shows the midpoint.
+        state.base.ms = if at_end {
+            target.duration_ms
+        } else {
+            target.duration_ms / 2
+        };
     }
     let mut player = Player::resume(course, state).map_err(playable_error)?;
     if paused {
@@ -125,7 +132,8 @@ pub fn snapshot_player(
         )
     } else {
         let paused = select == PlayerSnapshotSelect::Paused;
-        let (player, id) = snapshot_player_state(&course, slide, paused)?;
+        let at_end = select == PlayerSnapshotSelect::Ended;
+        let (player, id) = snapshot_player_state(&course, slide, paused, at_end)?;
         (Some(player), id)
     };
 
@@ -292,6 +300,53 @@ mod tests {
         assert!(
             r < 120 && g < 120 && b < 120,
             "the ended overlay must dim the slide: got ({r}, {g}, {b})"
+        );
+    }
+
+    fn late_slide_course(start_ms: u32) -> Course {
+        let json = serde_json::json!({
+            "schema_version": 1, "id": "late", "title": "Late",
+            "slide_size": { "w": 400, "h": 200 },
+            "scenes": [{ "id": "sc", "title": "S", "slides": [{
+                "id": "long", "title": "Long", "duration_ms": 10000,
+                "objects": [{
+                    "id": "late-box",
+                    "kind": { "type": "shape", "shape": "rectangle", "fill": "#FFFFFF" },
+                    "frame": { "x": 0.0, "y": 0.0, "w": 400.0, "h": 200.0 },
+                    "timing": { "start_ms": start_ms }
+                }]
+            }] }]
+        });
+        Course::from_json(&json.to_string()).expect("valid course")
+    }
+
+    /// The ended view draws the slide at its real end time, not at the midpoint every other
+    /// view uses, so an object that enters after the midpoint is in it.
+    #[test]
+    fn snapshot_player_ended_shows_objects_that_enter_late() {
+        let course = late_slide_course(8000);
+        let (player, _) = snapshot_player_state(&course, Some("long"), false, true).expect("state");
+        assert_eq!(player.state().base.ms, 10_000);
+        let (player, _) =
+            snapshot_player_state(&course, Some("long"), false, false).expect("state");
+        assert_eq!(player.state().base.ms, 5_000);
+
+        let snap = |start_ms| {
+            snapshot_player(
+                late_slide_course(start_ms),
+                Some("long"),
+                &NoMedia,
+                (400, 300),
+                1.0,
+                PlayerSnapshotSelect::Ended,
+            )
+            .expect("ended snapshot")
+        };
+        let late = snap(8000);
+        let from_start = snap(0);
+        assert_eq!(
+            late.pixels, from_start.pixels,
+            "an object entering at 8 s is in the ended view of a 10 s slide"
         );
     }
 

@@ -394,3 +394,23 @@ fn highlight_and_shadow_survive_find_and_replace() {
     assert_eq!(runs[0].shadow, Some(true));
     assert!(runs[0].highlight.is_some());
 }
+
+#[test]
+fn an_empty_or_out_of_range_selection_changes_nothing_but_0_0_means_all() {
+    let mut s = Session::blank("T");
+    let id = add_text(
+        &mut s,
+        json!({ "type": "text", "text": "hello", "runs": [{ "text": "hel", "bold": true }, { "text": "lo" }] }),
+    );
+    assert_eq!(case_of(&mut s, &id, "upper", (2, 2)), "hello");
+    assert_eq!(case_of(&mut s, &id, "upper", (10, 20)), "hello");
+    assert_eq!(case_of(&mut s, &id, "upper", (5, 5)), "hello");
+    ok(
+        &mut s,
+        "text.clear_formatting",
+        json!({ "slide": "slide1", "object": id, "start": 2, "end": 2 }),
+    );
+    assert_eq!(text_of(&s, &id).1.first().and_then(|r| r.bold), Some(true));
+    assert_eq!(case_of(&mut s, &id, "upper", (0, 0)), "HELLO");
+    assert_eq!(case_of(&mut s, &id, "lower", (3, 99)), "HELlo");
+}

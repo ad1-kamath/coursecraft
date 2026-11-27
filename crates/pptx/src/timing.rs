@@ -150,7 +150,6 @@ pub(crate) fn apply_slide_timing(
                     collect_effects_from_par(
                         step_par,
                         0,
-                        0,
                         None,
                         &mut walker,
                         tracker,
@@ -170,7 +169,6 @@ pub(crate) fn apply_slide_timing(
                 for step_par in seq_children.children_named("par") {
                     collect_effects_from_par(
                         step_par,
-                        0,
                         0,
                         None,
                         &mut walker,
@@ -200,7 +198,6 @@ pub(crate) fn apply_slide_timing(
 fn collect_effects_from_par<'a>(
     par: &'a XmlNode,
     depth: usize,
-    inherited_delay_ms: u32,
     inherited_step: Option<StepKind>,
     walker: &mut TimingWalker,
     tracker: &mut SlideTracker,
@@ -214,10 +211,11 @@ fn collect_effects_from_par<'a>(
         return;
     };
 
+    // Only the effect's own delay counts. PowerPoint writes the delay of the enclosing group
+    // `par` as the end time of what came before it (or the group's start in the click step),
+    // and the schedule below already follows the earlier effects, so adding it would count
+    // that time twice.
     let own_delay = parse_ctn_delay_ms(ctn);
-    let total_delay = inherited_delay_ms
-        .saturating_add(own_delay)
-        .min(MAX_DELAY_MS);
     let own_step = parse_step_kind(ctn.attr("nodeType")).or(inherited_step);
 
     if let Some(preset_class) = ctn.attr("presetClass").and_then(parse_preset_class) {
@@ -245,7 +243,7 @@ fn collect_effects_from_par<'a>(
             preset_id,
             preset_subtype,
             step_kind,
-            delay_ms: total_delay,
+            delay_ms: own_delay,
             duration_ms,
             easing,
             spid,
@@ -260,7 +258,6 @@ fn collect_effects_from_par<'a>(
             collect_effects_from_par(
                 child_par,
                 depth.saturating_add(1),
-                total_delay,
                 own_step,
                 walker,
                 tracker,
@@ -756,8 +753,18 @@ fn parse_motion_path_grammar(path_str: &str) -> Option<Vec<(f64, f64)>> {
 fn tokenize_motion_path(path_str: &str) -> Vec<String> {
     let mut tokens = Vec::new();
     let mut current = String::new();
-    for ch in path_str.chars() {
-        if ch.is_ascii_whitespace() || ch == ',' {
+    let mut chars = path_str.chars().peekable();
+    while let Some(ch) = chars.next() {
+        // `e` or `E` inside a number such as `1.5e-5` is an exponent, not the
+        // end-of-path command (N51).
+        let is_exponent = matches!(ch, 'e' | 'E')
+            && current.ends_with(|c: char| c.is_ascii_digit() || c == '.')
+            && chars
+                .peek()
+                .is_some_and(|next| next.is_ascii_digit() || matches!(next, '+' | '-'));
+        if is_exponent {
+            current.push(ch);
+        } else if ch.is_ascii_whitespace() || ch == ',' {
             if !current.is_empty() {
                 tokens.push(std::mem::take(&mut current));
             }
@@ -1529,5 +1536,100 @@ mod tests {
                 .iter()
                 .any(|i| i.kind == SkipKind::Animation && i.note.contains("repeatCount=3000"))
         );
+    }
+
+    /// One effect as PowerPoint writes it: the effect `par` with its own delay and the
+    /// behaviour `cTn` that holds the duration.
+    fn real_effect(id: u32, spid: u32, node_type: &str, own_delay: u32, dur: u32) -> String {
+        format!(
+            r#"<p:par><p:cTn id="{id}" presetID="10" presetClass="entr" presetSubtype="0" fill="hold" nodeType="{node_type}">
+              <p:stCondLst><p:cond delay="{own_delay}"/></p:stCondLst>
+              <p:childTnLst>
+                <p:set><p:cBhvr><p:cTn id="{a}" dur="1" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid="{spid}"/></p:tgtEl></p:cBhvr></p:set>
+                <p:animEffect transition="in" filter="fade"><p:cBhvr><p:cTn id="{b}" dur="{dur}"/><p:tgtEl><p:spTgt spid="{spid}"/></p:tgtEl></p:cBhvr></p:animEffect>
+              </p:childTnLst></p:cTn></p:par>"#,
+            a = id + 100,
+            b = id + 200
+        )
+    }
+
+    /// PowerPoint's middle `par`: its delay is where the group starts inside the click step
+    /// (the end of what came before), not an extra delay of the effects inside it.
+    fn real_group(id: u32, group_delay: u32, effects: &[String]) -> String {
+        format!(
+            r#"<p:par><p:cTn id="{id}" fill="hold"><p:stCondLst><p:cond delay="{group_delay}"/></p:stCondLst><p:childTnLst>{}</p:childTnLst></p:cTn></p:par>"#,
+            effects.concat()
+        )
+    }
+
+    /// Slide timing with one click step holding `groups`; returns each object's start.
+    fn starts_for(groups: &[String], spids: &[u32]) -> Vec<u32> {
+        let xml = format!(
+            r#"<p:timing xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:tnLst>
+            <p:par><p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot"><p:childTnLst>
+              <p:seq concurrent="1" nextAc="seek"><p:cTn id="2" dur="indefinite" nodeType="mainSeq"><p:childTnLst>
+                <p:par><p:cTn id="3" fill="hold"><p:stCondLst><p:cond delay="indefinite"/></p:stCondLst><p:childTnLst>{}</p:childTnLst></p:cTn></p:par>
+              </p:childTnLst></p:cTn></p:seq>
+            </p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>"#,
+            groups.concat()
+        );
+        let tree = parse_xml_tree(&xml, "slide1.xml", 64).expect("valid xml");
+        let mut objects: Vec<Object> = spids
+            .iter()
+            .map(|s| dummy_object(&format!("o{s}"), &format!("Obj {s}")))
+            .collect();
+        let mut tracker = SlideTracker::new(1);
+        for s in spids {
+            tracker
+                .pptx_ids
+                .insert(s.to_string(), vec![format!("o{s}")]);
+        }
+        let layout = SlideLayout::from_emu(12_192_000.0, 6_858_000.0);
+        let mut triggers = Vec::new();
+        apply_slide_timing(&tree, &layout, &mut objects, &mut triggers, &mut tracker);
+        objects.iter().map(|o| o.timing.start_ms).collect()
+    }
+
+    #[test]
+    fn after_previous_does_not_count_the_group_delay_twice() {
+        // A on click (500 ms), B after previous. PowerPoint writes group delay 500 on B's par.
+        let a = real_group(4, 0, &[real_effect(5, 2, "clickEffect", 0, 500)]);
+        let b = real_group(8, 500, &[real_effect(9, 3, "afterEffect", 0, 500)]);
+        let starts = starts_for(&[a, b], &[2, 3]);
+        // A starts after the click gap; B starts exactly when A ends.
+        assert_eq!(starts, vec![500, 1000]);
+    }
+
+    #[test]
+    fn extra_delays_follow_the_effect_not_the_group() {
+        // A (click, 500), B after previous with an extra 300 ms delay on the effect.
+        let a = real_group(4, 0, &[real_effect(5, 2, "clickEffect", 0, 500)]);
+        let b = real_group(8, 500, &[real_effect(9, 3, "afterEffect", 300, 500)]);
+        assert_eq!(starts_for(&[a, b], &[2, 3]), vec![500, 1300]);
+        // C follows B (500 ms, group delay 1000 = the end of B's group before it) and D is
+        // with C with a 200 ms delay: D starts 200 ms after C, not 1000 ms later.
+        let a = real_group(4, 0, &[real_effect(5, 2, "clickEffect", 0, 500)]);
+        let c = real_group(
+            8,
+            500,
+            &[
+                real_effect(9, 3, "afterEffect", 0, 500),
+                real_effect(12, 4, "withEffect", 200, 500),
+            ],
+        );
+        assert_eq!(starts_for(&[a, c], &[2, 3, 4]), vec![500, 1000, 1200]);
+    }
+
+    #[test]
+    fn with_previous_in_the_first_group_starts_with_the_click_step() {
+        let a = real_group(
+            4,
+            0,
+            &[
+                real_effect(5, 2, "clickEffect", 0, 500),
+                real_effect(8, 3, "withEffect", 0, 500),
+            ],
+        );
+        assert_eq!(starts_for(&[a], &[2, 3]), vec![500, 500]);
     }
 }

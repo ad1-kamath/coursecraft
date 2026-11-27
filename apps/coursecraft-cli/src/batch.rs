@@ -267,7 +267,7 @@ fn load(path: &Path) -> Res<Loaded> {
 // ------------------------------------------------------------------- media
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum MediaKind {
+pub(crate) enum MediaKind {
     Image,
     Audio,
     Video,
@@ -285,7 +285,7 @@ impl MediaKind {
     }
 }
 
-fn kind_from_bytes(bytes: &[u8]) -> Option<MediaKind> {
+pub(crate) fn kind_from_bytes(bytes: &[u8]) -> Option<MediaKind> {
     let starts = |magic: &[u8]| bytes.starts_with(magic);
     let at = |from: usize, magic: &[u8]| {
         bytes
@@ -304,7 +304,18 @@ fn kind_from_bytes(bytes: &[u8]) -> Option<MediaKind> {
     if starts(b"ID3") || starts(b"OggS") || starts(b"fLaC") || starts(&[0xFF, 0xFB]) {
         return Some(MediaKind::Audio);
     }
-    if at(4, b"ftyp") || starts(&[0x1A, 0x45, 0xDF, 0xA3]) {
+    if at(4, b"ftyp") {
+        // The brand after `ftyp` says what the file is: iTunes audio, a still
+        // image (AVIF, HEIC) or, for anything else, a video.
+        let brand = bytes.get(8..12).unwrap_or(&[]);
+        return Some(match brand {
+            b"M4A " | b"M4B " | b"M4P " | b"F4A " | b"F4B " => MediaKind::Audio,
+            b"avif" | b"avis" | b"heic" | b"heix" | b"heim" | b"heis" | b"hevc" | b"mif1"
+            | b"msf1" => MediaKind::Image,
+            _ => MediaKind::Video,
+        });
+    }
+    if starts(&[0x1A, 0x45, 0xDF, 0xA3]) {
         return Some(MediaKind::Video);
     }
     let head = bytes.get(..bytes.len().min(512)).unwrap_or(&[]);
@@ -346,7 +357,9 @@ fn replace_media(media: &mut [(String, Arc<[u8]>)], item: &Replacement) -> Res<b
     let bytes = std::fs::read(&item.file).map_err(|e| format!("{}: {e}", item.file.display()))?;
     let old = media_kind(&item.path, &slot.1);
     let new = media_kind(&item.file.to_string_lossy(), &bytes);
-    if new == MediaKind::Other || old != new {
+    // Fonts, captions, Lottie files and PDFs are `Other`: they may replace a
+    // file of the same kind, but never an image, sound or video.
+    if old != new {
         return Err(format!(
             "{} is {} but {:?} is {}",
             item.file.display(),
@@ -580,6 +593,27 @@ fn build_publish(
     Ok(Some((dir.join(format!("{}.zip", stem(name))), files)))
 }
 
+/// Courses from different folders can share a file name. Each package gets its
+/// own file: `lesson.zip`, then `lesson-2.zip`, and so on.
+pub(crate) fn unique_package_path(target: PathBuf, taken: &mut HashSet<String>) -> PathBuf {
+    let stem = target
+        .file_stem()
+        .map_or_else(|| "course".to_owned(), |s| s.to_string_lossy().into_owned());
+    let mut number = 1u32;
+    loop {
+        let name = if number == 1 {
+            format!("{stem}.zip")
+        } else {
+            format!("{stem}-{number}.zip")
+        };
+        let candidate = target.with_file_name(&name);
+        if taken.insert(format!("package:{}", candidate.display())) {
+            return candidate;
+        }
+        number = number.saturating_add(1);
+    }
+}
+
 fn write_publish(package: Option<(PathBuf, Vec<PackageFile>)>) -> Res<()> {
     let Some((target, files)) = package else {
         return Ok(());
@@ -613,7 +647,8 @@ fn process(job: &Job<'_>, path: &Path, taken: &mut HashSet<String>) -> Res<Outco
         }
         return Ok(outcome);
     }
-    let package = build_publish(job, &name, &edited)?;
+    let package = build_publish(job, &name, &edited)?
+        .map(|(target, files)| (unique_package_path(target, taken), files));
     if let Some(out_dir) = &job.args.out_dir {
         if !taken.insert(name.clone()) {
             return Err(format!(

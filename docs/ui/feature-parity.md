@@ -65,7 +65,7 @@ Counted from the tables below; recount when a row changes.
 | Slide layers (new, duplicate, delete, dim, properties) | `layer.*` | ✅ | — |
 | Slide properties: advance, revisit, prev/next/submit | `slide.update`, `slide.set_player_overrides` | ✅ | — |
 | Swipe gestures (prev/next) | — | ⛔ | M41 |
-| Focus order | Home › Slide › Focus Order window (`focus_order.rs`): the slide's Tab order from `coursecraft_render::focus_order_candidates`, Move Up/Down or drag, Reset to default order; OK writes 1..n as one undo step | ✅ | — |
+| Focus order | Home › Slide › Focus Order window (`focus_order.rs`): the slide's Tab order from `coursecraft_render::focus_order_candidates`, Move Up/Down or drag inside a layer section (base first), Reset to default order; OK writes 1..n as one undo step. Text and pictures are not listed: the player reads them in drawing order, not `focus_order` (gap, not counted) | ✅ | — |
 | Themes: colours, fonts, gallery | `course.set_theme`, `theme.*`; Design › Themes gallery of built-in themes; Theme dialog uses the shared font picker; Design › Fonts ▾ offers font pairs and Create New Theme Fonts… | ✅ | — |
 
 ## Text
@@ -117,7 +117,7 @@ Counted from the tables below; recount when a row changes.
 | Recolor | `course.recolor` | 🟡 SVG only | M40 |
 | Reset picture | | 🟡 | M40 |
 | Picture effects | | 🟡 as shape effects | M40 |
-| Button styles, fill, border, effects | | 🟡 | M40 |
+| Button styles, fill, border, effects | Button Tools › Format: Button Fill opens the Format inspector, Effects open Shape Style; no button border yet | 🟡 | M40 |
 | On Click on a button | trigger editor with the click event and selected button pre-filled | ✅ | — |
 | Reflection, soft edges | — | ⛔ | M40 |
 | Change shape (keep format) | — | ⛔ | M40 |

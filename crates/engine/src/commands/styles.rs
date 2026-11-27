@@ -213,6 +213,22 @@ fn patched_style(cmd: &str, base: &TextStyle, patch: &Json) -> Result<TextStyle>
     Ok(style)
 }
 
+/// Refuse an edit that took a valid course to an invalid one. Named text
+/// styles are course-wide, so this always checks the whole course, even when
+/// the command scopes its undo to one slide.
+fn keep_course_valid(s: &mut Session, was_valid: bool) -> Result<()> {
+    if !was_valid {
+        return Ok(());
+    }
+    match s.course.first_error() {
+        Some(i) => Err(EngineError::Invalid(format!("{} ({})", i.message, i.path))),
+        None => {
+            s.mark_validated_valid();
+            Ok(())
+        }
+    }
+}
+
 fn paragraph_param(cmd: &str, value: &Json) -> Result<Option<Paragraph>> {
     if value.is_null() {
         return Ok(None);
@@ -230,6 +246,7 @@ fn paragraph_param(cmd: &str, value: &Json) -> Result<Option<Paragraph>> {
 /// formatting.
 pub(super) fn text_style_create(s: &mut Session, p: &Json) -> Result<Json> {
     const C: &str = "text_style.create";
+    let was_valid = s.is_playable();
     let name = name_param(C, req(C, p, "name")?, "text style")?;
     if s.course.text_styles.len() >= MAX_TEXT_STYLES {
         return Err(bad(
@@ -270,6 +287,7 @@ pub(super) fn text_style_create(s: &mut Session, p: &Json) -> Result<Json> {
         style,
         paragraphs,
     });
+    keep_course_valid(s, was_valid)?;
     Ok(json!({ "id": id }))
 }
 
@@ -353,6 +371,7 @@ fn reapply(course: &mut Course, index: usize) -> usize {
 /// overrides inside the text are kept.
 pub(super) fn text_style_update(s: &mut Session, p: &Json) -> Result<Json> {
     const C: &str = "text_style.update";
+    let was_valid = s.is_playable();
     let id: String = req(C, p, "id")?;
     let index = style_index(&s.course, &id)?;
     let name: Option<String> = opt(C, p, "name")?;
@@ -387,6 +406,7 @@ pub(super) fn text_style_update(s: &mut Session, p: &Json) -> Result<Json> {
         }
     }
     let updated = reapply(&mut s.course, index);
+    keep_course_valid(s, was_valid)?;
     Ok(json!({ "updated": updated }))
 }
 
@@ -416,6 +436,7 @@ pub(super) fn text_style_delete(s: &mut Session, p: &Json) -> Result<Json> {
 /// `clear_overrides`.
 pub(super) fn text_style_apply(s: &mut Session, p: &Json) -> Result<Json> {
     const C: &str = "text_style.apply";
+    let was_valid = s.is_playable();
     let id: String = req(C, p, "id")?;
     let sid: String = req(C, p, "slide")?;
     let objects = objects_param(C, p)?;
@@ -435,5 +456,6 @@ pub(super) fn text_style_apply(s: &mut Session, p: &Json) -> Result<Json> {
         }
         sync_point_text_after_named_style(object);
     }
+    keep_course_valid(s, was_valid)?;
     Ok(json!({ "applied": objects.len() }))
 }

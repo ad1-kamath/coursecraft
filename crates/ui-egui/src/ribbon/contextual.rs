@@ -291,7 +291,9 @@ pub fn run(editor: &mut Editor, op: ContextOp, _requests: &mut Vec<EditorRequest
         | ContextOp::TableDeleteRow
         | ContextOp::TableDeleteColumn
         | ContextOp::TableSplit => table_edit(editor, op),
-        ContextOp::QuestionPanel => editor.ui.bottom_tab = crate::BottomTab::Question,
+        ContextOp::QuestionPanel => {
+            crate::dock::request_bottom_tab(editor, crate::BottomTab::Question);
+        }
         ContextOp::QuestionShuffle => {
             let Some(slide) = editor.session.course.slide(&editor.selection.slide) else {
                 return;

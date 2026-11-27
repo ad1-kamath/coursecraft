@@ -257,6 +257,28 @@ fn a_colour_keeps_its_alpha_when_mapped() {
     assert_eq!(color, "#DC262680");
 }
 
+#[test]
+fn a_heading_font_maps_to_the_body_font_when_the_destination_has_no_heading_font() {
+    let source = SourceTheme {
+        font: "Inter".into(),
+        heading_font: Some("Lora".into()),
+        accent: ACCENT.into(),
+        text: TEXT.into(),
+        background: BACKGROUND.into(),
+    };
+    let dest = SourceTheme {
+        font: "Roboto".into(),
+        heading_font: None,
+        ..source.clone()
+    };
+    let objects: Vec<Object> =
+        vec![serde_json::from_value(text_object("a", "A", "Lora", ACCENT)).expect("object")];
+    let mapped = clipboard::adapt_to_theme(&objects, Some(&source), &dest);
+    let (font, _, run_font, _) = style_of(&mapped[0]);
+    assert_eq!(font, "Roboto");
+    assert_eq!(run_font, "Roboto");
+}
+
 // ---------------------------------------------------------------------------
 // 3. Keep Source Formatting
 // ---------------------------------------------------------------------------
@@ -351,6 +373,36 @@ fn keep_text_only_of_objects_without_text_says_so() {
 }
 
 #[test]
+fn an_unanswered_menu_choice_does_not_reach_a_later_ctrl_v() {
+    let mut h = harness();
+    copy_both(&mut h);
+    set_destination_theme(&mut h);
+    h.editor.selection.slide = "s2".into();
+    let ctx = h.ctx.clone();
+    // Keep Text Only, but the system clipboard never answers (no text on it).
+    clipboard::paste_now_with(&mut h.editor, &ctx, PasteMode::TextOnly);
+    for _ in 0..4 {
+        h.idle_frame();
+    }
+    assert_eq!(
+        h.editor.ui.pending_paste_mode, None,
+        "the stale mode expired"
+    );
+    h.paste_text(&h.editor.ui.clipboard_text.clone().expect("text"));
+    let (font, ..) = style_of(&pasted_on(&h, "s2")[0]);
+    assert_eq!(font, "Lato", "objects paste with the destination theme");
+}
+
+#[test]
+fn the_main_paste_button_clears_an_older_menu_mode() {
+    let mut h = harness();
+    h.editor.ui.pending_paste_mode = Some(PasteMode::TextOnly);
+    let ctx = h.ctx.clone();
+    crate::menu::paste_now(&mut h.editor, &ctx);
+    assert_eq!(h.editor.ui.pending_paste_mode, None);
+}
+
+#[test]
 fn keep_text_only_of_plain_os_text_is_the_normal_plain_paste() {
     let mut h = harness();
     h.editor.selection.slide = "s2".into();
@@ -414,7 +466,29 @@ fn paste_special_disables_formats_that_are_not_on_the_clipboard() {
     let formats = clipboard::paste_formats(&h.editor);
     assert!(formats[0].1.is_ok(), "objects");
     assert!(formats[1].1.is_err(), "slides");
-    assert!(formats[2].1.is_ok(), "text");
+    assert_eq!(
+        formats.len(),
+        2,
+        "plain text is a formatting choice, not a format"
+    );
+}
+
+#[test]
+fn the_paste_menu_marks_use_destination_theme_as_the_default() {
+    assert!(crate::ribbon::is_default_entry("paste.destination"));
+    assert!(!crate::ribbon::is_default_entry("paste.keep_source"));
+    assert!(!crate::ribbon::is_default_entry("paste.text_only"));
+}
+
+#[test]
+fn paste_special_lists_text_only_once() {
+    let mut h = harness();
+    copy_both(&mut h);
+    h.editor.open_paste_special();
+    h.idle_frame();
+    h.idle_frame();
+    assert!(h.find_text("Plain text").is_none());
+    assert!(h.find_text("Keep Text Only").is_some());
 }
 
 #[test]

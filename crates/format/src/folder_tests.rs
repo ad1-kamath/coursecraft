@@ -579,3 +579,122 @@ fn old_fnv_folder_record_saves_without_rewriting_unchanged_media() {
         assert_eq!(file_rec.hash, crate::fast_hash64(&disk_bytes));
     }
 }
+
+/// Make a symlink on any OS. False when the OS refuses (Windows without
+/// developer mode or admin rights), so the test skips instead of failing.
+fn try_symlink(target: &Path, link: &Path, dir: bool) -> bool {
+    #[cfg(unix)]
+    {
+        let _ = dir;
+        std::os::unix::fs::symlink(target, link).is_ok()
+    }
+    #[cfg(windows)]
+    {
+        if dir {
+            std::os::windows::fs::symlink_dir(target, link).is_ok()
+        } else {
+            std::os::windows::fs::symlink_file(target, link).is_ok()
+        }
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = (target, link, dir);
+        false
+    }
+}
+
+#[test]
+fn media_folder_symlink_that_leaves_the_folder_is_refused() {
+    let base = scratch("media-symlink");
+    let dir = base.join("p");
+    let outside = base.join("outside");
+    std::fs::create_dir_all(&outside).expect("outside");
+    std::fs::write(outside.join("secret.txt"), b"secret").expect("secret");
+    let mut record = FolderRecord::new();
+    save(&dir, &hello(), &[], &mut record);
+    let _ = std::fs::remove_dir_all(dir.join("media"));
+    if !try_symlink(&outside, &dir.join("media"), true) {
+        eprintln!("skipped: this OS refused to create a directory symlink");
+        return;
+    }
+    let result = open_project_folder(&dir);
+    assert!(
+        matches!(result, Err(FormatError::UnsafePath(_))),
+        "a media/ symlink to an outside folder must be refused: {result:?}"
+    );
+}
+
+#[test]
+fn media_walk_stops_at_the_entry_limit() {
+    let dir = scratch("walk-limit").join("p");
+    let many: Vec<(String, Vec<u8>)> = (0..12).map(|i| (format!("f{i}.bin"), vec![1])).collect();
+    let mut record = FolderRecord::new();
+    save(&dir, &hello(), &many, &mut record);
+    let limits = Limits {
+        max_entries: 5,
+        ..Limits::default()
+    };
+    assert!(matches!(
+        open_project_folder_with_limits(&dir, limits),
+        Err(FormatError::TooManyEntries)
+    ));
+}
+
+#[test]
+fn planted_temp_symlink_is_not_written_through() {
+    let base = scratch("tmp-symlink");
+    let dir = base.join("p");
+    let victim = base.join("victim.txt");
+    std::fs::write(&victim, b"precious").expect("victim");
+    let mut record = FolderRecord::new();
+    save(&dir, &hello(), &[], &mut record);
+    let mut changed = hello();
+    changed.title = "Changed title".to_owned();
+    let tmp = dir.join(format!("{COURSE_FILE}.ccraft-tmp"));
+    if !try_symlink(&victim, &tmp, false) {
+        eprintln!("skipped: this OS refused to create a file symlink");
+        return;
+    }
+    save(&dir, &changed, &[], &mut record);
+    assert_eq!(
+        std::fs::read(&victim).expect("victim"),
+        b"precious",
+        "the file the temp symlink pointed at must not be overwritten"
+    );
+    let reopened = open_project_folder(&dir).expect("reopen");
+    assert_eq!(reopened.project.course.title, "Changed title");
+}
+
+#[test]
+fn case_only_media_rename_leaves_one_file() {
+    let base = scratch("case-rename");
+    let dir = base.join("p");
+    std::fs::write(base.join("Probe"), b"x").expect("probe");
+    let case_sensitive = !base.join("probe").exists();
+    let mut record = FolderRecord::new();
+    save(
+        &dir,
+        &hello(),
+        &[("Logo.png".to_owned(), b"one".to_vec())],
+        &mut record,
+    );
+    save(
+        &dir,
+        &hello(),
+        &[("logo.png".to_owned(), b"two".to_vec())],
+        &mut record,
+    );
+    let names: Vec<String> = std::fs::read_dir(dir.join("media"))
+        .expect("media")
+        .filter_map(Result::ok)
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(names.len(), 1, "one media file must remain: {names:?}");
+    if case_sensitive {
+        assert_eq!(names, ["logo.png"]);
+    }
+    let reopened = open_project_folder(&dir).expect("reopen");
+    assert_eq!(reopened.project.media.len(), 1);
+    let mut record = reopened.record.clone();
+    save(&dir, &hello(), &reopened.project.media, &mut record);
+}

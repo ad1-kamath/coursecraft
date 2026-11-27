@@ -97,32 +97,32 @@ Run `coursecraft-cli <command> --help` for every option. A `<course>` is a `cour
 
 | Command | What it does |
 |---|---|
-| `new <out> [--title T]` | Create a blank course |
+| `new <out> [--title T]` | Create a blank course. A path ending in `.ccraft` gives a real archive; any other path gives a `course.json` |
 | `validate <course>` | Check a course; exits 1 on errors |
 | `a11y-check <course> [--json]` | Check accessibility; exits 1 on errors |
 | `diff <a> <b> [--json]` | Say in plain words what differs between two courses (each a `course.json`, folder or `.ccraft`). Exits 0 when the same, 1 when different, 2 on error |
 | `unpack <a.ccraft> -o <dir>` | Unpack an archive into a project folder for git. The folder must not exist or must be empty |
-| `pack <dir> -o <a.ccraft>` | Pack a project folder into an archive. `pack` then `unpack` gives byte-identical `course.json` and media |
+| `pack <dir> -o <a.ccraft>` | Pack a project folder into an archive. It makes the parent folder, checks the archive opens again, then swaps it into place. `pack` then `unpack` gives byte-identical `course.json` and media |
 | `simulate <course> <inputs.json> [--seed <n>] [--strict]` | Play headlessly; prints effects as JSON lines. `--seed` picks the question-bank draw seed (default 0); `--strict` exits 1 if any runtime warning is emitted |
-| `run <course> <script.json> -o <out>` | Apply a script of engine commands |
+| `run <course> <script.json> -o <out>` | Apply a script of engine commands. A path ending in `.ccraft` gives an archive that keeps all media. Any other path gives a `course.json`, and the media goes into the `media/` folder beside it |
 | `batch <script.json> <course>... [--dir <folder>] (--in-place \| --out-dir <dir>) [--publish <std> --publish-dir <dir> --player <dir>] [--replace-media <path>=<file>]... [--dry-run]` | Run one script on many courses; see below |
 | `commands` | List engine commands |
 | `manifest <course>` | Print the SCORM 1.2 `imsmanifest.xml` |
-| `publish <course> -o <zip> [--player <dir>] [--standard <std>]` | Build a package (looks for `target/player-dist` if `--player` is omitted); `<std>` is `scorm12`, `scorm2004`, `cmi5`, `xapi`, `lti` or `web` |
-| `export-mp4 <course> -o <file.mp4> [--width 1280] [--fps 30]` | Export a video for sharing (macOS and Windows) |
+| `publish <course> (-o <zip> \| --out-dir <dir>) [--player <dir>] [--standard <std>]` | Build a package (looks for `target/player-dist` if `--player` is omitted); `<std>` is `scorm12`, `scorm2004`, `cmi5`, `xapi`, `lti` or `web`. `-o` writes a zip file. `--out-dir` writes the unpacked files into a folder. You can give both. A `.ccraft` is published with its own media; a `course.json` or folder uses the `media/` folder beside it |
+| `export-mp4 <course> -o <file.mp4> [--width 1280] [--fps 30]` | Export a video for sharing (macOS and Windows). It prints a JSON report (`duration_ms`, `frames`, `skipped_questions`, `branch_slides`, `warnings`). It writes to a partial file first, so a failed or cancelled export never deletes an existing `<file.mp4>` |
 | `export-pdf <course> -o <file.pdf> [--layers] [--no-notes] [--no-text] [--width 1600]` | Export a PDF for review: one page per slide with its picture, notes and text |
 | `export-docx <course> -o <file.docx> [--layers] [--no-notes] [--no-text] [--width 1600]` | Export a Word document for review: one page per slide with its picture, notes and text |
 | `import-pptx <deck> -o <out>` | Import a PowerPoint file |
-| `import-questions <course> <file.csv> -o <out> [--bank <name>]` | Add quiz questions from a spreadsheet; see `examples/questions.csv` |
+| `import-questions <course> <file.csv> -o <out> [--bank <name>]` | Add quiz questions from a spreadsheet; see `examples/questions.csv`. `<out>` is a `.ccraft`, a `.json` (media goes into `media/` beside it) or a project folder, and is never the input |
 | `export-xliff <course> --target-language <tag> -o <file>` | Export strings for translation |
-| `import-xliff <course> <file> -o <out>` | Apply a translation to a copy |
-| `render <course> --slide <id> -o <png>` | Render a slide without a window; also takes `--width`, `--mode`, `--layer`, `--at-ms` |
+| `import-xliff <course> <file> -o <out>` | Apply a translation to a copy. `<out>` is a `.ccraft`, a `.json` (media goes into `media/` beside it) or a project folder. The command refuses an `<out>` that is the input course or its folder |
+| `render <course> --slide <id> -o <png>` | Render a slide without a window; also takes `--width`, `--mode`, `--layer`, `--at-ms`. `--layer <id>` (repeatable) draws only the named layers on top of the base layer. In `--mode player`, a layer that the slide's own triggers opened (for example at timeline start) is left out unless you name it |
 | `snapshot-editor <course> -o <png>` | Picture of the editor UI. `--window <name>` opens one window or dialog (`--list-windows` prints the names); `--slide`, `--object`, `--inspector`, `--bottom`, `--theme`, `--size` pick the state |
-| `snapshot-player <course> -o <png>` | Picture of the learner player |
+| `snapshot-player <course> -o <png>` | Picture of the learner player. Each `--state` shows the slide at its midpoint, except `ended`, which shows it at its end time |
 | `editor <method> [json]` | Call a running app |
 | `guide` | Print this page |
 
-**`batch`** runs the same script as `run` on every course (`.ccraft`, project folder or `course.json`; `--dir` adds every course directly inside a folder). One of `--in-place` (safe save: temp file, check it opens again, rename; unchanged courses are not touched) or `--out-dir` (a copy of every course) is required, except with `--dry-run`, which writes nothing and prints what `diff` would show for each course. `--replace-media logo.png=new.png` swaps a media file's bytes and keeps its path, after checking the new file is the same kind (image for image, audio for audio, video for video). `--publish <std>` also builds a package per course into `--publish-dir`; it needs `--player`, the built player files. A course that fails is reported and never written; the others carry on. A table of `course | changed / no change / failed: reason` is printed and the exit is 1 if any failed. Example scripts are in `examples/batch/`.
+**`batch`** runs the same script as `run` on every course (`.ccraft`, project folder or `course.json`; `--dir` adds every course directly inside a folder). One of `--in-place` (safe save: temp file, check it opens again, rename; unchanged courses are not touched) or `--out-dir` (a copy of every course) is required, except with `--dry-run`, which writes nothing and prints what `diff` would show for each course. `--replace-media logo.png=new.png` swaps a media file's bytes and keeps its path, after checking the new file is the same kind (image for image, audio for audio, video for video, any other file such as a font or captions for the same). An `.m4a` file counts as audio, and an AVIF or HEIC file as an image. `--publish <std>` also builds a package per course into `--publish-dir`; it needs `--player`, the built player files. When two courses give the same package name (`lesson.zip` from two folders), the later ones get `lesson-2.zip`, `lesson-3.zip` and so on, so no package is overwritten. A course that fails is reported and never written; the others carry on. A table of `course | changed / no change / failed: reason` is printed and the exit is 1 if any failed. Example scripts are in `examples/batch/`.
 
 ```text
 $ coursecraft-cli batch examples/batch/rebrand.json --dir courses --out-dir branded
@@ -222,7 +222,7 @@ Create `lti.json` with the platform registration and the tool's key. `private_ke
 }
 ```
 
-Publish the course folder with `publish <course> -o published/ --standard lti`, then run:
+Publish the course into a folder with `publish <course> --out-dir published/ --standard lti`, then run:
 
 ```sh
 coursecraft-lti check lti.json
@@ -255,7 +255,7 @@ text_style.create    -                        -          {"name": string, "from_
 text_style.update    -                        -          {"id": id, "name"?: string, "style"?: TextStyle fields, "paragraphs"?: Paragraph|null}  (partial style fields merge; re-applies to every linked box)
 text_style.delete    -                        -          {"id": id}  (unlinks boxes, keeps their look)
 text_style.apply     -                        -          {"id": id, "slide": id, "objects": id[], "clear_overrides"?: bool}
-course.set_theme     -                        -          {"accent"?: color, "background"?: color, "text"?: color, "font"?: string, "bar"?: color, "bar_text"?: color}
+course.set_theme     -                        -          {"accent"?: color, "background"?: color, "text"?: color, "font"?: string, "heading_font"?: string|null, "bar"?: color, "bar_text"?: color}
 course.add_font      -                        -          {"src": "fonts/<file>.ttf", "family": string, "style": "regular"|"bold"|"italic"|"bold_italic"}
 course.remove_font   -                        -          {"family": string, "style"?: style} or {"src": "fonts/<file>.ttf"}
 course.export_xliff  -                        -          {"target_language": string}
@@ -319,7 +319,7 @@ object.set_rotation  -                        -          {"slide": id, "object"?
 object.flip          -                        -          {"slide": id, "object"?: id, "objects"?: id[], "axis": "horizontal"|"vertical"}
 object.lock          -                        -          {"slide": id, "object"?: id, "objects"?: id[], "locked": bool}
 object.hide_in_editor -                       -          {"slide": id, "object"?: id, "objects"?: id[], "hidden": bool}
-view.set             -                        -          {"show_rulers"?: bool, "show_grid"?: bool, "snap_to_grid"?: bool, "grid_spacing"?: number, "show_guides"?: bool}
+view.set             -                        -          {"show_rulers"?: bool, "show_grid"?: bool, "snap_to_grid"?: bool, "grid_spacing"?: number, "show_guides"?: bool, "base_slide_view"?: "show"|"dim"|"hide"}
 view.guides.add      -                        -          {"vertical": bool, "at": number}
 view.guides.move     -                        -          {"index": usize, "at": number}
 view.guides.remove   -                        -          {"index": usize}
@@ -331,7 +331,6 @@ object.set_glow      -                        -          {"slide": id, "object"?
 object.apply_style    -                        -          {"slide": id, "source_slide": id, "source": id, "objects": id[]}
 course.set_slide_size  -                       -          {"w": number, "h": number, "mode": "scale"|"fill"|"keep"}
 object.set_drag      -                        -          {"slide": id, "object"?: id, "objects"?: id[], "drag": DragSpec|null}
-object.set_drag      -                        -          {"slide": id, "object"?: id, "objects"?: id[], "drag": DragSpec|null}
 object.set_lottie    -                        -          {"slide": id, "object"?: id, "objects"?: id[], "loop"?: bool, "autoplay"?: bool, "speed"?: number}
 object.set_web_source -                       -          {"slide": id, "object"?: id, "objects"?: id[], "source": WebSource}
 object.set_input     -                        -          {"slide": id, "object"?: id, "objects"?: id[], "patch": {variable?, placeholder?, multiline?, max_chars?, min?, max?, step?, orientation?, start_angle?, end_angle?, label?, options?}}
@@ -340,7 +339,7 @@ object.set_panel     -                        -          {"slide": id, "object"?
 object.set_scroll_panel -                     -          {"slide": id, "object"?: id, "objects"?: id[], "patch": {content_height?, bar?}}
 object.set_timer     -                        -          {"slide": id, "object"?: id, "objects"?: id[], "patch": {duration_ms?, format?, autostart?, style?}}
 object.set_meter     -                        -          {"slide": id, "object"?: id, "objects"?: id[], "patch": {variable?, min?, max?, style?, show_value?}}
-object.set_path      -                        -          {"slide": id, "object": id, "points": Point[]}
+object.set_path      -                        -          {"slide": id, "object": id, "points": Point[], "start_glue"?: Glue|null, "end_glue"?: Glue|null}
 object.set_crop      -                        -          {"slide": id, "object": id, "crop": {x,y,w,h}|null, "frame"?: Rect}
 object.set_captions  -                        -          {"slide": id, "object": id, "captions": string|null}
 object.set_media     -                        -          {"slide": id, "object": id, "volume"?: number, "trim"?: {"start_ms", "end_ms"?} | null}
@@ -366,7 +365,7 @@ object.add_emphasis  -                        -          {"slide": id, "object":
 object.set_emphasis  -                        -          {"slide": id, "object": id, "index": usize, "emphasis": Emphasis}
 object.remove_emphasis -                        -          {"slide": id, "object": id, "index": usize}
 object.copy_animation -                        -          {"slide": id, "from": id, "from_slide"?: id, "objects": id[]}
-interaction.insert   -                        -          {"slide": id, "kind": "tabs"|"accordion"}
+interaction.insert   -                        -          {"slide": id, "kind": "tabs"|"accordion"|"flip_cards"|"hotspot_reveal"|"process_steps"|"timeline"|"reveal_grid"|"scenario_choice"}
 object.add_motion_path -                        -          {"slide": id, "object": id, "points"?: Point[], "duration_ms"?: u32, "easing"?: Easing, "relative"?: bool}
 object.update_motion_path -                        -          {"slide": id, "object": id, "path": id, "points"?: Point[], "duration_ms"?: u32, "easing"?: Easing, "relative"?: bool}
 object.remove_motion_path -                        -          {"slide": id, "object": id, "path": id}
@@ -374,10 +373,10 @@ text.set             -                        -          {"slide": id, "object":
 text.style_range     -                        -          {"slide": id, "object": id, "start": usize, "end": usize, "bold"?: bool, "italic"?: bool, "underline"?: bool, "strikethrough"?: bool, "baseline"?: "normal"|"superscript"|"subscript", "letter_spacing"?: number, "size"?: number, "color"?: string, "font"?: string, "highlight"?: Color|null, "shadow"?: bool}
 text.clear_formatting -                       -          {"slide": id, "object": id, "start": usize, "end": usize, "row"?: usize, "column"?: usize}
 text.change_case     -                        -          {"slide": id, "object": id, "start": usize, "end": usize, "case": "sentence"|"lower"|"upper"|"title"|"toggle", "row"?: usize, "column"?: usize}
-text.set_paragraph   -                        -          {"slide": id, "object": id, "align"?: "left"|"center"|"right", "valign"?: "top"|"middle"|"bottom"}
+text.set_paragraph   -                        -          {"slide": id, "object": id, "align"?: "left"|"center"|"right"|"justify", "valign"?: "top"|"middle"|"bottom", "wrap"?: bool, "direction"?: "horizontal"|"vertical"|"vertical270", "insets"?: {"left"?: number, "top"?: number, "right"?: number, "bottom"?: number}}
 text.set_paragraphs  -                        -          {"slide": id, "object": id, "start"?: usize, "end"?: usize, "list"?: "none"|"bullet"|"number", "level"?: 0..4, "line_spacing"?: 0.8..3, "space_before"?: 0..200, "space_after"?: 0..200, "number_scheme"?: NumberScheme|null, "start_at"?: 1..99999|null}
 text.set_link        -                        -          {"slide": id, "object": id, "start"?: usize, "end"?: usize, "link": Link|null}
-object.set_autofit   -                        -          {"slide": id, "object": id, "autofit": "none"|"shrink"}
+object.set_autofit   -                        -          {"slide": id, "object": id, "autofit": "none"|"shrink"|"grow"}
 table.set_cell       -                        -          {"slide": id, "object": id, "row": usize, "column": usize, "text"?: string, "runs"?: TextRun[], "paragraphs"?: Paragraph[], "fill"?: Color|null, "valign"?: "top"|"middle"|"bottom"}
 table.insert_row     -                        -          {"slide": id, "object": id, "index"?: usize}
 table.delete_row     -                        -          {"slide": id, "object": id, "index": usize}
@@ -461,7 +460,7 @@ course.replace       -                        -          {"query": string, "repl
 }
 ```
 
-`fill: "#00000000"` means no fill. `outline.dash` is `solid` (default), `dash` or `dot`; `width` is in slide pixels within `0..=50`. `text` follows the same rules as a `text` object's `text`, `style`, `runs`, `paragraphs` and `autofit`. `Lines` kinds take no outline or text. `text.set`, `text.style_range`, `text.set_paragraph`, `text.set_paragraphs`, `text.set_link` and `object.set_autofit` accept a shape as well as a text object, so one set of commands formats both.
+`fill: "#00000000"` means no fill. `outline.dash` is `solid` (default), `dash`, `dot`, `dash_dot` or `custom` (with `dash_pattern`); `width` is in slide pixels within `0..=50`. `text` follows the same rules as a `text` object's `text`, `style`, `runs`, `paragraphs` and `autofit`. `Lines` kinds take no outline or text. `text.set`, `text.style_range`, `text.set_paragraph`, `text.set_paragraphs`, `text.set_link` and `object.set_autofit` accept a shape as well as a text object, so one set of commands formats both.
 
 `text.set_paragraphs` applies to the `\n`-separated paragraphs `start..end` (all paragraphs when omitted). `text.set_link` applies a URL or slide link to the character range `start..end` (`0,0` means the whole text); `link: null` removes it. A URL must start with `http://`, `https://` or `mailto:` and a slide must exist. `object.set_autofit` switches between `none` and `shrink` (never below 40 %).
 

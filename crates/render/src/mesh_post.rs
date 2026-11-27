@@ -45,11 +45,14 @@ impl MeshPost<'_> {
         }
     }
 
-    /// The same pass with other flips (text is never mirrored horizontally).
-    pub(crate) const fn with_flips(self, flip_h: bool, flip_v: bool) -> Self {
+    /// The pass for the text of a horizontally flipped item: not mirrored
+    /// horizontally. The item's own pass rotates and then mirrors, which turns the
+    /// object the other way on screen; text that skips the mirror must be turned
+    /// by the opposite angle to stay glued to its object.
+    pub(crate) fn unmirrored_text(self) -> Self {
         Self {
-            flip_h,
-            flip_v,
+            rotation: -self.rotation,
+            flip_h: false,
             ..self
         }
     }
@@ -173,6 +176,46 @@ pub(crate) fn clip_mesh(mesh: &Mesh, polys: &[Vec<Pos2>]) -> Mesh {
         }
     }
     out
+}
+
+/// The part of convex polygon `subject` inside convex polygon `clip` (either winding).
+/// Empty when they do not overlap or `clip` is degenerate.
+pub(crate) fn intersect_convex(subject: &[Pos2], clip: &[Pos2]) -> Vec<Pos2> {
+    let Some(edges) = Clip::new(clip) else {
+        return Vec::new();
+    };
+    let mut work: Vec<Pos2> = subject.to_vec();
+    for i in 0..edges.points.len() {
+        if work.len() < 3 {
+            return Vec::new();
+        }
+        let mut next = Vec::with_capacity(work.len() + 2);
+        let mut prev = work[work.len() - 1];
+        let mut prev_d = edges.side(i, prev);
+        for &cur in &work {
+            let d = edges.side(i, cur);
+            if d >= 0.0 {
+                if prev_d < 0.0 {
+                    let k = prev_d / (prev_d - d);
+                    next.push(pos2(
+                        prev.x + (cur.x - prev.x) * k,
+                        prev.y + (cur.y - prev.y) * k,
+                    ));
+                }
+                next.push(cur);
+            } else if prev_d >= 0.0 {
+                let k = prev_d / (prev_d - d);
+                next.push(pos2(
+                    prev.x + (cur.x - prev.x) * k,
+                    prev.y + (cur.y - prev.y) * k,
+                ));
+            }
+            prev = cur;
+            prev_d = d;
+        }
+        work = next;
+    }
+    if work.len() < 3 { Vec::new() } else { work }
 }
 
 /// One convex clip polygon with its winding sign.

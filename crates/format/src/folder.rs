@@ -253,8 +253,12 @@ pub fn open_project_folder_with_limits(
 
     let mut files = Vec::new();
     let media_dir = dir.join(MEDIA_DIR);
-    if std::fs::symlink_metadata(&media_dir).is_ok() {
-        collect_files(&root, &media_dir, MEDIA_DIR, 0, &mut files)?;
+    if let Ok(meta) = std::fs::symlink_metadata(&media_dir) {
+        if meta.file_type().is_symlink() {
+            check_dir_link(&root, &media_dir, MEDIA_DIR)?;
+        }
+        let max = limits.max_entries.saturating_sub(1);
+        collect_files(&root, &media_dir, MEDIA_DIR, 0, max, &mut files)?;
     }
     if files.len().saturating_add(1) > limits.max_entries {
         return Err(FormatError::TooManyEntries);
@@ -291,13 +295,26 @@ fn check_link(root: &Path, path: &Path, name: &str) -> Result<(), FormatError> {
     }
 }
 
+/// A folder symlink is allowed only when it points at a folder inside the project.
+fn check_dir_link(root: &Path, path: &Path, name: &str) -> Result<(), FormatError> {
+    let target =
+        std::fs::canonicalize(path).map_err(|_| FormatError::UnsafePath(name.to_owned()))?;
+    if target.starts_with(root) && target.is_dir() {
+        Ok(())
+    } else {
+        Err(FormatError::UnsafePath(name.to_owned()))
+    }
+}
+
 /// Every regular file under `dir`, as (path inside the folder, path on disk),
-/// sorted by path. Temp files from a crashed save are skipped.
+/// sorted by path. Temp files from a crashed save are skipped. The walk stops
+/// with [`FormatError::TooManyEntries`] as soon as more than `max` files are found.
 fn collect_files(
     root: &Path,
     dir: &Path,
     rel_dir: &str,
     depth: usize,
+    max: usize,
     out: &mut Vec<(String, PathBuf)>,
 ) -> Result<(), FormatError> {
     if depth > MAX_DEPTH {
@@ -325,11 +342,17 @@ fn collect_files(
         if kind.is_symlink() {
             check_link(root, &path, &rel)?;
             out.push((rel, path));
+            if out.len() > max {
+                return Err(FormatError::TooManyEntries);
+            }
         } else if kind.is_dir() {
-            collect_files(root, &path, &rel, depth + 1, out)?;
+            collect_files(root, &path, &rel, depth + 1, max, out)?;
         } else if kind.is_file() {
             if !name.ends_with(TEMP_SUFFIX) {
                 out.push((rel, path));
+                if out.len() > max {
+                    return Err(FormatError::TooManyEntries);
+                }
             }
         } else {
             return Err(FormatError::UnsafePath(rel));
@@ -377,6 +400,93 @@ fn file_record(path: &Path, bytes: &[u8]) -> FileRecord {
         hash: fast_hash64(bytes),
         modified: modified_time(path),
     }
+}
+
+// ------------------------------------------------------------- media folders
+
+/// Read every file under `media_dir/<path>/`, as `(path relative to media_dir,
+/// bytes)` sorted by path. This is how a web folder (`web/<name>`) is loaded
+/// from disk beside a bare `course.json`.
+///
+/// Symbolic links are skipped, and the folder itself must resolve to a place
+/// inside `media_dir`, so a link cannot pull in files from elsewhere. The walk
+/// stops at `max_files` files, `max_bytes` bytes in total and a fixed depth;
+/// a file's size is checked before it is read.
+///
+/// # Errors
+/// Returns [`FormatError`] for an unsafe `path`, a folder outside `media_dir`,
+/// a name that is not safe UTF-8, a read failure, or a limit that is passed.
+pub fn read_media_folder(
+    media_dir: &Path,
+    path: &str,
+    max_files: usize,
+    max_bytes: u64,
+) -> Result<Vec<(String, Vec<u8>)>, FormatError> {
+    let path = path.trim_end_matches('/');
+    if !is_safe_relative_path(path) {
+        return Err(FormatError::UnsafePath(path.to_owned()));
+    }
+    let root = canonical_root(media_dir)?;
+    let start = media_dir.join(path);
+    let resolved =
+        std::fs::canonicalize(&start).map_err(|_| FormatError::UnsafePath(path.to_owned()))?;
+    if !resolved.starts_with(&root) || !resolved.is_dir() {
+        return Err(FormatError::UnsafePath(path.to_owned()));
+    }
+    let mut out: Vec<(String, Vec<u8>)> = Vec::new();
+    let mut total = 0u64;
+    let mut queue = vec![(start, path.to_owned(), 0usize)];
+    while let Some((dir, prefix, depth)) = queue.pop() {
+        if depth > MAX_DEPTH {
+            return Err(FormatError::UnsafePath(prefix));
+        }
+        let entries = std::fs::read_dir(&dir).map_err(|e| io_error(&prefix, &e))?;
+        for entry in entries {
+            let entry = entry.map_err(|e| io_error(&prefix, &e))?;
+            let name = entry
+                .file_name()
+                .into_string()
+                .map_err(|_| FormatError::UnsafePath(format!("{prefix}/(not UTF-8)")))?;
+            let rel = format!("{prefix}/{name}");
+            if !is_safe_relative_path(&rel) {
+                return Err(FormatError::UnsafePath(rel));
+            }
+            let entry_path = dir.join(&name);
+            let kind = std::fs::symlink_metadata(&entry_path)
+                .map_err(|e| io_error(&rel, &e))?
+                .file_type();
+            if kind.is_symlink() {
+                continue;
+            }
+            if kind.is_dir() {
+                queue.push((entry_path, rel, depth + 1));
+            } else if kind.is_file() {
+                if out.len() >= max_files {
+                    return Err(FormatError::TooManyEntries);
+                }
+                let declared = std::fs::metadata(&entry_path)
+                    .map_err(|e| io_error(&rel, &e))?
+                    .len();
+                total = total.saturating_add(declared);
+                if total > max_bytes {
+                    return Err(FormatError::EntryTooLarge(rel));
+                }
+                let mut bytes = Vec::with_capacity(usize::try_from(declared).unwrap_or(0));
+                std::fs::File::open(&entry_path)
+                    .and_then(|file| {
+                        file.take(declared.saturating_add(1))
+                            .read_to_end(&mut bytes)
+                    })
+                    .map_err(|e| io_error(&rel, &e))?;
+                if bytes.len() as u64 > declared {
+                    return Err(FormatError::EntryTooLarge(rel));
+                }
+                out.push((rel, bytes));
+            }
+        }
+    }
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(out)
 }
 
 // ---------------------------------------------------------------------- save
@@ -429,6 +539,7 @@ pub fn save_project_folder_with<B: AsRef<[u8]> + Sync>(
         hooks,
         report: SaveReport::default(),
         checked_dirs: HashSet::new(),
+        case_stale: Vec::new(),
     };
     writer.put_all(media)?;
     (hooks.before_course_json)().map_err(|e| io_error(COURSE_FILE, &e))?;
@@ -472,6 +583,11 @@ struct Writer<'a, 'h> {
     report: SaveReport,
     /// Parent folders already checked to hold no symlink.
     checked_dirs: HashSet<String>,
+    /// Recorded media files whose name differs from a file just written only by
+    /// letter case, as (old path, new path). On a case-sensitive disk the old
+    /// file is still there and must be deleted; on a case-insensitive one it is
+    /// the same file.
+    case_stale: Vec<(String, String)>,
 }
 
 impl Writer<'_, '_> {
@@ -543,20 +659,46 @@ impl Writer<'_, '_> {
         match result? {
             WriteOutcome::Unchanged => {}
             WriteOutcome::Rehash(record) => {
-                self.record
-                    .files
-                    .retain(|k, _| k == rel || !k.eq_ignore_ascii_case(rel));
+                self.forget_case_variants(rel);
                 self.record.files.insert(rel.to_owned(), record);
             }
             WriteOutcome::Written(record) => {
-                self.record
-                    .files
-                    .retain(|k, _| k == rel || !k.eq_ignore_ascii_case(rel));
+                self.forget_case_variants(rel);
                 self.record.files.insert(rel.to_owned(), record);
                 self.report.written.push(rel.to_owned());
             }
         }
         Ok(())
+    }
+
+    /// Drop the record of files that differ from `rel` only by letter case, and
+    /// remember the media ones so [`Self::delete_unused`] can remove them.
+    fn forget_case_variants(&mut self, rel: &str) {
+        let variants: Vec<String> = self
+            .record
+            .files
+            .keys()
+            .filter(|k| k.as_str() != rel && k.eq_ignore_ascii_case(rel))
+            .cloned()
+            .collect();
+        for old in variants {
+            self.record.files.remove(&old);
+            if old.starts_with("media/") {
+                self.case_stale.push((old, rel.to_owned()));
+            }
+        }
+    }
+
+    /// Delete the old-case twin of a renamed file, when the disk keeps both.
+    fn delete_case_twins(&mut self) {
+        for (old, new) in std::mem::take(&mut self.case_stale) {
+            if exists_exact(self.dir, &old)
+                && exists_exact(self.dir, &new)
+                && std::fs::remove_file(self.dir.join(&old)).is_ok()
+            {
+                self.report.deleted.push(old);
+            }
+        }
     }
 
     /// Create the parent folders of `rel`, refusing to write through a symlink.
@@ -592,6 +734,7 @@ impl Writer<'_, '_> {
     /// the folders that leaves empty. Nothing outside `media/` is ever deleted,
     /// and neither is a file the record does not know.
     fn delete_unused(&mut self, wanted: &HashSet<String>) {
+        self.delete_case_twins();
         let unused: Vec<String> = self
             .record
             .files
@@ -629,6 +772,25 @@ impl Writer<'_, '_> {
             }
         }
     }
+}
+
+/// Whether `dir/rel` exists with exactly this letter case in every segment.
+/// A case-insensitive disk answers true for any case; this does not.
+fn exists_exact(dir: &Path, rel: &str) -> bool {
+    let mut current = dir.to_path_buf();
+    for segment in rel.split('/') {
+        let Ok(entries) = std::fs::read_dir(&current) else {
+            return false;
+        };
+        if !entries
+            .filter_map(Result::ok)
+            .any(|entry| entry.file_name().to_str() == Some(segment))
+        {
+            return false;
+        }
+        current.push(segment);
+    }
+    true
 }
 
 enum WriteOutcome {
@@ -670,7 +832,15 @@ fn write_if_changed(
     }
     let tmp = temp_path(&path);
     let result = retrying(delay, || {
-        let mut file = std::fs::File::create(&tmp)?;
+        // A stale or planted temp file (or symlink) is removed, never written
+        // through: `create_new` refuses to follow anything already there.
+        if std::fs::symlink_metadata(&tmp).is_ok() {
+            std::fs::remove_file(&tmp).or_else(|_| std::fs::remove_dir(&tmp))?;
+        }
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&tmp)?;
         file.write_all(bytes)?;
         file.sync_all()
     })

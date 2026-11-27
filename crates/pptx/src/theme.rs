@@ -195,7 +195,7 @@ fn apply_color_modifiers(base: (u8, u8, u8), node: &XmlNode) -> (u8, u8, u8, Opt
 
 fn parse_hex_rgb(hex: &str) -> Option<(u8, u8, u8)> {
     let hex = hex.trim().strip_prefix('#').unwrap_or(hex.trim());
-    if hex.len() != 6 {
+    if hex.len() != 6 || !hex.is_ascii() {
         return None;
     }
     let r = u8::from_str_radix(&hex[0..2], 16).ok()?;

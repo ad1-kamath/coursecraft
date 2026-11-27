@@ -915,6 +915,8 @@ impl Session {
 }
 
 #[cfg(test)]
+mod anim_timing_tests;
+#[cfg(test)]
 mod bughunt_m25_engine;
 #[cfg(test)]
 mod bughunt_undo_tests;

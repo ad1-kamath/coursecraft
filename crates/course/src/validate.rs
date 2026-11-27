@@ -494,6 +494,21 @@ impl Course {
                             return;
                         }
                     }
+                    // Old files may hold other ids or titles, so these are warnings.
+                    if !cx.skip_warnings {
+                        if !valid_name(&scene.id) {
+                            cx.warn_at(
+                                "id",
+                                format!(
+                                    "scene id {:?} should be 1-128 chars of [A-Za-z0-9_-]",
+                                    scene.id
+                                ),
+                            );
+                        }
+                        if scene.title.trim().is_empty() {
+                            cx.warn_at("title", "scene title is empty");
+                        }
+                    }
                     cx.with_field("slides", |cx| {
                         for (li, slide) in scene.slides.iter().enumerate() {
                             slide_count += 1;
@@ -1145,7 +1160,9 @@ fn check_slide(course: &Course, cx: &mut Ctx<'_>, slide: &Slide) {
     if !slide.objects.is_empty() {
         cx.with_field("objects", |cx| {
             for (i, o) in slide.objects.iter().enumerate() {
-                cx.with_index(i, |cx| check_object(course, cx, o, slide.duration_ms));
+                cx.with_index(i, |cx| {
+                    check_object(course, cx, o, slide.duration_ms, &slide.id)
+                });
                 if cx.should_stop() {
                     return;
                 }
@@ -1234,7 +1251,9 @@ fn check_slide_layers<'a>(
                 if !cx.should_stop() && !layer.objects.is_empty() {
                     cx.with_field("objects", |cx| {
                         for (i, o) in layer.objects.iter().enumerate() {
-                            cx.with_index(i, |cx| check_object(course, cx, o, layer.duration_ms));
+                            cx.with_index(i, |cx| {
+                                check_object(course, cx, o, layer.duration_ms, &slide.id)
+                            });
                             if cx.should_stop() {
                                 return;
                             }
@@ -1400,7 +1419,7 @@ fn check_master(course: &Course, cx: &mut Ctx<'_>, master: &Slide) {
     if !master.objects.is_empty() {
         cx.with_field("objects", |cx| {
             for (i, o) in master.objects.iter().enumerate() {
-                cx.with_index(i, |cx| check_object(course, cx, o, master.duration_ms));
+                cx.with_index(i, |cx| check_object(course, cx, o, master.duration_ms, ""));
                 if cx.should_stop() {
                     return;
                 }
@@ -1863,6 +1882,12 @@ fn check_paragraphs(cx: &mut Ctx<'_>, paragraphs: &[crate::Paragraph]) {
                 if paragraph.start_at == Some(0) {
                     cx.err_at("start_at", "start_at must be at least 1");
                 }
+                if paragraph.start_at.is_some_and(|n| n > 99_999) {
+                    cx.warn_at(
+                        "start_at",
+                        "start_at above 99999 is outside the editor range; Roman numbering falls back to digits above 3999",
+                    );
+                }
             });
             if cx.should_stop() {
                 return;
@@ -2012,25 +2037,57 @@ fn check_shape_outline_and_text(
                 if !crate::shape_allows_text(shape) {
                     cx.err("line shapes cannot carry text");
                 }
-                if !text.style.color.is_valid() {
-                    cx.err_at(
-                        "style/color",
-                        format!("color {:?} is not #RRGGBB or #RRGGBBAA", text.style.color.0),
-                    );
-                }
-                check_font_name(course, cx, &text.style.font, "style/font");
-                if !cx.should_stop() {
-                    check_text_runs(course, cx, Some(&text.text), &text.runs);
-                }
-                if !cx.should_stop() {
-                    check_paragraphs(cx, &text.paragraphs);
-                }
+                check_shape_text(course, cx, text);
             });
         }
     });
 }
 
-fn check_path(cx: &mut Ctx<'_>, path: &crate::Path) {
+/// The text inside a shape or path: style colour, font, insets, runs and paragraphs.
+fn check_shape_text(course: &Course, cx: &mut Ctx<'_>, text: &crate::ShapeText) {
+    if !text.style.color.is_valid() {
+        cx.err_at(
+            "style/color",
+            format!("color {:?} is not #RRGGBB or #RRGGBBAA", text.style.color.0),
+        );
+    }
+    check_font_name(course, cx, &text.style.font, "style/font");
+    check_insets(cx, text.style.insets.as_ref());
+    if !cx.should_stop() {
+        check_text_runs(course, cx, Some(&text.text), &text.runs);
+    }
+    if !cx.should_stop() {
+        check_paragraphs(cx, &text.paragraphs);
+    }
+}
+
+/// Insets are clamped when drawn, so a stray value is a warning; a value that
+/// is not a number is an error.
+fn check_insets(cx: &mut Ctx<'_>, insets: Option<&crate::TextInsets>) {
+    let Some(insets) = insets else {
+        return;
+    };
+    for (name, value) in [
+        ("left", insets.left),
+        ("top", insets.top),
+        ("right", insets.right),
+        ("bottom", insets.bottom),
+    ] {
+        if !value.is_finite() {
+            cx.err_at(
+                &format!("style/insets/{name}"),
+                format!("inset {name} must be a finite number"),
+            );
+        } else if !cx.skip_warnings && !(0.0..=100_000.0).contains(&value) {
+            cx.warn_at(
+                &format!("style/insets/{name}"),
+                format!("inset {name} is outside 0..=100000 and is clamped when drawn"),
+            );
+        }
+    }
+}
+
+fn check_path(course: &Course, cx: &mut Ctx<'_>, path: &crate::Path) {
     cx.with_field("kind", |cx| {
         cx.with_field("path", |cx| {
             let count = path.points.len();
@@ -2074,6 +2131,38 @@ fn check_path(cx: &mut Ctx<'_>, path: &crate::Path) {
                     format!("color {:?} is not #RRGGBB or #RRGGBBAA", fill.0),
                 );
             }
+            if let Some(fill_style) = &path.fill_style {
+                check_fill_style(cx, fill_style);
+            }
+            cx.with_field("subpaths", |cx| {
+                for (i, sub) in path.subpaths.iter().enumerate() {
+                    cx.with_index(i, |cx| {
+                        if !(crate::PATH_MIN_POINTS..=crate::PATH_MAX_POINTS)
+                            .contains(&sub.points.len())
+                        {
+                            cx.err_at(
+                                "points",
+                                format!(
+                                    "a subpath needs {}..={} points",
+                                    crate::PATH_MIN_POINTS,
+                                    crate::PATH_MAX_POINTS
+                                ),
+                            );
+                        } else if sub.points.iter().any(|point| !point.is_valid()) {
+                            cx.err_at(
+                                "points",
+                                "path points must be finite fractions within 0..=1",
+                            );
+                        }
+                    });
+                    if cx.should_stop() {
+                        return;
+                    }
+                }
+            });
+            if let Some(text) = &path.text {
+                cx.with_field("text", |cx| check_shape_text(course, cx, text));
+            }
             cx.with_field("outline", |cx| {
                 check_outline(cx, &path.outline);
             });
@@ -2089,6 +2178,42 @@ fn check_path(cx: &mut Ctx<'_>, path: &crate::Path) {
             }
         });
     });
+}
+
+/// The first merged cell (row, column) whose span covers a cell that another
+/// merge owns. Spans past the table edge are reported elsewhere.
+fn overlapping_merge(rows: &[crate::TableRow], columns: usize) -> Option<(usize, usize)> {
+    let owners = crate::table_cell_owners(rows, columns);
+    for (row, line) in rows.iter().enumerate() {
+        for (column, cell) in line.cells.iter().enumerate() {
+            if owners
+                .get(row)
+                .and_then(|o| o.get(column))
+                .copied()
+                .flatten()
+                != Some((row, column))
+            {
+                continue;
+            }
+            let row_end = rows
+                .len()
+                .min(row.saturating_add(usize::from(cell.row_span.max(1))));
+            let column_end = columns.min(column.saturating_add(usize::from(cell.col_span.max(1))));
+            for covered_row in row..row_end {
+                for covered_column in column..column_end {
+                    let owner = owners
+                        .get(covered_row)
+                        .and_then(|o| o.get(covered_column))
+                        .copied()
+                        .flatten();
+                    if owner != Some((row, column)) {
+                        return Some((row, column));
+                    }
+                }
+            }
+        }
+    }
+    None
 }
 
 fn check_table_cell(
@@ -2171,6 +2296,17 @@ fn check_table(
         }
         if cx.should_stop() {
             return;
+        }
+        if !cx.skip_warnings
+            && rows.iter().all(|row| row.cells.len() == columns.len())
+            && let Some((row, column)) = overlapping_merge(rows, columns.len())
+        {
+            cx.warn_at(
+                "rows",
+                format!(
+                    "the merged cell at row {row}, column {column} overlaps another merged cell"
+                ),
+            );
         }
         cx.with_field("rows", |cx| {
             for (index, row) in rows.iter().enumerate() {
@@ -2728,7 +2864,7 @@ fn object_completely_outside_slide(frame: crate::Rect, rotation: f32, slide: cra
     max_x <= 0.0 || min_x >= sw || max_y <= 0.0 || min_y >= sh
 }
 
-fn check_object(course: &Course, cx: &mut Ctx<'_>, o: &Object, timeline_ms: u32) {
+fn check_object(course: &Course, cx: &mut Ctx<'_>, o: &Object, timeline_ms: u32, slide_id: &str) {
     let f = o.frame;
     if ![f.x, f.y, f.w, f.h].iter().all(|v| v.is_finite()) || f.w < 0.0 || f.h < 0.0 {
         cx.err_at("frame", "frame values must be finite and w/h non-negative");
@@ -2789,10 +2925,22 @@ fn check_object(course: &Course, cx: &mut Ctx<'_>, o: &Object, timeline_ms: u32)
         return;
     }
     check_object_animations(cx, o);
+    check_animation_windows(cx, o, timeline_ms, slide_id);
     if cx.should_stop() {
         return;
     }
     check_object_motion_paths(cx, o);
+}
+
+/// A media path must stay inside the course package. A bad path is a warning,
+/// because old files may hold one and still open.
+fn check_media_src(cx: &mut Ctx<'_>, src: &str) {
+    if !cx.skip_warnings && !src.trim().is_empty() && !is_safe_relative_path(src) {
+        cx.warn_at(
+            "kind/src",
+            format!("media path {src:?} must be a safe relative path inside the course"),
+        );
+    }
 }
 
 fn check_object_kind(course: &Course, cx: &mut Ctx<'_>, o: &Object, timeline_ms: u32) {
@@ -2809,8 +2957,15 @@ fn check_object_kind(course: &Course, cx: &mut Ctx<'_>, o: &Object, timeline_ms:
             runs,
             paragraphs,
             text_style,
+            outline,
             ..
         } => {
+            if let Some(outline) = outline {
+                cx.with_field("kind", |cx| {
+                    cx.with_field("outline", |cx| check_outline(cx, outline));
+                });
+            }
+            cx.with_field("kind", |cx| check_insets(cx, style.insets.as_ref()));
             if !cx.skip_warnings
                 && let Some(id) = text_style
                 && !course.text_styles.iter().any(|named| &named.id == id)
@@ -2851,7 +3006,14 @@ fn check_object_kind(course: &Course, cx: &mut Ctx<'_>, o: &Object, timeline_ms:
                 check_shape_outline_and_text(course, cx, *shape, outline.as_ref(), text.as_ref());
             }
         }
-        ObjectKind::Image { src, crop, .. } => {
+        ObjectKind::Image {
+            src, crop, outline, ..
+        } => {
+            if let Some(outline) = outline {
+                cx.with_field("kind", |cx| {
+                    cx.with_field("outline", |cx| check_outline(cx, outline));
+                });
+            }
             if let Some(crop) = crop
                 && let Some(message) = check_crop_values(*crop)
             {
@@ -2860,6 +3022,7 @@ fn check_object_kind(course: &Course, cx: &mut Ctx<'_>, o: &Object, timeline_ms:
             if src.trim().is_empty() {
                 cx.err_at("kind/src", "media src is empty");
             }
+            check_media_src(cx, src);
         }
         ObjectKind::Video {
             src,
@@ -2872,6 +3035,7 @@ fn check_object_kind(course: &Course, cx: &mut Ctx<'_>, o: &Object, timeline_ms:
             if src.trim().is_empty() {
                 cx.err_at("kind/src", "media src is empty");
             }
+            check_media_src(cx, src);
             if !cx.should_stop() {
                 check_cues(cx, cues, timeline_ms);
             }
@@ -2886,6 +3050,7 @@ fn check_object_kind(course: &Course, cx: &mut Ctx<'_>, o: &Object, timeline_ms:
             if src.trim().is_empty() {
                 cx.err_at("kind/src", "media src is empty");
             }
+            check_media_src(cx, src);
             if !speed.is_finite()
                 || !(crate::LOTTIE_MIN_SPEED..=crate::LOTTIE_MAX_SPEED).contains(speed)
             {
@@ -2916,7 +3081,7 @@ fn check_object_kind(course: &Course, cx: &mut Ctx<'_>, o: &Object, timeline_ms:
             check_scroll_panel_object(cx, *content_height, o.frame.h)
         }
         ObjectKind::Path { path } => {
-            check_path(cx, path);
+            check_path(course, cx, path);
         }
         ObjectKind::Table {
             columns,
@@ -2941,6 +3106,7 @@ fn check_object_kind(course: &Course, cx: &mut Ctx<'_>, o: &Object, timeline_ms:
             if src.trim().is_empty() {
                 cx.err_at("kind/src", "media src is empty");
             }
+            check_media_src(cx, src);
             if !cx.should_stop() {
                 check_captions(cx, captions.as_deref(), &o.id);
             }
@@ -3010,11 +3176,17 @@ fn check_object_states(course: &Course, cx: &mut Ctx<'_>, o: &Object) {
                                 ),
                             );
                         } else {
-                            if !matches!(o.kind, ObjectKind::Image { .. }) {
+                            if !matches!(
+                                o.kind,
+                                ObjectKind::Image { .. }
+                                    | ObjectKind::Video { .. }
+                                    | ObjectKind::Audio { .. }
+                                    | ObjectKind::Lottie { .. }
+                            ) {
                                 cx.warn_at(
                                     "src",
                                     format!(
-                                        "State \u{201C}{}\u{201D} on \u{201C}{obj_label}\u{201D} sets an image, which only applies to image objects.",
+                                        "State \u{201C}{}\u{201D} on \u{201C}{obj_label}\u{201D} sets a file, which only applies to image, video, audio and Lottie objects.",
                                         s.name
                                     ),
                                 );
@@ -3218,7 +3390,7 @@ fn check_state_extra_kind(course: &Course, cx: &mut Ctx<'_>, kind: &crate::State
             }
         }
         crate::StateExtraKind::Path { path } => {
-            check_path(cx, path);
+            check_path(course, cx, path);
             if path.connector.is_some() {
                 cx.err_at(
                     "kind/path/connector",
@@ -3361,6 +3533,60 @@ fn check_object_animations(cx: &mut Ctx<'_>, o: &Object) {
             cx.err_at(
                 &format!("emphasis/{i}/repeat"),
                 format!("emphasis repeat must be 1..={}", crate::MAX_EMPHASIS_REPEAT),
+            );
+        }
+    }
+}
+
+/// Warn about animations that the object's time window or the timeline cuts off. The window
+/// runs from `timing.start_ms` to `timing.end_ms`, or to the timeline's end. An entrance plays
+/// from the start, an exit over `[end - duration, end)`, an emphasis over its own span and only
+/// while the object is on screen. The messages name the object and slide so a UI can jump to it.
+fn check_animation_windows(cx: &mut Ctx<'_>, o: &Object, timeline_ms: u32, slide_id: &str) {
+    if cx.skip_warnings {
+        return;
+    }
+    let start = o.timing.start_ms;
+    let end = o.timing.end_ms.map_or(timeline_ms, |e| e.min(timeline_ms));
+    if start >= end {
+        return;
+    }
+    let who = if slide_id.is_empty() {
+        format!("object {:?}", o.id)
+    } else {
+        format!("object {:?} on slide {slide_id:?}", o.id)
+    };
+    if let Some(a) = &o.entrance
+        && start.saturating_add(a.duration_ms) > end
+    {
+        cx.warn_at(
+            "entrance",
+            format!(
+                "{who}: the {} ms entrance animation does not finish before the object's window ends at {end} ms",
+                a.duration_ms
+            ),
+        );
+    }
+    if let Some(a) = &o.exit
+        && end.saturating_sub(a.duration_ms) < start
+    {
+        cx.warn_at(
+            "exit",
+            format!(
+                "{who}: the {} ms exit animation does not fit in the object's window of {start} to {end} ms",
+                a.duration_ms
+            ),
+        );
+    }
+    for (i, e) in o.emphasis.iter().enumerate() {
+        if e.start_ms < start || e.end_ms() > end {
+            cx.warn_at(
+                &format!("emphasis/{i}"),
+                format!(
+                    "{who}: emphasis {i} plays from {} to {} ms, outside the object's window of {start} to {end} ms",
+                    e.start_ms,
+                    e.end_ms()
+                ),
             );
         }
     }
@@ -4611,7 +4837,7 @@ fn check_question_submit(cx: &mut Ctx<'_>, slide: &Slide) {
         .iter()
         .chain(slide.layers.iter().flat_map(|l| l.triggers.iter()))
     {
-        if trigger.action == Action::SubmitQuestion {
+        if trigger.action == Action::SubmitQuestion && !trigger.disabled {
             has_submit = true;
             if trigger.when != Event::Submit {
                 all_from_submit_event = false;

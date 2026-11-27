@@ -1277,11 +1277,7 @@ impl PropertiesState {
                 self.multi_align = all_same_align(styles.iter().map(|style| style.align));
                 let same_font = styles.iter().all(|style| style.font == first.font);
                 self.multi_font = if same_font {
-                    if first.font.eq_ignore_ascii_case("Open Sans") {
-                        "Inter".to_owned()
-                    } else {
-                        first.font.clone()
-                    }
+                    crate::font_picker::displayed_font(&first.font)
                 } else {
                     String::new()
                 };
@@ -1430,13 +1426,34 @@ fn patch_state_action(ctx: &StateEditCtx<'_>, patch: Json) -> (&'static str, Jso
     )
 }
 
+/// The text of the edited state: its own values, or the base object's where it has none.
+fn state_text_view<'a>(
+    ctx: &'a StateEditCtx<'a>,
+    base_style: &'a TextStyle,
+    base_runs: &'a [coursecraft_course::TextRun],
+    base_paragraphs: &'a [coursecraft_course::Paragraph],
+    base_text: &'a str,
+) -> crate::state_text_route::StateTextView<'a> {
+    crate::state_text_route::StateTextView {
+        style: ctx.state.text_style.as_ref().unwrap_or(base_style),
+        runs: ctx.state.runs.as_deref().unwrap_or(base_runs),
+        paragraphs: ctx.state.paragraphs.as_deref().unwrap_or(base_paragraphs),
+        text: ctx.state.text.as_deref().unwrap_or(base_text),
+    }
+}
+
+/// Turns a text command of the inspector into a patch of the edited state (`N84`). Without
+/// this the engine would run it on the base object.
 fn route_text_set_to_state(
     action: (&'static str, Json),
     ctx: &StateEditCtx<'_>,
-    base_style: &TextStyle,
+    view: &crate::state_text_route::StateTextView<'_>,
 ) -> (&'static str, Json) {
     if action.0 != "text.set" {
-        return action;
+        return match crate::state_text_route::patch_for(&action, view) {
+            Some(patch) => patch_state_action(ctx, patch),
+            None => action,
+        };
     }
     let params = action.1;
     let mut patch = serde_json::Map::new();
@@ -1446,8 +1463,7 @@ fn route_text_set_to_state(
         }
     }
     if let Some(style_patch) = params.get("style") {
-        let current_style = ctx.state.text_style.as_ref().unwrap_or(base_style);
-        let mut merged = serde_json::to_value(current_style).unwrap_or(Json::Null);
+        let mut merged = serde_json::to_value(view.style).unwrap_or(Json::Null);
         if let (Some(dst), Some(src)) = (merged.as_object_mut(), style_patch.as_object()) {
             for (k, v) in src {
                 dst.insert(k.clone(), v.clone());
@@ -1498,8 +1514,10 @@ fn inspector_row_inner<R>(
 ) -> R {
     use egui::text::{LayoutJob, TextWrapping};
     let p = coursecraft_render::palette(ui.ctx());
-    // Keynote style: labels never carry a trailing colon.
-    let label = label.trim_end_matches(':');
+    // Keynote style: labels never carry a trailing colon. Every label of the shared Format,
+    // Text and Shape Style rows goes through the lookup here (`N109`); a label that was
+    // translated already is not in the catalog and stays as it is.
+    let label = tl!(label.trim_end_matches(':'));
     let row_h = coursecraft_render::CONTROL_COMPACT;
     let align = egui::Align::Center;
     ui.allocate_ui_with_layout(
@@ -1619,8 +1637,9 @@ pub(crate) fn show_color_field(
                     Stroke::new(1.5, p.danger),
                     StrokeKind::Outside,
                 );
-                response = response
-                    .on_hover_text("Invalid hex colour (expected #RGB, #RRGGBB, or #RRGGBBAA)");
+                response = response.on_hover_text(tl!(
+                    "Invalid hex colour (expected #RGB, #RRGGBB, or #RRGGBBAA)"
+                ));
             }
             if picked {
                 mark_color_picked(&response);
@@ -2677,7 +2696,6 @@ pub fn show_text_panel(editor: &mut Editor, ui: &mut Ui) {
 /// The text the Text panel edits, with any state being edited applied.
 struct TextTarget<'a> {
     style: std::borrow::Cow<'a, TextStyle>,
-    base_style: std::borrow::Cow<'a, TextStyle>,
     runs: &'a [TextRun],
     paragraphs: &'a [Paragraph],
     text: &'a str,
@@ -2764,7 +2782,6 @@ fn text_panel_sections(
             }
             Some(TextTarget {
                 style: Cow::Owned(eff),
-                base_style: Cow::Borrowed(style),
                 runs: state.and_then(|s| s.runs.as_deref()).unwrap_or(runs),
                 paragraphs: state
                     .and_then(|s| s.paragraphs.as_deref())
@@ -2801,7 +2818,6 @@ fn text_panel_sections(
                     Some(style) => Cow::Borrowed(style),
                     None => base.clone(),
                 },
-                base_style: base,
                 runs: state.and_then(|s| s.runs.as_deref()).unwrap_or(runs),
                 paragraphs: state
                     .and_then(|s| s.paragraphs.as_deref())
@@ -2815,7 +2831,15 @@ fn text_panel_sections(
         _ => None,
     });
     let route = |action: (&'static str, Json), target: &TextTarget<'_>| match &state_ctx {
-        Some(ctx) => route_text_set_to_state(action, ctx, &target.base_style),
+        Some(ctx) => {
+            let view = crate::state_text_route::StateTextView {
+                style: &target.style,
+                runs: target.runs,
+                paragraphs: target.paragraphs,
+                text: target.text,
+            };
+            route_text_set_to_state(action, ctx, &view)
+        }
         None => action,
     };
 
@@ -5572,11 +5596,7 @@ fn show_text_controls(
     // Font picker: Inter plus every course family, each name drawn in its own
     // face. "Add font…" opens the same picker the File menu uses.
     let current_font = font_at_cursor(runs, cursor_pos).unwrap_or_else(|| style.font.clone());
-    let shown_font = if current_font.eq_ignore_ascii_case("Open Sans") {
-        "Inter".to_owned()
-    } else {
-        current_font
-    };
+    let shown_font = crate::font_picker::displayed_font(&current_font);
     inspector_row(ui, "Font", |ui| {
         if let Some(picked) = crate::font_picker::show_font_picker(
             ui,
@@ -6524,11 +6544,13 @@ fn show_fill_style_editor(
                 crate::widgets::styled_combo(ui, "prop_picture_mode", rem_w)
                     .selected_text(match mode {
                         coursecraft_course::PictureFillMode::Stretch => "Stretch",
+                        coursecraft_course::PictureFillMode::Fill => "Fill",
                         coursecraft_course::PictureFillMode::Tile => "Tile",
                     })
                     .show_ui(ui, |ui| {
                         for (value, label) in [
                             (coursecraft_course::PictureFillMode::Stretch, "Stretch"),
+                            (coursecraft_course::PictureFillMode::Fill, "Fill"),
                             (coursecraft_course::PictureFillMode::Tile, "Tile"),
                         ] {
                             if ui.selectable_label(*mode == value, label).clicked()
@@ -7923,11 +7945,7 @@ fn show_timer_controls(
         }
     });
     inspector_row(ui, "Font", |ui| {
-        let shown = if props.timer_font.eq_ignore_ascii_case("Open Sans") {
-            "Inter".to_owned()
-        } else {
-            props.timer_font.clone()
-        };
+        let shown = crate::font_picker::displayed_font(&props.timer_font);
         if let Some(picked) = crate::font_picker::show_font_picker(
             ui,
             "timer",
@@ -8673,6 +8691,7 @@ fn show_object_properties(
             text,
             style,
             runs,
+            paragraphs,
             autofit,
             point_text,
             outline,
@@ -8715,7 +8734,10 @@ fn show_object_properties(
                 &mut font_requests,
             ) {
                 action_to_run = Some(match state_ctx_ref {
-                    Some(ctx) => route_text_set_to_state(action, ctx, style),
+                    Some(ctx) => {
+                        let view = state_text_view(ctx, style, runs, paragraphs, text);
+                        route_text_set_to_state(action, ctx, &view)
+                    }
                     None => action,
                 });
             }
@@ -9002,46 +9024,50 @@ fn show_object_properties(
                 kind["fill"] = serde_json::json!(fill);
                 kind
             };
-            inspector_row(ui, "Shape", |ui| {
-                let rem_w = ui.available_width().max(30.0);
-                let response =
-                    crate::shape_gallery::shape_picker_button(ui, props.shape_kind, rem_w);
-                egui::Popup::menu(&response)
-                    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-                    .show(|ui| {
-                        let mut picked = None;
-                        let output = crate::shape_gallery::show_shape_gallery_selected(
-                            ui,
-                            &mut props.shape_gallery_query,
-                            Some(props.shape_kind),
-                            &mut |pick| {
-                                if let crate::shape_gallery::GalleryPick::Shape(kind) = pick {
-                                    picked = Some(kind);
+            ui.add_enabled_ui(!state_edit_locked, |ui| {
+                inspector_row(ui, "Shape", |ui| {
+                    let rem_w = ui.available_width().max(30.0);
+                    let response =
+                        crate::shape_gallery::shape_picker_button(ui, props.shape_kind, rem_w);
+                    egui::Popup::menu(&response)
+                        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+                        .show(|ui| {
+                            let mut picked = None;
+                            let output = crate::shape_gallery::show_shape_gallery_selected(
+                                ui,
+                                &mut props.shape_gallery_query,
+                                Some(props.shape_kind),
+                                &mut |pick| {
+                                    if let crate::shape_gallery::GalleryPick::Shape(kind) = pick {
+                                        picked = Some(kind);
+                                    }
+                                },
+                            );
+                            props.shape_gallery_rects = output.icons;
+                            props.shape_gallery_search_rect = output.search_rect;
+                            if let Some(kind) = picked
+                                && kind != props.shape_kind
+                            {
+                                props.shape_kind = kind;
+                                let mut kind_json = kind_with(kind, &fill.0);
+                                if !coursecraft_course::shape_allows_text(kind) {
+                                    kind_json["text"] = Json::Null;
+                                    kind_json["outline"] = Json::Null;
                                 }
-                            },
-                        );
-                        props.shape_gallery_rects = output.icons;
-                        props.shape_gallery_search_rect = output.search_rect;
-                        if let Some(kind) = picked
-                            && kind != props.shape_kind
-                        {
-                            props.shape_kind = kind;
-                            let mut kind_json = kind_with(kind, &fill.0);
-                            if !coursecraft_course::shape_allows_text(kind) {
-                                kind_json["text"] = Json::Null;
-                                kind_json["outline"] = Json::Null;
+                                action_to_run = Some((
+                                    "object.update",
+                                    serde_json::json!({
+                                        "slide": slide.id,
+                                        "object": obj.id,
+                                        "kind": kind_json,
+                                    }),
+                                ));
                             }
-                            action_to_run = Some((
-                                "object.update",
-                                serde_json::json!({
-                                    "slide": slide.id,
-                                    "object": obj.id,
-                                    "kind": kind_json,
-                                }),
-                            ));
-                        }
-                    });
-            });
+                        });
+                });
+            })
+            .response
+            .on_disabled_hover_text(crate::STATE_LOCK_TOOLTIP);
 
             let eff_fill = state_ctx_ref
                 .and_then(|ctx| ctx.state.fill.as_ref())
@@ -9139,7 +9165,12 @@ fn show_object_properties(
                     &mut font_requests,
                 ) {
                     action_to_run = Some(match state_ctx_ref {
-                        Some(ctx) => route_text_set_to_state(action, ctx, base_style),
+                        Some(ctx) => {
+                            let base_paras = text.as_ref().map_or(&[][..], |t| &t.paragraphs[..]);
+                            let view =
+                                state_text_view(ctx, base_style, base_runs, base_paras, base_text);
+                            route_text_set_to_state(action, ctx, &view)
+                        }
                         None => action,
                     });
                 }
@@ -9266,9 +9297,13 @@ fn show_object_properties(
             }
 
             inspector_separator(ui);
-            inspector_row(ui, "Begin", |ui| {
-                show_line_end_combo(ui, "prop_path_start_end", &mut props.path_start_end);
-            });
+            ui.add_enabled_ui(!state_edit_locked, |ui| {
+                inspector_row(ui, "Begin", |ui| {
+                    show_line_end_combo(ui, "prop_path_start_end", &mut props.path_start_end);
+                });
+            })
+            .response
+            .on_disabled_hover_text(crate::STATE_LOCK_TOOLTIP);
             if props.path_start_end != path.start_end {
                 let mut kind = base_kind.clone();
                 kind["start_end"] = serde_json::json!(props.path_start_end);
@@ -9282,9 +9317,13 @@ fn show_object_properties(
                 ));
             }
 
-            inspector_row(ui, "End", |ui| {
-                show_line_end_combo(ui, "prop_path_end_end", &mut props.path_end_end);
-            });
+            ui.add_enabled_ui(!state_edit_locked, |ui| {
+                inspector_row(ui, "End", |ui| {
+                    show_line_end_combo(ui, "prop_path_end_end", &mut props.path_end_end);
+                });
+            })
+            .response
+            .on_disabled_hover_text(crate::STATE_LOCK_TOOLTIP);
             if props.path_end_end != path.end_end {
                 let mut kind = base_kind.clone();
                 kind["end_end"] = serde_json::json!(props.path_end_end);
@@ -10039,7 +10078,14 @@ fn show_object_properties(
         }
     }
 
-    if let Some(action) =
+    if state_edit_locked {
+        // The named text style is shared across all states.
+        ui.add_enabled_ui(false, |ui| {
+            crate::text_styles_ui::show_style_section(ui, &editor.session.course, &slide.id, obj)
+        })
+        .response
+        .on_disabled_hover_text(crate::STATE_LOCK_TOOLTIP);
+    } else if let Some(action) =
         crate::text_styles_ui::show_style_section(ui, &editor.session.course, &slide.id, obj)
     {
         action_to_run = Some(action);
@@ -10269,7 +10315,10 @@ fn show_object_properties(
                 false,
             ) {
                 action_to_run = Some(match state_ctx_ref {
-                    Some(ctx) => route_text_set_to_state(action, ctx, style),
+                    Some(ctx) => {
+                        let view = state_text_view(ctx, style, runs, paragraphs, text);
+                        route_text_set_to_state(action, ctx, &view)
+                    }
                     None => action,
                 });
             }
@@ -10302,7 +10351,16 @@ fn show_object_properties(
                 false,
             ) {
                 action_to_run = Some(match state_ctx_ref {
-                    Some(ctx) => route_text_set_to_state(action, ctx, &text.style),
+                    Some(ctx) => {
+                        let view = state_text_view(
+                            ctx,
+                            &text.style,
+                            &text.runs,
+                            &text.paragraphs,
+                            &text.text,
+                        );
+                        route_text_set_to_state(action, ctx, &view)
+                    }
                     None => action,
                 });
             }

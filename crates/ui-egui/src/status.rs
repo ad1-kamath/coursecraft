@@ -191,7 +191,7 @@ fn finish_slide_navigation(editor: &mut Editor, previous: String) {
         if !editor.ui.master_view {
             editor.ui.master_view_return_slide = Some(previous);
             editor.ui.master_view = true;
-            editor.ui.bottom_tab = crate::BottomTab::Timeline;
+            crate::dock::request_bottom_tab(editor, crate::BottomTab::Timeline);
         }
     } else {
         editor.ui.master_view = false;
@@ -227,6 +227,23 @@ pub fn navigate_to_audit_finding(
 }
 
 /// Render the status bar at the bottom of the editor.
+/// What the status bar says while a painter is armed: it names what is copied (`N109`).
+pub(crate) fn painter_hint(kind: crate::format_painter::PainterKind, sticky: bool) -> &'static str {
+    use crate::format_painter::PainterKind;
+    match (kind, sticky) {
+        (PainterKind::Format, true) => "Click objects to copy the format onto them (Esc to cancel)",
+        (PainterKind::Format, false) => {
+            "Click an object to copy the format onto it (Esc to cancel)"
+        }
+        (PainterKind::Animation, true) => {
+            "Click objects to copy the animations onto them (Esc to cancel)"
+        }
+        (PainterKind::Animation, false) => {
+            "Click an object to copy the animations onto it (Esc to cancel)"
+        }
+    }
+}
+
 pub fn show_status_bar(editor: &mut Editor, ui: &mut Ui) {
     let p = coursecraft_render::palette(ui.ctx());
     ui.horizontal(|ui| {
@@ -332,11 +349,7 @@ pub fn show_status_bar(editor: &mut Editor, ui: &mut Ui) {
         }
         if let Some(painter) = editor.ui.format_painter.as_ref() {
             ui.separator();
-            let hint = if painter.sticky {
-                "Click objects to copy the format onto them (Esc to cancel)"
-            } else {
-                "Click an object to copy the format onto it (Esc to cancel)"
-            };
+            let hint = tl!(painter_hint(painter.kind, painter.sticky));
             ui.label(coursecraft_render::small(hint).color(p.accent));
         }
         // MP4 export progress or the finished report
@@ -496,7 +509,10 @@ pub fn show_status_bar(editor: &mut Editor, ui: &mut Ui) {
             if navigated {
                 finish_slide_navigation(editor, previous);
                 if path.ends_with("/revisit") {
-                    editor.ui.inspector_tab = crate::properties::InspectorTab::Slide;
+                    crate::dock::request_inspector_tab(
+                        editor,
+                        crate::properties::InspectorTab::Slide,
+                    );
                 } else if !editor.ui.master_view
                     && let Some(state_name) = state_name_from_issue_path(
                         &editor.session.course,
@@ -514,7 +530,7 @@ pub fn show_status_bar(editor: &mut Editor, ui: &mut Ui) {
                 editor.ui.story_view = false;
                 editor.ui.master_view = false;
                 editor.ui.master_view_return_slide = None;
-                editor.ui.inspector_tab = crate::properties::InspectorTab::Course;
+                crate::dock::request_inspector_tab(editor, crate::properties::InspectorTab::Course);
             } else {
                 let previous = editor.selection.slide.clone();
                 if navigate_to_audit_finding(

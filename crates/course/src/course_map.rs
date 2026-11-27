@@ -339,10 +339,20 @@ fn slide_links(object: &crate::Object, course: &Course) -> Vec<String> {
 /// A trigger condition in words, for tooltips and `course.map` output.
 #[must_use]
 pub fn describe_condition(condition: &Condition) -> String {
+    describe_condition_at(condition, 0)
+}
+
+/// Words for a condition nested `depth` deep. A tree deeper than
+/// `MAX_CONDITION_DEPTH` (validation refuses it) is cut with `...`, so a
+/// hostile tree built through the Rust API cannot overflow the stack (N83).
+fn describe_condition_at(condition: &Condition, depth: usize) -> String {
+    if depth > crate::MAX_CONDITION_DEPTH {
+        return "...".to_owned();
+    }
     match condition {
-        Condition::All(parts) => join_conditions(parts, "AND"),
-        Condition::Any(parts) => join_conditions(parts, "OR"),
-        Condition::Not(inner) => format!("NOT ({})", describe_condition(inner)),
+        Condition::All(parts) => join_conditions(parts, "AND", depth),
+        Condition::Any(parts) => join_conditions(parts, "OR", depth),
+        Condition::Not(inner) => format!("NOT ({})", describe_condition_at(inner, depth + 1)),
         Condition::Compare {
             variable,
             op,
@@ -375,8 +385,11 @@ pub fn describe_condition(condition: &Condition) -> String {
     }
 }
 
-fn join_conditions(parts: &[Condition], glue: &str) -> String {
-    let described: Vec<String> = parts.iter().map(describe_condition).collect();
+fn join_conditions(parts: &[Condition], glue: &str, depth: usize) -> String {
+    let described: Vec<String> = parts
+        .iter()
+        .map(|part| describe_condition_at(part, depth + 1))
+        .collect();
     if described.len() <= 1 {
         return described.into_iter().next().unwrap_or_default();
     }
@@ -755,6 +768,16 @@ mod tests {
             describe_condition(&all),
             "(score >= 10 AND btn is not selected)"
         );
+        // N83: a tree far deeper than the validation limit is cut, not walked.
+        let mut deep = Condition::ObjectState {
+            object: "o".to_owned(),
+            state: "s".to_owned(),
+            is: true,
+        };
+        for _ in 0..2000 {
+            deep = Condition::Not(Box::new(deep));
+        }
+        assert!(describe_condition(&deep).contains("..."));
         let not = Condition::Not(Box::new(Condition::Compare {
             variable: "done".to_owned(),
             op: CmpOp::Eq,

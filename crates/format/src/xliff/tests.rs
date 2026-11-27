@@ -543,7 +543,12 @@ fn oversized_unit_is_refused() {
 #[test]
 fn truncated_xml_is_refused() {
     let text = export_xliff(&showcase(), "fr").expect("export");
-    let truncated = text.get(..text.len() / 2).unwrap_or_default();
+    // Cut inside a tag near the middle. A cut at exactly half the text can land
+    // between two units, which stays well-formed enough to parse, so it moved
+    // whenever the chrome string table grew.
+    let half = text.get(..text.len() / 2).unwrap_or_default();
+    let tag = half.rfind('<').unwrap_or_default();
+    let truncated = text.get(..tag + 3).unwrap_or_default();
     assert!(matches!(
         parse_xliff(truncated.as_bytes()),
         Err(XliffError::Xml(_))

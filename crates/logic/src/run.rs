@@ -749,6 +749,11 @@ impl<'c> Player<'c> {
                 .as_ref()
                 .map(|_| self.st.visible_layers.clone());
             self.fire(&fired, q, out);
+            // Actions move frames or change what is visible (state, layers, drops):
+            // pairs are recomputed after every event, not only after ticks and clicks.
+            if self.st.epoch == fired.epoch && !self.st.exited {
+                self.check_intersections(q);
+            }
             if let Some(object) = &fired.cue_pause
                 && self.st.epoch == fired.epoch
                 && !self.st.exited
@@ -785,8 +790,8 @@ impl<'c> Player<'c> {
         }
         for (owner, triggers) in owners {
             for t in triggers {
-                if self.st.epoch != fired.epoch {
-                    return; // a jump left the slide: the rest of the list is dropped
+                if self.st.epoch != fired.epoch || self.st.exited {
+                    return; // a jump or exit left the slide: the rest of the list is dropped
                 }
                 if t.disabled || !matches(&t.when, &fired.event) {
                     continue;
@@ -1137,8 +1142,19 @@ impl<'c> Player<'c> {
         if self.st.media_playback.get(object) != Some(&MediaPlaybackState::Playing) {
             return false;
         }
-        // A trim end ends the clip exactly like a natural end.
-        if trim_end.is_some_and(|end_ms| at_ms >= end_ms as f64) {
+        // A trim end ends the clip exactly like a natural end, but cues up to the
+        // trim end fire first, even when this one report steps over both.
+        let ended = trim_end.is_some_and(|end_ms| at_ms >= end_ms as f64);
+        let scan_at = match trim_end {
+            Some(end_ms) if ended => end_ms as f64,
+            _ => at_ms,
+        };
+        let (queued, held) = if cues.is_empty() {
+            (false, false)
+        } else {
+            self.scan_cues(object, cues, scan_at, q, out)
+        };
+        if ended && !held {
             out.push(Effect::Media {
                 object: object.to_owned(),
                 op: MediaOp::Stop,
@@ -1146,10 +1162,19 @@ impl<'c> Player<'c> {
             self.finish_media(object, q);
             return true;
         }
-        if cues.is_empty() {
-            return false;
-        }
+        queued || held
+    }
 
+    /// Fire the cues of `object` crossed on the way to `at_ms`. Returns whether
+    /// events were queued, and whether a pausing cue now holds the video.
+    fn scan_cues(
+        &mut self,
+        object: &str,
+        cues: &[Cue],
+        at_ms: f64,
+        q: &mut Queue,
+        out: &mut Vec<Effect>,
+    ) -> (bool, bool) {
         let mut progress = self.st.cue_progress.remove(object).unwrap_or_default();
         let old = if progress.last_ms.is_finite() {
             progress.last_ms
@@ -1161,7 +1186,7 @@ impl<'c> Player<'c> {
                 // Host position rounding around a just-seeked cue must not
                 // re-arm the cue that is being resumed.
                 self.st.cue_progress.insert(object.to_owned(), progress);
-                return false;
+                return (false, false);
             }
             // A backward seek re-arms the cues at or after the new position.
             progress
@@ -1171,11 +1196,11 @@ impl<'c> Player<'c> {
             self.st.cue_progress.insert(object.to_owned(), progress);
             self.st.cue_held.remove(object);
             self.st.cue_layers.remove(object);
-            return false;
+            return (false, false);
         }
         if at_ms == old {
             self.st.cue_progress.insert(object.to_owned(), progress);
-            return false;
+            return (false, false);
         }
 
         let mut queued = false;
@@ -1209,14 +1234,14 @@ impl<'c> Player<'c> {
                 });
                 self.push_cue_pause(q, event, object);
                 self.st.cue_progress.insert(object.to_owned(), progress);
-                return true;
+                return (true, true);
             }
             self.push(q, event);
             queued = true;
         }
         progress.last_ms = at_ms;
         self.st.cue_progress.insert(object.to_owned(), progress);
-        queued
+        (queued, false)
     }
 
     /// Give every video on `objects` fresh cue progress, re-arming all cues.
@@ -1380,6 +1405,18 @@ impl<'c> Player<'c> {
             object: object.to_owned(),
             op: MediaOp::Play,
         });
+        // A trimmed clip starts at its trim start, not at file time 0.
+        if held_cue.is_none()
+            && let Some(trim) = self
+                .slide()
+                .and_then(|slide| slide.object(object))
+                .and_then(|(obj, _)| media_trim(obj))
+        {
+            out.push(Effect::MediaSeek {
+                object: object.to_owned(),
+                ms: trim.start_ms,
+            });
+        }
     }
 
     fn object_is_lottie(&self, object: &str) -> bool {
@@ -1525,6 +1562,7 @@ impl<'c> Player<'c> {
                     op: MediaOp::Stop,
                 });
             }
+            self.st.media_clocks.remove(&obj.id);
             self.clear_cue_state(&obj.id);
         }
     }
@@ -1755,6 +1793,10 @@ impl<'c> Player<'c> {
                 self.st.matches = snapshot.matches;
                 self.st.hotspot_markers = snapshot.hotspot_markers;
                 self.st.drops = snapshot.drops;
+                // Items dropped freely rest where the learner left them.
+                for (item, offset) in snapshot.drop_offsets {
+                    self.st.object_offsets.insert(item, offset);
+                }
                 if let Some(q) = &question
                     && q.snap_to_center
                 {
@@ -2225,7 +2267,7 @@ impl<'c> Player<'c> {
         out: &mut Vec<Effect>,
     ) {
         let Some(slide) = self.slide() else { return };
-        let Some((obj, _)) = slide.object(object) else {
+        let Some((obj, layer)) = slide.object(object) else {
             warn(out, format!("object {object:?} is not on this slide"));
             return;
         };
@@ -2239,6 +2281,10 @@ impl<'c> Player<'c> {
         }
         // A disabled input ignores every commitment silently, like a disabled click.
         if self.object_state(object) == Some("disabled") {
+            return;
+        }
+        // A base input under a `prevent_base_clicks` layer ignores it too.
+        if layer.is_none() && self.base_clicks_prevented(slide) {
             return;
         }
         let (variable, commit) = match &obj.kind {
@@ -2495,6 +2541,15 @@ impl<'c> Player<'c> {
             };
             self.st.lightbox = Some(lb);
         } else {
+            if self
+                .st
+                .lightbox
+                .as_ref()
+                .is_some_and(|lb| lb.base_slide == idx)
+            {
+                warn(out, "cannot open a lightbox on the slide under the box");
+                return;
+            }
             // Replacing: close the old box's media but keep the saved base.
             let old = self
                 .st
@@ -2568,6 +2623,7 @@ impl<'c> Player<'c> {
         if slide.revisit == RevisitMode::Reset {
             seed_slide_states(slide, states);
         }
+        self.seed_sequence(slide);
         out.push(Effect::LightboxOpened {
             slide: slide.id.clone(),
         });
@@ -2704,6 +2760,14 @@ impl<'c> Player<'c> {
                     .layer(id)
                     .is_some_and(|layer| listens(&layer.triggers))
             })
+    }
+
+    /// Whether a visible layer with `prevent_base_clicks` blocks the base layer.
+    fn base_clicks_prevented(&self, slide: &Slide) -> bool {
+        self.st
+            .visible_layers
+            .iter()
+            .any(|l| slide.layer(l).is_some_and(|l| l.prevent_base_clicks))
     }
 
     /// Why a click on `id` would or would not reach the object or interactive group.
@@ -3264,7 +3328,9 @@ impl<'c> Player<'c> {
         for o in objects {
             if let Some(ref anim) = o.entrance {
                 let finish_ms = o.timing.start_ms.saturating_add(anim.duration_ms);
-                if old < finish_ms && finish_ms <= new {
+                // An entrance that does not fit completes when the timeline ends.
+                let cut_short = new >= duration && o.timing.start_ms <= new;
+                if old < finish_ms && (finish_ms <= new || cut_short) {
                     self.push(
                         q,
                         Event::AnimationCompletes {
@@ -3460,6 +3526,11 @@ impl<'c> Player<'c> {
         if self.st.epoch != epoch || self.st.exited {
             return; // a cue jumped to another slide; this seek belongs to the old one
         }
+        // Run the events the seek crossed first: a jump or exit among them ends this seek.
+        self.process(q, out);
+        if self.st.epoch != epoch || self.st.exited {
+            return;
+        }
         self.seek_media(target, &slide.objects, duration, out);
     }
 
@@ -3521,6 +3592,14 @@ impl<'c> Player<'c> {
             return;
         }
         self.st.layer_clocks.insert(id.to_owned(), next);
+        // Run the events the seek crossed first: a jump, exit or hide among them ends this seek.
+        self.process(q, out);
+        if self.st.epoch != epoch
+            || self.st.exited
+            || !self.st.visible_layers.iter().any(|visible| visible == id)
+        {
+            return;
+        }
         self.seek_media(target, &layer.objects, duration, out);
     }
 
@@ -4016,7 +4095,7 @@ impl<'c> Player<'c> {
         out: &mut Vec<Effect>,
     ) {
         let Some(slide) = self.slide() else { return };
-        let Some((obj, _layer)) = slide.object(object_id) else {
+        let Some((obj, layer)) = slide.object(object_id) else {
             warn(
                 out,
                 format!("draggable object {object_id:?} is not on this slide"),
@@ -4048,6 +4127,13 @@ impl<'c> Player<'c> {
                 out,
                 format!("draggable object {object_id:?} is not on screen"),
             );
+            return;
+        }
+        // A disabled object, or a base object under a `prevent_base_clicks` layer,
+        // ignores the drop silently, like a click.
+        if self.object_state(object_id) == Some("disabled")
+            || (layer.is_none() && self.base_clicks_prevented(slide))
+        {
             return;
         }
         let slide_w = self.course.slide_size.w as f32;
@@ -4234,6 +4320,17 @@ impl<'c> Player<'c> {
                 matches: self.st.matches.clone(),
                 hotspot_markers: self.st.hotspot_markers.clone(),
                 drops: self.st.drops.clone(),
+                drop_offsets: self
+                    .st
+                    .drops
+                    .keys()
+                    .filter_map(|item| {
+                        self.st
+                            .object_offsets
+                            .get(item)
+                            .map(|offset| (item.clone(), *offset))
+                    })
+                    .collect(),
             },
         );
         let attempts_left = (limit != 0).then(|| limit.saturating_sub(attempts));

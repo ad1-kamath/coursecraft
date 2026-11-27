@@ -161,7 +161,9 @@ pub fn recolor_course(
     let mut out = result.map_err(|e| RecolorError::Round(e.to_string()))?;
 
     // A default theme is left out of the JSON, so it was never read: map it here.
-    if palette.is_empty() && crate::Theme::default() == course.theme {
+    // `source.theme` has its palette taken out, so a theme with palette entries
+    // and default colours is a default theme too.
+    if crate::Theme::default() == source.theme {
         changed = changed.saturating_add(recolor_theme(&mut out.theme, from_rgb, to_rgb));
     }
     out.theme.palette = if include_palette {

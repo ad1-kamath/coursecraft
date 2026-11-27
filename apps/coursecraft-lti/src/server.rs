@@ -763,18 +763,30 @@ fn ags_token(shared: &Shared, scopes: &[String], now: Instant) -> Result<String,
         .get("expires_in")
         .and_then(Value::as_u64)
         .unwrap_or(3600);
-    let ttl = expires_in.saturating_sub(TOKEN_REFRESH_MARGIN.as_secs());
+    let expires = token_expiry(now, expires_in);
     {
         let mut tokens = lock(&shared.tokens);
         tokens.insert(
             scope_key,
             CachedToken {
                 token: token.clone(),
-                expires: now + Duration::from_secs(ttl),
+                expires,
             },
         );
     }
     Ok(token)
+}
+
+/// Longest a cached platform token is trusted, whatever `expires_in` says.
+const TOKEN_MAX_TTL: Duration = Duration::from_secs(24 * 60 * 60);
+
+/// When to stop using a token the platform said lives `expires_in` seconds.
+/// The platform controls that number, so it is clamped and the sum is checked
+/// instead of trusting `Instant + Duration` not to overflow.
+pub(crate) fn token_expiry(now: Instant, expires_in: u64) -> Instant {
+    let ttl = Duration::from_secs(expires_in.saturating_sub(TOKEN_REFRESH_MARGIN.as_secs()))
+        .min(TOKEN_MAX_TTL);
+    now.checked_add(ttl).unwrap_or(now)
 }
 
 fn http_get(url: &str) -> Result<String, String> {

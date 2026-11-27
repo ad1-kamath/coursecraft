@@ -15,8 +15,15 @@ pub const DEFAULT_BAR_TEXT_COLOR: egui::Color32 = egui::Color32::from_rgb(0xFF, 
 /// Whether the current slide's clock has reached its end.
 #[must_use]
 pub fn at_slide_end(player: &Player<'_>) -> bool {
+    // `seek_info` reports the clock the seek bar acts on: a seekable layer's clock
+    // while that layer plays, otherwise the base clock. An ended base clock only
+    // counts when no timed clock is reported, so a playing layer is not "at end".
     let info = player.seek_info();
-    player.state().base.ended || (info.duration_ms > 0 && info.elapsed_ms >= info.duration_ms)
+    if info.duration_ms > 0 {
+        info.elapsed_ms >= info.duration_ms
+    } else {
+        player.state().base.ended
+    }
 }
 
 /// Inputs for the main play/pause button.
@@ -65,6 +72,22 @@ pub fn format_ms(ms: u32) -> String {
     let mins = total_secs / 60;
     let secs = total_secs % 60;
     format!("{mins}:{secs:02}")
+}
+
+/// `(is_first, is_last)` for the current slide as the player controls see it.
+///
+/// A partial preview never disables navigation. During answer review the last
+/// answered question is not the end: Next still works there and exits the review.
+#[must_use]
+pub fn player_nav_limits(player: &Player<'_>, current_id: &str) -> (bool, bool) {
+    if player.is_partial_preview() {
+        return (false, false);
+    }
+    let (is_first, is_last) = nav_limits(
+        player.play_order().iter().map(|s| s.id.as_str()),
+        current_id,
+    );
+    (is_first, is_last && !player.is_reviewing())
 }
 
 /// Returns `(is_first, is_last)` for `current_id` among `slides`.

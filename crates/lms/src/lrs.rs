@@ -484,7 +484,7 @@ impl XapiBridge {
                     self.handle_statement_response(response.status, now_ms, warnings);
                 }
                 Pending::ProgressPut(revision) => {
-                    self.handle_progress_put(response.status, revision);
+                    self.handle_progress_put(response.status, revision, warnings);
                 }
             }
         }
@@ -684,13 +684,23 @@ impl XapiBridge {
         }
     }
 
-    fn handle_progress_put(&mut self, status: u16, revision: u64) {
+    fn handle_progress_put(&mut self, status: u16, revision: u64, warnings: &mut Vec<String>) {
         let matches = self
             .progress
             .in_flight
             .is_some_and(|(_, inflight_revision)| inflight_revision == revision);
         if matches {
             self.progress.in_flight = None;
+        }
+        if (status == 401 || status == 403) && self.reporting {
+            warnings.push(format!(
+                "xAPI authentication failed (HTTP {status}); reporting disabled for this session"
+            ));
+            self.reporting = false;
+            self.phase = Phase::Off;
+            self.queue.clear();
+            self.progress.dirty = false;
+            return;
         }
         if (200..300).contains(&status)
             && revision == self.progress.revision

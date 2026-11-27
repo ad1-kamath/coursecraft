@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use coursecraft_course::{
     Action, Autofit, Color, Condition, CropRect, Event, FillStyle, Glow, Glue, Group, Object,
     ObjectKind, Outline, RadioOption, Rect, Shadow, Slide, TextRun, TextStyle, Timing, Trigger,
-    Trim, WebSource,
+    Trim, WebSource, shape_allows_text,
 };
 use serde_json::{Value as Json, json};
 
@@ -177,6 +177,23 @@ fn keep_text_style_link(old: &ObjectKind, new: &mut ObjectKind, omitted: bool) {
     }
 }
 
+/// Emphasis starts are absolute on the slide timeline, so moving an object moves them by the
+/// same amount. Saturating; an emphasis never lands before the object's new start.
+fn shift_emphasis_with_start(obj: &mut Object, new_start: u32) {
+    let old_start = obj.timing.start_ms;
+    if new_start == old_start {
+        return;
+    }
+    for e in &mut obj.emphasis {
+        let moved = if new_start > old_start {
+            e.start_ms.saturating_add(new_start - old_start)
+        } else {
+            e.start_ms.saturating_sub(old_start - new_start)
+        };
+        e.start_ms = moved.max(new_start);
+    }
+}
+
 pub(super) fn object_update(s: &mut Session, p: &Json) -> Result<Json> {
     const C: &str = "object.update";
     let was_valid = s.is_playable();
@@ -255,6 +272,7 @@ pub(super) fn object_update(s: &mut Session, p: &Json) -> Result<Json> {
         }
     }
     if let Some(t) = timing {
+        shift_emphasis_with_start(obj, t.start_ms);
         obj.timing = t;
     }
     if let Some(is) = initial_state {
@@ -689,10 +707,30 @@ pub(super) fn all_group_ids(slide: &Slide) -> Vec<String> {
         .collect()
 }
 
+/// A plain group of one is no group: clear the id from a lone remaining member. A group with
+/// a record (an interactive group, which triggers may target) keeps its member.
+fn dissolve_single_member_groups(objects: &mut [Object], records: &[Group]) {
+    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+    for g in objects.iter().filter_map(|o| o.group.as_ref()) {
+        let n = counts.entry(g.clone()).or_insert(0);
+        *n = n.saturating_add(1);
+    }
+    for o in objects.iter_mut() {
+        let lone = |g: &String| counts.get(g) == Some(&1) && !records.iter().any(|r| &r.id == g);
+        if o.group.as_ref().is_some_and(lone) {
+            o.group = None;
+        }
+    }
+}
+
 /// Remove any [`Group`] records on `slide` (base or layers) that have zero
 /// member objects remaining on their owning layer. Returns the removed group
 /// IDs so callers can clean up dangling triggers in the same undo step.
 pub(super) fn remove_empty_group_records(slide: &mut Slide) -> Vec<String> {
+    dissolve_single_member_groups(&mut slide.objects, &slide.groups);
+    for layer in &mut slide.layers {
+        dissolve_single_member_groups(&mut layer.objects, &layer.groups);
+    }
     let mut removed = Vec::new();
     let base_objects = &slide.objects;
     slide.groups.retain(|g| {
@@ -1821,7 +1859,7 @@ fn run_extras_of(runs: &[TextRun]) -> RunExtras {
 
 /// Clear the run look, then give every character the source's highlight and shadow.
 fn paint_runs(text: &str, runs: &mut Vec<TextRun>, extras: &RunExtras) {
-    clear_run_look(runs);
+    coursecraft_course::clear_run_look(runs);
     if extras.highlight.is_none() && !extras.shadow {
         return;
     }
@@ -1886,22 +1924,6 @@ fn look_of(object: &Object) -> Look {
     look
 }
 
-fn clear_run_look(runs: &mut [TextRun]) {
-    for run in runs {
-        run.bold = None;
-        run.italic = None;
-        run.underline = None;
-        run.strikethrough = None;
-        run.baseline = None;
-        run.letter_spacing = None;
-        run.size = None;
-        run.color = None;
-        run.font = None;
-        run.highlight = None;
-        run.shadow = None;
-    }
-}
-
 /// Returns true when anything changed.
 fn apply_look(object: &mut Object, look: &Look) -> bool {
     let before = object.clone();
@@ -1926,6 +1948,7 @@ fn apply_look(object: &mut Object, look: &Look) -> bool {
             }
         }
         ObjectKind::Shape {
+            shape,
             fill,
             fill_style,
             outline,
@@ -1938,7 +1961,11 @@ fn apply_look(object: &mut Object, look: &Look) -> bool {
             if let Some(src) = &look.fill_style {
                 *fill_style = src.clone();
             }
-            if let Some(src) = &look.outline {
+            // Line shapes cannot carry an outline or text, so a look from
+            // another shape leaves them out.
+            if let Some(src) = &look.outline
+                && shape_allows_text(*shape)
+            {
                 *outline = src.clone();
             }
             if let (Some(src), Some(t)) = (&look.text_style, text.as_mut()) {

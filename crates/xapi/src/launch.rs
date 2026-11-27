@@ -120,8 +120,11 @@ impl LaunchParams {
                 (registration, activity_id, fetch, None)
             }
             Flavor::Xapi => (
-                params.get("registration").cloned(),
-                params.get("activity_id").cloned(),
+                params
+                    .get("registration")
+                    .filter(|v| !v.is_empty())
+                    .cloned(),
+                params.get("activity_id").filter(|v| !v.is_empty()).cloned(),
                 None,
                 Some(required(&params, "auth")?),
             ),

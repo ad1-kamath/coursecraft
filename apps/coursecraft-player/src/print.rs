@@ -39,7 +39,7 @@ fn write_document(doc: &web_sys::Document, html: &str) -> bool {
 
 fn show_blocked(player: &Player<'_>, frame: &mut PlayerFrame) {
     crate::lms::log_warn("print window was blocked");
-    frame.notice = Some(player.course().chrome_string("printBlocked").to_owned());
+    frame.post_notice(player.course().chrome_string("printBlocked").to_owned());
 }
 
 /// Render `player`'s current slide and open the browser's print dialog.

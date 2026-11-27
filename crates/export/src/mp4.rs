@@ -12,7 +12,10 @@ use std::sync::Arc;
 use coursecraft_course::{Action, Course, ObjectKind, Slide, SlideTarget};
 use coursecraft_logic::{Effect, Input, MediaOp, Player};
 use coursecraft_playback::{MediaKind, VideoFrame};
-use coursecraft_render::{MediaFetch, MediaSource, find_media_target, render_player_rgba};
+use coursecraft_render::{
+    MAX_RENDER_WIDTH, MIN_RENDER_WIDTH, MediaFetch, MediaSource, find_media_target,
+    render_player_rgba,
+};
 use coursecraft_video_native::VideoFile;
 use coursecraft_video_native::mp4::{AudioSettings, Mp4Settings, Mp4Writer};
 
@@ -129,23 +132,53 @@ pub fn export_mp4(
         }),
         video_bitrate_bps: 0,
     };
-    let _ = std::fs::remove_file(out);
-    let mut writer = Mp4Writer::create(out, settings).map_err(encoder)?;
+    // Everything is written to a partial file beside `out`. A file already at
+    // `out` is replaced only after the export succeeded, so a failed or
+    // cancelled export never costs the user the old video.
+    let partial = partial_path(out);
+    let _ = std::fs::remove_file(&partial);
+    let mut writer = Mp4Writer::create(&partial, settings).map_err(encoder)?;
 
     match run_export(course, media, options, progress, &mut writer, width, fps) {
         Ok(report) => match writer.finish() {
-            Ok(()) => Ok(report),
+            Ok(()) => match replace_file(&partial, out) {
+                Ok(()) => Ok(report),
+                Err(error) => {
+                    let _ = std::fs::remove_file(&partial);
+                    Err(ExportError::Encoder(format!("{}: {error}", out.display())))
+                }
+            },
             Err(error) => {
-                let _ = std::fs::remove_file(out);
+                let _ = std::fs::remove_file(&partial);
                 Err(encoder(error))
             }
         },
         Err(error) => {
             drop(writer);
-            let _ = std::fs::remove_file(out);
+            let _ = std::fs::remove_file(&partial);
             Err(error)
         }
     }
+}
+
+/// `video.mp4` becomes `video.partial.mp4`, keeping the extension last.
+pub(crate) fn partial_path(out: &Path) -> std::path::PathBuf {
+    let stem = out.file_stem().and_then(|s| s.to_str()).unwrap_or("export");
+    let name = match out.extension().and_then(|e| e.to_str()) {
+        Some(ext) => format!("{stem}.partial.{ext}"),
+        None => format!("{stem}.partial"),
+    };
+    out.with_file_name(name)
+}
+
+/// Move `from` over `to`, replacing a file that is already there.
+fn replace_file(from: &Path, to: &Path) -> std::io::Result<()> {
+    if std::fs::rename(from, to).is_ok() {
+        return Ok(());
+    }
+    // Some platforms refuse to rename over an existing file.
+    let _ = std::fs::remove_file(to);
+    std::fs::rename(from, to)
 }
 
 fn checked_width(width: u32) -> Result<u32, ExportError> {
@@ -157,20 +190,29 @@ fn checked_width(width: u32) -> Result<u32, ExportError> {
     Ok((width & !1).max(16))
 }
 
-fn frame_height(course: &Course, width: u32) -> Result<u32, ExportError> {
-    let slide_w = f64::from(course.slide_size.w);
-    let slide_h = f64::from(course.slide_size.h);
+/// The height of the pictures the renderer makes for a `width`-wide frame,
+/// rounded down to an even number as the encoder needs. It uses the renderer's
+/// own arithmetic, so the two never disagree.
+pub(crate) fn frame_height(course: &Course, width: u32) -> Result<u32, ExportError> {
+    let slide_w = course.slide_size.w as f32;
+    let slide_h = course.slide_size.h as f32;
     if !slide_w.is_finite() || !slide_h.is_finite() || slide_w <= 0.0 || slide_h <= 0.0 {
         return Err(ExportError::Render(format!(
             "invalid course slide size {}x{}",
             course.slide_size.w, course.slide_size.h
         )));
     }
-    let height = (f64::from(width) * slide_h / slide_w).round();
-    if !height.is_finite() {
-        return Err(ExportError::Render("invalid export height".to_string()));
-    }
-    Ok((height.clamp(16.0, 4096.0) as u32) & !1)
+    let rendered = ((width as f32 * slide_h / slide_w).round() as u32)
+        .clamp(MIN_RENDER_WIDTH, MAX_RENDER_WIDTH);
+    Ok(rendered & !1)
+}
+
+/// The pixels of `image` without its last row when the height is odd, so the
+/// frame matches the even height the encoder was opened with.
+pub(crate) fn even_rows(image: &coursecraft_render::RgbaImage) -> &[u8] {
+    let rows = (image.height & !1) as usize;
+    let len = rows.saturating_mul(image.width as usize).saturating_mul(4);
+    image.pixels.get(..len).unwrap_or(&image.pixels)
 }
 
 fn encoder(error: coursecraft_video_native::VideoError) -> ExportError {
@@ -424,7 +466,7 @@ impl<'a> Exporter<'a> {
         let time = t as f64 / 1000.0;
         let image = render_player_rgba(&self.player, width, &[], &source, Some(time))
             .map_err(|error| ExportError::Render(error.to_string()))?;
-        writer.write_frame(&image.pixels, t).map_err(encoder)
+        writer.write_frame(even_rows(&image), t).map_err(encoder)
     }
 
     /// Press Next once the slide's base clock ended and the tail passed.

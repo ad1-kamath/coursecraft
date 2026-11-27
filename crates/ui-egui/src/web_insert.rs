@@ -39,6 +39,7 @@ pub fn insert_web_object(editor: &mut Editor, source: WebSource) -> Option<Strin
         "object.add",
         serde_json::json!({
             "slide": editor.selection.slide,
+            "layer": editor.selection.layer,
             "kind": kind,
             "frame": web_frame(editor),
         }),

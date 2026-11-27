@@ -213,20 +213,43 @@ impl coursecraft_render::MediaSource for HeadlessMediaSource {
         }
         drop(map);
 
-        if let Some(ref p) = self.course_path {
-            let course_dir = if p.is_dir() {
-                p.as_path()
-            } else {
-                p.parent().unwrap_or_else(|| Path::new("."))
-            };
-            let file = course_dir.join("media").join(src);
-            if let Ok(bytes) = std::fs::read(&file) {
-                return coursecraft_render::MediaFetch::Ready(bytes.into());
-            }
+        if let Some(ref p) = self.course_path
+            && let Some(bytes) = read_contained(&media_dir_of(p), src)
+        {
+            return coursecraft_render::MediaFetch::Ready(bytes.into());
         }
 
         coursecraft_render::MediaFetch::Missing
     }
+}
+
+/// The `media/` folder that belongs to a course path: inside a project folder,
+/// or beside a bare `course.json` or `.ccraft`.
+fn media_dir_of(course_path: &Path) -> PathBuf {
+    let course_dir = if course_path.is_dir() {
+        course_path
+    } else {
+        course_path
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."))
+    };
+    course_dir.join("media")
+}
+
+/// Read `media_dir/src` when it is a regular file that really lives inside
+/// `media_dir` (a symlink out of it is refused) and is within the size limit.
+fn read_contained(media_dir: &Path, src: &str) -> Option<Vec<u8>> {
+    let root = std::fs::canonicalize(media_dir).ok()?;
+    let file = std::fs::canonicalize(media_dir.join(src)).ok()?;
+    if !file.starts_with(&root) {
+        return None;
+    }
+    let meta = std::fs::metadata(&file).ok()?;
+    if !meta.is_file() || meta.len() > coursecraft_format::Limits::default().max_entry_bytes {
+        return None;
+    }
+    std::fs::read(&file).ok()
 }
 
 /// Headless host wrapping an in-memory [`Session`] and optional project file path.
@@ -236,6 +259,9 @@ pub struct HeadlessHost {
     pub saved_revision: u64,
     pub selection: Selection,
     pub media_source: HeadlessMediaSource,
+    /// The project folder last opened or saved, with what is known to be in it,
+    /// so a folder save writes only what changed and deletes dropped media.
+    folder: Option<(PathBuf, coursecraft_format::FolderRecord)>,
 }
 
 impl HeadlessHost {
@@ -260,6 +286,7 @@ impl HeadlessHost {
                 object: None,
             },
             media_source,
+            folder: None,
         }
     }
 
@@ -270,7 +297,7 @@ impl HeadlessHost {
         Ok(host)
     }
 
-    fn collect_media_for_save(&self) -> Vec<(String, Vec<u8>)> {
+    fn collect_media_for_save(&self) -> Result<Vec<(String, Vec<u8>)>, HostError> {
         use coursecraft_render::{MediaFetch, MediaSource};
 
         let mut media = self.media_source.snapshot_in_memory();
@@ -278,7 +305,30 @@ impl HeadlessHost {
             media.iter().map(|(k, _)| k.clone()).collect();
 
         for r in coursecraft_course::media_references(&self.session.course) {
-            if r.src.ends_with('/') || seen.contains(&r.src) {
+            if let Some(folder) = r.src.strip_suffix('/') {
+                // A web folder: every file under `media/<folder>/` goes with it.
+                let Some(path) = self.path.as_deref() else {
+                    continue;
+                };
+                let media_dir = media_dir_of(path);
+                if !media_dir.join(folder).is_dir() {
+                    continue;
+                }
+                let files = coursecraft_format::read_media_folder(
+                    &media_dir,
+                    folder,
+                    coursecraft_course::WEB_MAX_FILES,
+                    coursecraft_course::WEB_MAX_BYTES,
+                )
+                .map_err(|e| HostError::Io(format!("web folder {folder}: {e}")))?;
+                for (name, bytes) in files {
+                    if seen.insert(name.clone()) {
+                        media.push((name, bytes));
+                    }
+                }
+                continue;
+            }
+            if seen.contains(&r.src) {
                 continue;
             }
             if let MediaFetch::Ready(bytes) = self.media_source.get(&r.src) {
@@ -288,7 +338,7 @@ impl HeadlessHost {
         }
 
         media.sort_by(|a, b| a.0.cmp(&b.0));
-        media
+        Ok(media)
     }
 
     fn select_created(&mut self, command: &str, result: &Json) {
@@ -461,7 +511,7 @@ impl ControlHost for HeadlessHost {
             .is_some_and(|e| e.eq_ignore_ascii_case("ccraft"));
 
         if is_ccraft {
-            let media = self.collect_media_for_save();
+            let media = self.collect_media_for_save()?;
             let file_name = target
                 .file_name()
                 .and_then(|n| n.to_str())
@@ -501,15 +551,23 @@ impl ControlHost for HeadlessHost {
                     .and_then(|ext| ext.to_str())
                     .is_none_or(|e| !e.eq_ignore_ascii_case("json"));
             if is_dir {
-                let media = self.collect_media_for_save();
-                let mut record = coursecraft_format::FolderRecord::default();
-                coursecraft_format::save_project_folder(
+                let media = self.collect_media_for_save()?;
+                // Keep the record of the folder this host last opened or saved,
+                // so media the course dropped is deleted and unchanged files
+                // are not written again. Another folder starts with no record.
+                let mut record = match self.folder.take() {
+                    Some((dir, record)) if dir == target => record,
+                    _ => coursecraft_format::FolderRecord::default(),
+                };
+                let saved = coursecraft_format::save_project_folder(
                     &target,
                     &self.session.course,
                     &media,
                     &mut record,
                 )
-                .map_err(|e| HostError::Engine(format!("save failed: {e}")))?;
+                .map_err(|e| HostError::Engine(format!("save failed: {e}")));
+                self.folder = Some((target.clone(), record));
+                saved?;
                 self.media_source.set_in_memory(&media);
             } else {
                 let json_text = self
@@ -520,7 +578,7 @@ impl ControlHost for HeadlessHost {
                 // A bare `.json` keeps its pictures and sounds in a sibling
                 // `media/` folder. Write them first; if one fails, return the
                 // error before the course file or the clean mark changes.
-                let media = self.collect_media_for_save();
+                let media = self.collect_media_for_save()?;
                 write_sibling_media(&target, &media)?;
                 std::fs::write(&target, format!("{json_text}\n"))
                     .map_err(|e| HostError::Io(e.to_string()))?;
@@ -545,6 +603,7 @@ impl ControlHost for HeadlessHost {
 
         // Read and parse first. The session media changes only when the open worked.
         let new_media: Vec<(String, Vec<u8>)>;
+        let mut new_folder = None;
         let course = if is_ccraft {
             let file = std::fs::File::open(path).map_err(|e| HostError::Io(e.to_string()))?;
             let reader = std::io::BufReader::with_capacity(256 * 1024, file);
@@ -556,6 +615,7 @@ impl ControlHost for HeadlessHost {
             let opened = coursecraft_format::open_project_folder(path)
                 .map_err(|e| HostError::Engine(e.to_string()))?;
             new_media = opened.project.media;
+            new_folder = Some((path.to_path_buf(), opened.record));
             opened.project.course
         } else {
             let text = std::fs::read_to_string(path).map_err(|e| HostError::Io(e.to_string()))?;
@@ -566,6 +626,7 @@ impl ControlHost for HeadlessHost {
         self.media_source.set_in_memory(&new_media);
 
         self.media_source.set_path(Some(path.to_path_buf()));
+        self.folder = new_folder;
 
         let title = course.title.clone();
         self.session = Session::new(course);

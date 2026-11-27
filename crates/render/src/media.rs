@@ -456,8 +456,10 @@ struct PictureUse {
 struct VideoTextureEntry {
     handle: TextureHandle,
     size: [u32; 2],
-    /// Identity of the last uploaded frame (same Arc = same frame).
-    last_ptr: *const coursecraft_playback::VideoFrame,
+    /// Identity of the last uploaded frame (same allocation = same frame). A `Weak`
+    /// keeps the allocation reserved, so a later frame can never reuse its address
+    /// and be mistaken for it. The pixel data is freed with the last `Arc`.
+    last_frame: Weak<coursecraft_playback::VideoFrame>,
 }
 
 impl Default for MediaCache {
@@ -897,6 +899,7 @@ impl MediaCache {
             let ObjectKind::Lottie {
                 src,
                 loop_playback: false,
+                speed,
                 ..
             } = &object.kind
             else {
@@ -910,7 +913,10 @@ impl MediaCache {
             else {
                 continue;
             };
-            if clock >= info.duration_ms {
+            // The clock runs in timeline time; the animation runs at `speed` times that.
+            let played_ms =
+                clock as f64 * f64::from(coursecraft_course::clamp_lottie_speed(*speed));
+            if played_ms >= info.duration_ms as f64 {
                 ended.push(Input::MediaEnded {
                     object: object.id.clone(),
                 });
@@ -1599,7 +1605,7 @@ impl MediaCache {
             return None;
         }
         let size = [width, height];
-        let frame_ptr = Arc::as_ptr(frame);
+        let frame_weak = Arc::downgrade(frame);
         let needs_load = self
             .video
             .get(object)
@@ -1614,16 +1620,16 @@ impl MediaCache {
                 VideoTextureEntry {
                     handle,
                     size,
-                    last_ptr: frame_ptr,
+                    last_frame: frame_weak,
                 },
             );
         } else if let Some(entry) = self.video.get_mut(object)
-            && entry.last_ptr != frame_ptr
+            && !Weak::ptr_eq(&entry.last_frame, &frame_weak)
         {
             let color =
                 ColorImage::from_rgba_unmultiplied([width as usize, height as usize], &frame.rgba);
             entry.handle.set(color, TextureOptions::LINEAR);
-            entry.last_ptr = frame_ptr;
+            entry.last_frame = frame_weak;
         }
         self.video.get(object).map(|entry| MediaView::Ready {
             texture: &entry.handle,

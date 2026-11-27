@@ -10,7 +10,7 @@ use coursecraft_course::{Link, ObjectKind, QuestionKind, RadioOption, Slide, Val
 use coursecraft_logic::{Input, Player};
 use egui::{Color32, Event, Id, Key, Modifiers, Rect, Stroke, StrokeKind, Ui, pos2, vec2};
 
-use crate::chrome::{nav_limits, play_pause_inputs, replay_inputs};
+use crate::chrome::{play_pause_inputs, player_nav_limits, replay_inputs};
 use crate::color::parse_color;
 use crate::compose::{DrawItem, Hit, validate_frame};
 use crate::design::relative_luminance;
@@ -439,19 +439,13 @@ fn push_strip_targets(
         list.push(FocusTarget::Chrome(ChromeButton::Outline));
     }
     if visibility.previous && show_nav {
-        let (is_first, _) = nav_limits(
-            player.play_order().iter().map(|s| s.id.as_str()),
-            slide.id.as_str(),
-        );
+        let (is_first, _) = player_nav_limits(player, slide.id.as_str());
         if !is_first {
             list.push(FocusTarget::Chrome(ChromeButton::Previous));
         }
     }
     if visibility.next && show_nav {
-        let (_, is_last) = nav_limits(
-            player.play_order().iter().map(|s| s.id.as_str()),
-            slide.id.as_str(),
-        );
+        let (_, is_last) = player_nav_limits(player, slide.id.as_str());
         if !is_last {
             list.push(FocusTarget::Chrome(ChromeButton::Next));
         }
@@ -804,6 +798,12 @@ impl FocusManager {
         self.dom_focus_owner = owns;
     }
 
+    /// Whether a DOM element owns typing (see [`FocusManager::set_dom_focus_owner`]).
+    #[must_use]
+    pub fn dom_focus_owner(&self) -> bool {
+        self.dom_focus_owner
+    }
+
     /// Replace what the learner chose inside the drawer. The frame calls this
     /// before every update from the state it paints.
     pub fn set_drawer_view(&mut self, view: DrawerView) {
@@ -923,9 +923,15 @@ impl FocusManager {
         for event in std::mem::take(&mut self.external) {
             match event {
                 ExternalFocus::Focused(target) => {
+                    if self.focused.as_ref() != Some(&target) {
+                        self.commit_text_buffer(inputs);
+                    }
                     self.focus_external(target, player);
                 }
                 ExternalFocus::Activated(target) => {
+                    if self.focused.as_ref() != Some(&target) {
+                        self.commit_text_buffer(inputs);
+                    }
                     if self.focus_external(target, player) {
                         self.activate(player, drawer_open, inputs, captions_on, notice_dismissed);
                     }
@@ -956,6 +962,18 @@ impl FocusManager {
                     self.keyboard_mode = false;
                 }
             }
+        }
+    }
+
+    /// Commit the screen-reader text typed into the focused text entry, if any.
+    fn commit_text_buffer(&mut self, inputs: &mut Vec<Input>) {
+        if let Some(FocusTarget::Object(id)) = self.focused.clone()
+            && let Some(text) = self.text_buffers.remove(&id)
+        {
+            inputs.push(Input::SetInputValue {
+                object: id,
+                value: Value::Text(text),
+            });
         }
     }
 
@@ -1113,6 +1131,9 @@ impl FocusManager {
         let ring_key = reveal_key(ui);
 
         let slide_changed = self.rebuild(player, show_nav, show_menu, *drawer_open);
+        // With nothing focusable (a slide with no bar and no controls) the keys
+        // reveal nothing, so they stay free for the slide's own key triggers.
+        let ring_key = ring_key && !self.list.is_empty();
 
         self.process_external_with_captions(
             player,
@@ -1167,7 +1188,8 @@ impl FocusManager {
                 notice_dismissed,
             );
         }
-        if self.drag.is_none() {
+        // Slide key triggers sit behind the modal drawer, so they hear nothing.
+        if self.drag.is_none() && !*drawer_open {
             self.forward_unconsumed_key_pressed(ui, player, &mut inputs);
         }
 
@@ -1509,6 +1531,8 @@ impl FocusManager {
             {
                 ui.memory_mut(|m| m.surrender_focus(input_text_id(&id)));
             }
+            // Leaving a text entry keeps what the learner typed in the screen-reader field.
+            self.commit_text_buffer(inputs);
             for _ in 0..forwards {
                 self.move_focus(false, player);
             }
@@ -1572,6 +1596,10 @@ impl FocusManager {
                 }
                 ObjectKind::RadioGroup { options, variable } => {
                     self.handle_radio_keys(ui, player, &id, variable, options, inputs);
+                    // Space selects the next option (spec: radio group keys).
+                    if consume(ui, Key::Space) {
+                        self.activate(player, drawer_open, inputs, captions_on, notice_dismissed);
+                    }
                     return;
                 }
                 _ => {}
@@ -1597,7 +1625,8 @@ impl FocusManager {
         if let Some(FocusTarget::MatchRow(left)) = self.focused.clone() {
             let up = consume(ui, Key::ArrowUp);
             let down = consume(ui, Key::ArrowDown);
-            if up || down {
+            // A reviewed answer is read-only.
+            if (up || down) && !player.is_reviewing() {
                 self.cycle_match(player, &left, down, inputs);
             }
             return;
@@ -1631,6 +1660,7 @@ impl FocusManager {
                 self.clamp_hotspot(player);
             }
             if (consume(ui, Key::Enter) || consume(ui, Key::Space))
+                && !player.is_reviewing()
                 && let Some((x, y)) = self.hotspot_cursor
             {
                 inputs.push(Input::HotspotClicked { x, y });
@@ -1639,7 +1669,7 @@ impl FocusManager {
         }
 
         if let Some(FocusTarget::DragItem(id)) = self.focused.clone() {
-            if consume(ui, Key::Enter) || consume(ui, Key::Space) {
+            if (consume(ui, Key::Enter) || consume(ui, Key::Space)) && !player.is_reviewing() {
                 let targets = open_targets(player);
                 self.drag = Some(KeyboardDrag {
                     item: id,
@@ -1678,7 +1708,8 @@ impl FocusManager {
             return;
         }
 
-        if consume(ui, Key::Enter) || consume(ui, Key::Space) {
+        // Nothing focused: Enter and Space belong to the slide's key triggers.
+        if self.focused.is_some() && (consume(ui, Key::Enter) || consume(ui, Key::Space)) {
             self.activate(player, drawer_open, inputs, captions_on, notice_dismissed);
         }
     }
@@ -2274,14 +2305,11 @@ impl FocusManager {
         let Some(drag) = self.drag.as_mut() else {
             return;
         };
-        let backwards = if ui.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Tab)) {
-            false
-        } else if ui.input_mut(|i| i.consume_key(Modifiers::SHIFT, Key::Tab)) {
-            true
-        } else {
-            consume(ui, Key::ArrowUp) || consume(ui, Key::ArrowLeft)
-        };
-        let forwards = consume(ui, Key::ArrowDown) || consume(ui, Key::ArrowRight);
+        let tab = ui.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Tab));
+        let shift_tab = !tab && ui.input_mut(|i| i.consume_key(Modifiers::SHIFT, Key::Tab));
+        let backwards =
+            shift_tab || (!tab && (consume(ui, Key::ArrowUp) || consume(ui, Key::ArrowLeft)));
+        let forwards = tab || consume(ui, Key::ArrowDown) || consume(ui, Key::ArrowRight);
         if backwards || forwards {
             let count = drag.targets.len() + 1;
             drag.index = if backwards {
@@ -2493,7 +2521,9 @@ fn target_rect(player: &Player<'_>, target: &FocusTarget, items: &[DrawItem]) ->
             interactive_group_union_rect(items, id)
         }
         FocusTarget::Object(id) | FocusTarget::DragItem(id) => {
+            // The parent's own item, not a small state badge drawn after it.
             items.iter().rev().find_map(|item| match &item.hit {
+                _ if item.is_state_extra => None,
                 Hit::Object(hit) | Hit::DragItem(hit) if hit == id => Some(item.rect),
                 Hit::HotspotImage
                     if player
@@ -2508,22 +2538,10 @@ fn target_rect(player: &Player<'_>, target: &FocusTarget, items: &[DrawItem]) ->
             })
         }
         FocusTarget::Link { object, index, .. } => items.iter().rev().find_map(|item| {
-            if !matches!(&item.hit, Hit::Object(hit) if hit == object) {
+            if item.is_state_extra || !matches!(&item.hit, Hit::Object(hit) if hit == object) {
                 return None;
             }
-            let link = item.links.get(*index)?;
-            let width = item.rect.width();
-            let height = item.rect.height();
-            Some(Rect::from_min_max(
-                egui::pos2(
-                    item.rect.min.x + link.rect.min.x * width,
-                    item.rect.min.y + link.rect.min.y * height,
-                ),
-                egui::pos2(
-                    item.rect.min.x + link.rect.max.x * width,
-                    item.rect.min.y + link.rect.max.y * height,
-                ),
-            ))
+            crate::compose::link_group_rect(item, *index)
         }),
         FocusTarget::Choice(id) => items.iter().rev().find_map(|item| match &item.hit {
             Hit::Choice(hit) if hit == id => Some(item.rect),

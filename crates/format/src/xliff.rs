@@ -98,13 +98,19 @@ impl ParsedText {
         self.segments.iter().all(|s| s.text.is_empty())
     }
 
-    /// Drop the whitespace the writer puts between `<g>` elements.
+    /// Drop the indentation a pretty-printer puts between `<g>` elements.
+    ///
+    /// Only whitespace that holds a line break counts as indentation. A plain
+    /// space between two `<g>` elements is text the translator typed, so it stays.
     fn drop_gutter(&mut self) {
         if !self.segments.iter().any(|segment| segment.run.is_some()) {
             return;
         }
-        self.segments
-            .retain(|segment| segment.run.is_some() || !segment.text.trim().is_empty());
+        self.segments.retain(|segment| {
+            segment.run.is_some()
+                || !segment.text.trim().is_empty()
+                || !segment.text.contains(['\n', '\r'])
+        });
     }
 
     fn push(&mut self, text: &str, run: Option<usize>) {
@@ -1204,12 +1210,28 @@ fn reject_declarations(text: &str) -> Result<(), XliffError> {
     if lower.contains("<!doctype") || lower.contains("<!entity") {
         return Err(XliffError::Doctype);
     }
-    if text.contains("]]>") {
+    if outside_cdata(text).contains("]]>") {
         return Err(XliffError::Xml(
             "raw ]]> is not allowed in character data".to_owned(),
         ));
     }
     Ok(())
+}
+
+/// `text` with every `<![CDATA[ ... ]]>` section removed. A `]]>` that ends a
+/// CDATA section is valid XML; one anywhere else is not.
+fn outside_cdata(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some((before, after)) = rest.split_once("<![CDATA[") {
+        out.push_str(before);
+        match after.split_once("]]>") {
+            Some((_, tail)) => rest = tail,
+            None => return out,
+        }
+    }
+    out.push_str(rest);
+    out
 }
 
 fn reject_control_chars(text: &str) -> Result<(), XliffError> {

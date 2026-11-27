@@ -1869,3 +1869,18 @@ fn a4_10_path_prefix_mount_and_static_course_range_etag_traversal() {
     let (st_404, _, _) = request(server.addr, "GET", "/course/../secret", &[], "");
     assert_eq!(st_404, 404);
 }
+
+#[test]
+fn hostile_expires_in_does_not_overflow_the_token_expiry() {
+    let now = std::time::Instant::now();
+    // Must not panic for any number a platform sends.
+    for expires_in in [0, 59, 60, 3600, u64::MAX / 2, u64::MAX] {
+        let expiry = crate::server::token_expiry(now, expires_in);
+        assert!(expiry >= now);
+        assert!(expiry <= now + Duration::from_secs(24 * 60 * 60));
+    }
+    assert_eq!(
+        crate::server::token_expiry(now, 3600),
+        now + Duration::from_secs(3540)
+    );
+}

@@ -65,6 +65,7 @@ impl SystemFontProvider for IndexFontProvider {
 use coursecraft_media::text_metrics::{INTER_BOLD, INTER_BOLD_ITALIC, INTER_ITALIC, INTER_REGULAR};
 const INTER_MEDIUM: &[u8] = include_bytes!("../fonts/Inter-Medium.ttf");
 const INTER_SEMIBOLD: &[u8] = include_bytes!("../fonts/Inter-SemiBold.ttf");
+use coursecraft_media::text_metrics::SYMBOLS_FALLBACK;
 const PHOSPHOR_REGULAR: &[u8] = include_bytes!("../fonts/Phosphor.ttf");
 const PHOSPHOR_FILL: &[u8] = include_bytes!("../fonts/Phosphor-Fill.ttf");
 
@@ -138,6 +139,10 @@ pub(crate) fn base_definitions_from(mut fonts: FontDefinitions) -> FontDefinitio
         Arc::new(FontData::from_static(INTER_BOLD_ITALIC)),
     );
     fonts.font_data.insert(
+        "symbols_fallback".to_owned(),
+        Arc::new(FontData::from_static(SYMBOLS_FALLBACK)),
+    );
+    fonts.font_data.insert(
         "phosphor_regular".to_owned(),
         Arc::new(FontData::from_static(PHOSPHOR_REGULAR)),
     );
@@ -153,6 +158,9 @@ pub(crate) fn base_definitions_from(mut fonts: FontDefinitions) -> FontDefinitio
         .unwrap_or_default();
     // Phosphor icon font is the last fallback of Proportional, so an icon codepoint
     // inside a normal label string will resolve cleanly without manual layout splitting.
+    // The symbol fallback sits before it: it covers marks such as the cross, check and star
+    // that Inter lacks, and Phosphor only has private-use codepoints.
+    default_proportional.push("symbols_fallback".to_owned());
     default_proportional.push("phosphor_regular".to_owned());
 
     let make_family = |primary: &str| -> Vec<String> {
@@ -210,6 +218,43 @@ pub(crate) fn base_definitions_from(mut fonts: FontDefinitions) -> FontDefinitio
     }
 
     fonts
+}
+
+/// A character in course text that no bundled font can draw.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UndrawableChar {
+    /// The slide id, when the text belongs to a slide.
+    pub slide: Option<String>,
+    /// The object id, when the text belongs to an object.
+    pub object: Option<String>,
+    /// The character that would draw as an empty box.
+    pub ch: char,
+}
+
+/// List each character of the course text that no bundled font can draw, once per object.
+///
+/// A course font or an installed system font can still draw such a character on a machine
+/// that has it, so a hit is a warning and not an error.
+#[must_use]
+pub fn undrawable_chars(course: &Course) -> Vec<UndrawableChar> {
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for item in coursecraft_course::course_strings(course) {
+        for ch in item.text.chars() {
+            if coursecraft_media::text_metrics::bundled_fonts_can_draw(ch) {
+                continue;
+            }
+            let loc = &item.location;
+            if seen.insert((loc.slide.clone(), loc.object.clone(), ch)) {
+                out.push(UndrawableChar {
+                    slide: loc.slide.clone(),
+                    object: loc.object.clone(),
+                    ch,
+                });
+            }
+        }
+    }
+    out
 }
 
 /// Monotonic counter incremented each time font definitions are installed or updated on `ctx`.
@@ -656,6 +701,46 @@ pub fn slide_font(ctx: &egui::Context, bold: bool, italic: bool, size: f32) -> F
 mod tests {
     use super::*;
     use coursecraft_course::FontFace;
+
+    /// The symbol fallback is installed after Inter, so the cross, check and star draw.
+    #[test]
+    fn symbol_fallback_is_in_the_proportional_family() {
+        let defs = base_definitions();
+        let list = defs
+            .families
+            .get(&FontFamily::Proportional)
+            .expect("proportional family");
+        let inter = list
+            .iter()
+            .position(|n| n == "inter_regular")
+            .expect("inter");
+        let symbols = list
+            .iter()
+            .position(|n| n == "symbols_fallback")
+            .expect("symbols");
+        assert!(inter < symbols);
+        for ch in [
+            '\u{2715}', '\u{2713}', '\u{2714}', '\u{2717}', '\u{2605}', '\u{2606}',
+        ] {
+            assert!(coursecraft_media::text_metrics::bundled_fonts_can_draw(ch));
+        }
+    }
+
+    #[test]
+    fn undrawable_chars_names_the_object_and_the_character() {
+        let course = Course::from_json(
+            r#"{"schema_version":1,"id":"c","title":"T","slide_size":{"w":1280,"h":720},"scenes":[{"id":"sc0","title":"S","slides":[{"id":"s0","title":"Slide","objects":[
+              {"id":"ok","kind":{"type":"button","label":"✕ Close ✓"},"frame":{"x":0,"y":0,"w":100,"h":40}},
+              {"id":"bad","kind":{"type":"button","label":"नमस्ते"},"frame":{"x":0,"y":50,"w":100,"h":40}}
+            ]}]}]}"#,
+        )
+        .expect("course parses");
+        let found = undrawable_chars(&course);
+        assert!(!found.is_empty());
+        assert!(found.iter().all(|u| u.object.as_deref() == Some("bad")));
+        assert!(found.iter().any(|u| u.ch == '\u{0928}'));
+        assert!(!found.iter().any(|u| u.ch == '\u{2715}'));
+    }
 
     struct StaticFontMedia;
     impl MediaSource for StaticFontMedia {

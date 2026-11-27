@@ -31,6 +31,7 @@ pub const CHROME_STRINGS: &[(&str, &str)] = &[
     ("playbackSpeed", "Playback speed"),
     ("speedValue", "{n} times"),
     ("fullScreen", "Full screen"),
+    ("exitFullScreen", "Exit full screen"),
     ("tabMenu", "Menu"),
     ("tabResources", "Resources"),
     ("tabGlossary", "Glossary"),
@@ -1395,9 +1396,11 @@ impl FillStyle {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PictureFillMode {
-    /// One copy fills the frame.
+    /// One copy fills the frame, stretched to its proportions.
     #[default]
     Stretch,
+    /// One copy covers the frame, keeping its proportions and centred; the overflow is cut.
+    Fill,
     /// Repeat the picture at its natural size.
     Tile,
 }
@@ -3622,6 +3625,7 @@ pub enum ShapeKind {
     RoundSameSide,
     RoundDiagonal,
     // Basic shapes
+    #[serde(alias = "circle")]
     Ellipse,
     Triangle,
     RightTriangle,
@@ -4871,6 +4875,10 @@ pub struct Question {
     /// Freeform questions grade by this condition. Omitted when absent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub correct_when: Option<Condition>,
+    /// The part of the slide the prompt and the answer rows are laid out in. Omitted when
+    /// unset: the prompt and rows then use the whole slide width, as before frames existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frame: Option<Rect>,
 }
 
 fn default_points() -> u32 {

@@ -46,7 +46,23 @@ pub fn sample_timed_animation(
     duration_ms: u32,
     slide_size: coursecraft_course::Size,
 ) -> Option<ObjectSample> {
-    sample_timed_part(obj, clock_ms, duration_ms, slide_size, (0, 1))
+    sample_timed_animation_reduced(obj, clock_ms, duration_ms, slide_size, false)
+}
+
+/// [`sample_timed_animation`] for a learner who may prefer reduced motion. With `reduced` on,
+/// an entrance or exit other than Fade (and Appear, which does not move) plays as a Fade of the
+/// same duration and timing; an emphasis plays one pass only, and only if it changes colour or
+/// opacity alone (spin, shake, blink, jump and the other moving effects stay at rest). Motion
+/// paths are not touched (they carry meaning).
+#[must_use]
+pub fn sample_timed_animation_reduced(
+    obj: &coursecraft_course::Object,
+    clock_ms: u32,
+    duration_ms: u32,
+    slide_size: coursecraft_course::Size,
+    reduced: bool,
+) -> Option<ObjectSample> {
+    sample_timed_part(obj, clock_ms, duration_ms, slide_size, (0, 1), reduced)
 }
 
 /// Whether `obj`'s entrance or exit plays its text in parts (by paragraph or letter).
@@ -71,9 +87,22 @@ pub fn sample_timed_parts(
     slide_size: coursecraft_course::Size,
     parts: usize,
 ) -> Option<Vec<ObjectSample>> {
+    sample_timed_parts_reduced(obj, clock_ms, duration_ms, slide_size, parts, false)
+}
+
+/// [`sample_timed_parts`] with the reduced-motion switch of [`sample_timed_animation_reduced`].
+#[must_use]
+pub fn sample_timed_parts_reduced(
+    obj: &coursecraft_course::Object,
+    clock_ms: u32,
+    duration_ms: u32,
+    slide_size: coursecraft_course::Size,
+    parts: usize,
+    reduced: bool,
+) -> Option<Vec<ObjectSample>> {
     let n = parts.clamp(1, MAX_SEQUENCE_PARTS);
     (0..n)
-        .map(|k| sample_timed_part(obj, clock_ms, duration_ms, slide_size, (k, n)))
+        .map(|k| sample_timed_part(obj, clock_ms, duration_ms, slide_size, (k, n), reduced))
         .collect()
 }
 
@@ -104,34 +133,42 @@ fn sample_timed_part(
     duration_ms: u32,
     slide_size: coursecraft_course::Size,
     part: (usize, usize),
+    reduced: bool,
 ) -> Option<ObjectSample> {
     if clock_ms < obj.timing.start_ms {
         return None;
     }
 
+    // A clock clamped at the timeline's duration means the timeline is over: an entrance or
+    // exit that did not fit has completed at once (entrance: fully shown, exit: hidden).
+    let timeline_over = clock_ms >= duration_ms;
     let end_ms = obj.timing.end_ms.unwrap_or(duration_ms);
     if let Some(end) = obj.timing.end_ms
         && clock_ms >= end
     {
         return None;
     }
-    if obj.exit.is_some() && clock_ms >= end_ms {
+    if obj.exit.is_some() && (clock_ms >= end_ms || timeline_over) {
         return None;
     }
 
     let mut anim_sample = ObjectSample::IDENTITY;
 
     let exit_running = if let Some(ref exit_anim) = obj.exit {
-        let dur = exit_anim.duration_ms;
-        let start = end_ms.saturating_sub(dur);
+        // The exit never starts before the object does; a longer exit is squeezed into the
+        // object's window.
+        let start = end_ms
+            .saturating_sub(exit_anim.duration_ms)
+            .max(obj.timing.start_ms);
         if clock_ms >= start && clock_ms < end_ms {
-            let progress = if dur == 0 {
+            let window = end_ms.saturating_sub(start);
+            let progress = if window == 0 {
                 1.0
             } else {
-                (clock_ms.saturating_sub(start) as f32 / dur as f32).clamp(0.0, 1.0)
+                (clock_ms.saturating_sub(start) as f32 / window as f32).clamp(0.0, 1.0)
             };
             anim_sample = sample_animation(
-                exit_anim,
+                &motion_safe(exit_anim, reduced),
                 AnimationPhase::Exiting,
                 part_progress(exit_anim.sequence, part, progress),
                 obj.frame,
@@ -145,7 +182,10 @@ fn sample_timed_part(
         false
     };
 
-    if !exit_running && let Some(ref ent_anim) = obj.entrance {
+    if !exit_running
+        && !timeline_over
+        && let Some(ref ent_anim) = obj.entrance
+    {
         let dur = ent_anim.duration_ms;
         let start = obj.timing.start_ms;
         let end = start.saturating_add(dur);
@@ -156,7 +196,7 @@ fn sample_timed_part(
                 (clock_ms.saturating_sub(start) as f32 / dur as f32).clamp(0.0, 1.0)
             };
             anim_sample = sample_animation(
-                ent_anim,
+                &motion_safe(ent_anim, reduced),
                 AnimationPhase::Entering,
                 part_progress(ent_anim.sequence, part, progress),
                 obj.frame,
@@ -167,18 +207,45 @@ fn sample_timed_part(
     // Emphasis plays over whatever the entrance or exit is doing.
     for e in &obj.emphasis {
         let dur = e.duration_ms.max(1);
-        if clock_ms < e.start_ms || clock_ms >= e.end_ms() {
+        let end = if reduced {
+            // One pass only, and only effects that change colour or opacity alone.
+            if !effects::emphasis_is_motion_free(&e.effect.id) {
+                continue;
+            }
+            e.start_ms.saturating_add(dur)
+        } else {
+            e.end_ms()
+        };
+        if clock_ms < e.start_ms || clock_ms >= end {
             continue;
         }
         let into_pass = clock_ms.saturating_sub(e.start_ms) % dur;
-        let t = ease(e.easing, into_pass as f32 / dur as f32);
-        let over = effects::sample_emphasis(&e.effect, t, obj.frame);
+        let raw = into_pass as f32 / dur as f32;
+        let over = effects::sample_emphasis_eased(&e.effect, raw, ease(e.easing, raw), obj.frame);
         anim_sample = anim_sample.then(&over);
     }
     Some(anim_sample)
 }
 
+/// `anim` as it plays under the learner's motion preference: with `reduced` on, any effect other
+/// than Fade and Appear (which does not move) becomes a linear Fade of the same duration.
+fn motion_safe(
+    anim: &coursecraft_course::Animation,
+    reduced: bool,
+) -> Cow<'_, coursecraft_course::Animation> {
+    if !reduced || matches!(anim.effect.id.as_str(), "fade" | "appear") {
+        return Cow::Borrowed(anim);
+    }
+    Cow::Owned(coursecraft_course::Animation {
+        effect: coursecraft_course::AnimEffect::new("fade"),
+        easing: coursecraft_course::Easing::Linear,
+        ..anim.clone()
+    })
+}
+
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use coursecraft_course::{
     CompletionStatus, Course, Issue, Link, MotionPath, NavMode, NextRequirement, ObjectKind,
@@ -544,6 +611,9 @@ pub struct AnswerSnapshot {
     pub matches: BTreeMap<String, String>,
     pub hotspot_markers: Vec<(f32, f32)>,
     pub drops: BTreeMap<String, String>,
+    /// Where each dropped item rested when the answer was graded (drag offsets).
+    #[serde(default)]
+    pub drop_offsets: BTreeMap<String, (f32, f32)>,
 }
 
 /// What the learner submitted for the last graded question.
@@ -899,9 +969,26 @@ pub struct Player<'c> {
     /// Set to `true` when a navigation, jump, or completion action in a partial
     /// preview attempts to leave the previewed subset.
     preview_boundary_hit: bool,
+    /// The learner prefers reduced motion (see "Reduced motion" in `docs/spec/triggers.md`).
+    /// Presentation only: set by the host, never saved, and it changes no timing or event.
+    reduced_motion: AtomicBool,
 }
 
 impl<'c> Player<'c> {
+    /// Tell the player whether the learner prefers reduced motion. Sampling then swaps
+    /// entrances and exits for fades and drops or shortens emphasis (see
+    /// [`sample_timed_animation_reduced`]). Timing, events and triggers do not change. The hosts
+    /// set it from the platform preference; it is not saved.
+    pub fn set_reduced_motion(&self, reduced: bool) {
+        self.reduced_motion.store(reduced, Ordering::Relaxed);
+    }
+
+    /// Whether reduced motion is on.
+    #[must_use]
+    pub fn reduced_motion(&self) -> bool {
+        self.reduced_motion.load(Ordering::Relaxed)
+    }
+
     /// Create a player for a validated course.
     ///
     /// # Errors
@@ -984,6 +1071,7 @@ impl<'c> Player<'c> {
             reach_buf: Vec::new(),
             preview_subset,
             preview_boundary_hit: false,
+            reduced_motion: AtomicBool::new(false),
         };
         p.refresh_slide_cache();
         Ok(p)
@@ -1012,6 +1100,7 @@ impl<'c> Player<'c> {
             reach_buf: Vec::new(),
             preview_subset: None,
             preview_boundary_hit: false,
+            reduced_motion: AtomicBool::new(false),
         };
         p.refresh_slide_cache();
         p
@@ -1139,6 +1228,7 @@ impl<'c> Player<'c> {
             reach_buf: Vec::new(),
             preview_subset,
             preview_boundary_hit: false,
+            reduced_motion: AtomicBool::new(false),
         };
         // Saved states can list visible layers in a different order. Put them back
         // into `slide.layers` order (back to front), dropping nothing.
@@ -1156,10 +1246,17 @@ impl<'c> Player<'c> {
         // already left counts as completed, so it stays unlocked on a return visit.
         if p.st.timeline_completed.is_empty() {
             let current = p.slides.get(p.st.slide).map(|slide| slide.id.clone());
+            // With a lightbox open the current slide is the box's; the slide under it has
+            // not been left either.
+            let base =
+                p.st.lightbox
+                    .as_ref()
+                    .and_then(|lb| p.slides.get(lb.base_slide))
+                    .map(|slide| slide.id.clone());
             let earlier: Vec<String> =
                 p.st.visited
                     .iter()
-                    .filter(|id| Some(*id) != current.as_ref())
+                    .filter(|id| Some(*id) != current.as_ref() && Some(*id) != base.as_ref())
                     .cloned()
                     .collect();
             p.st.timeline_completed.extend(earlier);
@@ -1567,13 +1664,16 @@ impl<'c> Player<'c> {
     }
 
     /// The player settings in effect on the current slide: the course settings
-    /// with the slide's `show_nav`, `show_seekbar` and `show_menu` overrides
-    /// applied. Every host and the runtime read this, never `course.player`
-    /// directly, for those three flags.
+    /// with the slide's `show_bar`, `show_nav`, `show_seekbar` and `show_menu`
+    /// overrides applied. Every host and the runtime read this, never
+    /// `course.player` directly, for those flags.
     #[must_use]
     pub fn effective_player(&self) -> coursecraft_course::PlayerSettings {
         let mut settings = self.course.player.clone();
         if let Some(overrides) = self.current_slide().and_then(|slide| slide.player.as_ref()) {
+            if let Some(show) = overrides.show_bar {
+                settings.show_bar = show;
+            }
             if let Some(show) = overrides.show_nav {
                 settings.show_nav = show;
             }
@@ -2115,7 +2215,12 @@ impl<'c> Player<'c> {
         let (obj, layer_id) = slide.object(object_id)?;
 
         let (clock_ms, duration_ms) = match layer_id {
-            None => (self.st.base.ms, slide.duration_ms),
+            None => {
+                if self.base_objects_hidden() {
+                    return None;
+                }
+                (self.st.base.ms, slide.duration_ms)
+            }
             Some(l) => {
                 if !self.st.visible_layers.iter().any(|vl| vl == l) {
                     return None;
@@ -2126,8 +2231,13 @@ impl<'c> Player<'c> {
             }
         };
 
-        let anim_sample =
-            sample_timed_animation(obj, clock_ms, duration_ms, self.course.slide_size)?;
+        let anim_sample = sample_timed_animation_reduced(
+            obj,
+            clock_ms,
+            duration_ms,
+            self.course.slide_size,
+            self.reduced_motion(),
+        )?;
 
         let motion_offset = if let Some(running) = self.st.running_paths.get(object_id) {
             sample_motion_path(&running.path, running.elapsed_ms, running.from, obj.frame)
@@ -2169,10 +2279,24 @@ impl<'c> Player<'c> {
                 (c.ms, slide.layer(l)?.duration_ms)
             }
         };
-        let own = sample_timed_animation(obj, clock_ms, duration_ms, self.course.slide_size)?;
+        let reduced = self.reduced_motion();
+        let own = sample_timed_animation_reduced(
+            obj,
+            clock_ms,
+            duration_ms,
+            self.course.slide_size,
+            reduced,
+        )?;
         // Motion paths and drags move every part alike.
         let extra = (whole.offset.0 - own.offset.0, whole.offset.1 - own.offset.1);
-        let parts = sample_timed_parts(obj, clock_ms, duration_ms, self.course.slide_size, parts)?;
+        let parts = sample_timed_parts_reduced(
+            obj,
+            clock_ms,
+            duration_ms,
+            self.course.slide_size,
+            parts,
+            reduced,
+        )?;
         Some(
             parts
                 .into_iter()
@@ -2335,6 +2459,15 @@ fn clock_next_wake(
                 best = best.min(end_ms - clock.ms);
             }
         }
+        for emphasis in &obj.emphasis {
+            let end = emphasis.end_ms();
+            if clock.ms >= emphasis.start_ms && clock.ms < end {
+                return Some(0);
+            }
+            if emphasis.start_ms > clock.ms {
+                best = best.min(emphasis.start_ms - clock.ms);
+            }
+        }
         if obj.timing.start_ms > clock.ms {
             best = best.min(obj.timing.start_ms - clock.ms);
         }
@@ -2442,6 +2575,8 @@ fn push_str_capped(out: &mut String, s: &str, max_len: usize) -> bool {
 
 #[cfg(test)]
 mod bughunt_m26_a3_exit_transitions;
+#[cfg(test)]
+mod bughunt_r2_motion;
 #[cfg(test)]
 mod f23_media_timeline_tests;
 #[cfg(test)]

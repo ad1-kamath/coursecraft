@@ -817,6 +817,7 @@ fn default_shape_text_style(fill: &coursecraft_course::Color) -> coursecraft_cou
 fn enter_edits_selection(editor: &mut Editor, ui: &Ui) {
     if editor.ui.inline_edit.is_some()
         || editor.ui.crop_edit.is_some()
+        || editor.edit_keys_blocked()
         || ui.ctx().egui_wants_keyboard_input()
     {
         return;
@@ -924,6 +925,75 @@ fn commit_state_extra_inline_edit(
     editor.run("object.state_update_extra", params);
 }
 
+/// Writes the text of an inline edit into the state `state_name` of `object`.
+fn commit_state_inline_edit(
+    editor: &mut Editor,
+    edit: &InlineEdit,
+    object: &coursecraft_course::Object,
+    state_name: &str,
+) {
+    let mut patch = serde_json::json!({ "text": edit.buffer });
+    let live_plain: String = edit.live_runs.iter().map(|r| r.text.as_str()).collect();
+    if !edit.live_runs.is_empty() && live_plain == edit.buffer {
+        patch["runs"] = serde_json::to_value(coursecraft_course::normalize_runs(&edit.live_runs))
+            .unwrap_or_default();
+        patch["paragraphs"] = serde_json::to_value(&edit.live_paragraphs).unwrap_or_default();
+    } else if !matches!(object.kind, coursecraft_course::ObjectKind::Button { .. }) {
+        let state_def = object.states.iter().find(|s| s.name == state_name);
+        let (base_runs, base_paras, base_text) = match &object.kind {
+            coursecraft_course::ObjectKind::Text {
+                text,
+                runs,
+                paragraphs,
+                ..
+            } => (runs.as_slice(), paragraphs.as_slice(), text.as_str()),
+            coursecraft_course::ObjectKind::Shape { text: Some(t), .. } => {
+                (t.runs.as_slice(), t.paragraphs.as_slice(), t.text.as_str())
+            }
+            _ => (&[][..], &[][..], ""),
+        };
+        let prev_runs = state_def
+            .and_then(|s| s.runs.as_deref())
+            .unwrap_or(base_runs);
+        let prev_paras = state_def
+            .and_then(|s| s.paragraphs.as_deref())
+            .unwrap_or(base_paras);
+        let prev_plain: String = if prev_runs.is_empty() {
+            state_def
+                .and_then(|s| s.text.as_deref())
+                .unwrap_or(base_text)
+                .to_owned()
+        } else {
+            prev_runs.iter().map(|r| r.text.as_str()).collect()
+        };
+        if !prev_runs.is_empty() {
+            patch["runs"] = serde_json::to_value(coursecraft_course::apply_text_edit(
+                prev_runs,
+                &prev_plain,
+                &edit.buffer,
+            ))
+            .unwrap_or_default();
+        }
+        if !prev_paras.is_empty() {
+            patch["paragraphs"] = serde_json::to_value(coursecraft_course::align_paragraphs(
+                &prev_plain,
+                prev_paras,
+                &edit.buffer,
+            ))
+            .unwrap_or_default();
+        }
+    }
+    editor.run(
+        "object.patch_state",
+        serde_json::json!({
+            "slide": edit.slide,
+            "object": edit.object,
+            "name": state_name,
+            "patch": patch,
+        }),
+    );
+}
+
 pub(crate) fn commit_inline_edit(editor: &mut Editor) {
     let Some(edit) = editor.ui.inline_edit.take() else {
         return;
@@ -959,67 +1029,7 @@ pub(crate) fn commit_inline_edit(editor: &mut Editor) {
             );
             return;
         }
-        let mut patch = serde_json::json!({ "text": edit.buffer });
-        let live_plain: String = edit.live_runs.iter().map(|r| r.text.as_str()).collect();
-        if !edit.live_runs.is_empty() && live_plain == edit.buffer {
-            patch["runs"] =
-                serde_json::to_value(coursecraft_course::normalize_runs(&edit.live_runs))
-                    .unwrap_or_default();
-            patch["paragraphs"] = serde_json::to_value(&edit.live_paragraphs).unwrap_or_default();
-        } else if !matches!(object.kind, coursecraft_course::ObjectKind::Button { .. }) {
-            let state_def = object.states.iter().find(|s| s.name == state_name);
-            let (base_runs, base_paras, base_text) = match &object.kind {
-                coursecraft_course::ObjectKind::Text {
-                    text,
-                    runs,
-                    paragraphs,
-                    ..
-                } => (runs.as_slice(), paragraphs.as_slice(), text.as_str()),
-                coursecraft_course::ObjectKind::Shape { text: Some(t), .. } => {
-                    (t.runs.as_slice(), t.paragraphs.as_slice(), t.text.as_str())
-                }
-                _ => (&[][..], &[][..], ""),
-            };
-            let prev_runs = state_def
-                .and_then(|s| s.runs.as_deref())
-                .unwrap_or(base_runs);
-            let prev_paras = state_def
-                .and_then(|s| s.paragraphs.as_deref())
-                .unwrap_or(base_paras);
-            let prev_plain: String = if prev_runs.is_empty() {
-                state_def
-                    .and_then(|s| s.text.as_deref())
-                    .unwrap_or(base_text)
-                    .to_owned()
-            } else {
-                prev_runs.iter().map(|r| r.text.as_str()).collect()
-            };
-            if !prev_runs.is_empty() {
-                patch["runs"] = serde_json::to_value(coursecraft_course::apply_text_edit(
-                    prev_runs,
-                    &prev_plain,
-                    &edit.buffer,
-                ))
-                .unwrap_or_default();
-            }
-            if !prev_paras.is_empty() {
-                patch["paragraphs"] = serde_json::to_value(coursecraft_course::align_paragraphs(
-                    &prev_plain,
-                    prev_paras,
-                    &edit.buffer,
-                ))
-                .unwrap_or_default();
-            }
-        }
-        editor.run(
-            "object.patch_state",
-            serde_json::json!({
-                "slide": edit.slide,
-                "object": edit.object,
-                "name": state_name,
-                "patch": patch,
-            }),
-        );
+        commit_state_inline_edit(editor, &edit, &object, &state_name);
         return;
     }
     match &object.kind {
@@ -6372,9 +6382,65 @@ fn hide_edited_text(items: &mut [DrawItem], edit: &InlineEdit) {
     }
 }
 
+/// Styles the selected characters of an inline edit inside a state and writes the state.
+fn apply_state_inline_style(
+    editor: &mut Editor,
+    edit: &InlineEdit,
+    buffer: &str,
+    char_range: (usize, usize),
+    patch: &coursecraft_course::TextRunPatch,
+    style: &coursecraft_course::TextStyle,
+) {
+    let typed = if buffer == edit.buffer {
+        edit.live_runs.clone()
+    } else {
+        coursecraft_course::apply_text_edit(&edit.live_runs, &edit.buffer, buffer)
+    };
+    let mut next = edit.clone();
+    next.live_runs = coursecraft_course::apply_style_to_range_with_base(
+        &typed,
+        buffer,
+        char_range,
+        patch,
+        Some(style),
+    );
+    next.live_paragraphs =
+        coursecraft_course::align_paragraphs(&edit.buffer, &edit.live_paragraphs, buffer);
+    next.buffer = buffer.to_owned();
+    let Some(object) = editor
+        .session
+        .course
+        .slide(&edit.slide)
+        .and_then(|slide| slide.object(&edit.object))
+        .map(|(obj, _)| obj.clone())
+    else {
+        return;
+    };
+    let Some(state_name) = edit.state_name.clone() else {
+        return;
+    };
+    match edit.extra_id.clone() {
+        Some(extra_id) => commit_state_extra_inline_edit(
+            editor,
+            next.clone(),
+            &object,
+            state_name,
+            extra_id,
+            None,
+        ),
+        None => commit_state_inline_edit(editor, &next, &object, &state_name),
+    }
+    if let Some(live) = editor.ui.inline_edit.as_mut() {
+        live.original = next.buffer.clone();
+        live.buffer = next.buffer;
+        live.live_runs = next.live_runs;
+        live.live_paragraphs = next.live_paragraphs;
+    }
+}
+
 /// Draw the in-place editor over the object's frame and commit or cancel it.
 #[allow(clippy::too_many_arguments)]
-fn apply_inline_edit_style_shortcut(
+pub(crate) fn apply_inline_edit_style_shortcut(
     editor: &mut Editor,
     edit: &InlineEdit,
     buffer: &str,
@@ -6389,12 +6455,30 @@ fn apply_inline_edit_style_shortcut(
     let sorted = cr.as_sorted_char_range();
     let is_selection = !cr.is_empty() && sorted.start.0 != sorted.end.0;
     let char_range = (sorted.start.0, sorted.end.0);
+    // Inside a state the text, runs and style are the state's own, and nothing may reach the
+    // base object (`N85`).
+    let state_parts = editor
+        .session
+        .course
+        .slide(&edit.slide)
+        .and_then(|slide| slide.object(&edit.object))
+        .and_then(|(obj, _)| state_inline_parts(obj, edit));
+    if edit.state_name.is_some() && state_parts.is_none() {
+        return;
+    }
     let eff = editor
         .session
         .course
         .slide(&edit.slide)
         .and_then(|slide| slide.object(&edit.object))
         .and_then(|(obj, _)| match (&obj.kind, edit.cell) {
+            _ if state_parts.is_some() => state_parts.as_ref().map(|(_, _, _, style)| {
+                if is_selection {
+                    crate::properties::style_for_range(&edit.live_runs, style, char_range)
+                } else {
+                    crate::properties::style_at_cursor(&edit.live_runs, style, char_range.0)
+                }
+            }),
             (coursecraft_course::ObjectKind::Text { style, .. }, None) => Some(if is_selection {
                 crate::properties::style_for_range(&edit.live_runs, style, char_range)
             } else {
@@ -6451,6 +6535,10 @@ fn apply_inline_edit_style_shortcut(
                 eff_underline = u;
             }
         }
+        if !matches_pending {
+            // A pending style of another caret or object must not carry over.
+            editor.ui.properties.pending_caret_style = None;
+        }
         let entry = editor
             .ui
             .properties
@@ -6475,6 +6563,16 @@ fn apply_inline_edit_style_shortcut(
         if toggle_underline {
             entry.patch.underline = Some(!eff_underline);
         }
+        return;
+    }
+    if let Some((_, _, _, style)) = &state_parts {
+        let patch = coursecraft_course::TextRunPatch {
+            bold: toggle_bold.then_some(!eff_bold),
+            italic: toggle_italic.then_some(!eff_italic),
+            underline: toggle_underline.then_some(!eff_underline),
+            ..coursecraft_course::TextRunPatch::default()
+        };
+        apply_state_inline_style(editor, edit, buffer, char_range, &patch, style);
         return;
     }
     let mut params = serde_json::json!({
@@ -6702,6 +6800,78 @@ fn inline_edit_text_props(
     Some(props)
 }
 
+/// The text an inline edit inside a state shows: plain text, runs, paragraphs and the base style.
+/// `None` when the edit is not inside a state or its target is gone (`N85`).
+fn state_inline_parts(
+    object: &coursecraft_course::Object,
+    edit: &InlineEdit,
+) -> Option<(
+    String,
+    Vec<coursecraft_course::TextRun>,
+    Vec<coursecraft_course::Paragraph>,
+    coursecraft_course::TextStyle,
+)> {
+    let state_name = edit.state_name.as_deref()?;
+    let state = object.states.iter().find(|s| s.name == state_name)?;
+    let plain_of = |text: &str, runs: &[coursecraft_course::TextRun]| -> String {
+        if runs.is_empty() {
+            text.to_owned()
+        } else {
+            runs.iter().map(|r| r.text.as_str()).collect()
+        }
+    };
+    if let Some(extra_id) = edit.extra_id.as_deref() {
+        let extra = state.extras.iter().find(|e| e.id == extra_id)?;
+        return match &extra.kind {
+            coursecraft_course::StateExtraKind::Text {
+                text,
+                style,
+                runs,
+                paragraphs,
+                ..
+            } => Some((
+                plain_of(text, runs),
+                runs.clone(),
+                paragraphs.clone(),
+                style.clone(),
+            )),
+            coursecraft_course::StateExtraKind::Shape { text: Some(t), .. } => Some((
+                plain_of(&t.text, &t.runs),
+                t.runs.clone(),
+                t.paragraphs.clone(),
+                t.style.clone(),
+            )),
+            _ => None,
+        };
+    }
+    let (base_text, base_runs, base_paras, base_style) = match &object.kind {
+        coursecraft_course::ObjectKind::Text {
+            text,
+            runs,
+            paragraphs,
+            style,
+            ..
+        } => (text.as_str(), runs.as_slice(), paragraphs.as_slice(), style),
+        coursecraft_course::ObjectKind::Shape { text: Some(t), .. } => (
+            t.text.as_str(),
+            t.runs.as_slice(),
+            t.paragraphs.as_slice(),
+            &t.style,
+        ),
+        _ => return None,
+    };
+    let runs = state.runs.as_deref().unwrap_or(base_runs);
+    let text = state.text.as_deref().unwrap_or(base_text);
+    let paragraphs = state.paragraphs.as_deref().unwrap_or(base_paras);
+    let style = state.text_style.as_ref().unwrap_or(base_style);
+    Some((
+        plain_of(text, runs),
+        runs.to_vec(),
+        paragraphs.to_vec(),
+        style.clone(),
+    ))
+}
+
 fn sync_inline_edit_runs(
     object: &coursecraft_course::Object,
     edit: &InlineEdit,
@@ -6714,7 +6884,33 @@ fn sync_inline_edit_runs(
     if edit.last_revision == revision {
         return (edit.live_runs.clone(), edit.live_paragraphs.clone(), false);
     }
-    let (obj_plain, obj_runs, obj_paras) = match (&object.kind, edit.cell) {
+    let from_state = state_inline_parts(object, edit).map(|(p, r, a, _)| (p, r, a));
+    let (obj_plain, obj_runs, obj_paras) = if let Some(parts) = from_state {
+        parts
+    } else {
+        sync_object_parts(object, edit)
+    };
+    let (runs, paras) = if edit.buffer == obj_plain {
+        (obj_runs, obj_paras)
+    } else {
+        (
+            coursecraft_course::apply_text_edit(&obj_runs, &obj_plain, &edit.buffer),
+            coursecraft_course::align_paragraphs(&obj_plain, &obj_paras, &edit.buffer),
+        )
+    };
+    (runs, paras, true)
+}
+
+/// The base object's text parts for an inline edit outside any state.
+fn sync_object_parts(
+    object: &coursecraft_course::Object,
+    edit: &InlineEdit,
+) -> (
+    String,
+    Vec<coursecraft_course::TextRun>,
+    Vec<coursecraft_course::Paragraph>,
+) {
+    match (&object.kind, edit.cell) {
         (
             coursecraft_course::ObjectKind::Text {
                 text,
@@ -6752,16 +6948,7 @@ fn sync_inline_edit_runs(
             }
         }
         _ => (edit.buffer.clone(), Vec::new(), Vec::new()),
-    };
-    let (runs, paras) = if edit.buffer == obj_plain {
-        (obj_runs, obj_paras)
-    } else {
-        (
-            coursecraft_course::apply_text_edit(&obj_runs, &obj_plain, &edit.buffer),
-            coursecraft_course::align_paragraphs(&obj_plain, &obj_paras, &edit.buffer),
-        )
-    };
-    (runs, paras, true)
+    }
 }
 
 fn inset_text_rect(rect: Rect, insets: Option<coursecraft_course::TextInsets>, scale: f32) -> Rect {
@@ -6933,6 +7120,20 @@ pub(crate) fn inline_edit_slide_rect(
     })
 }
 
+fn inline_edit_id(edit: &InlineEdit) -> Id {
+    if edit.cell.is_none() && edit.extra_id.is_none() {
+        Id::unique(("canvas_inline_edit", &edit.slide, &edit.object))
+    } else {
+        Id::unique((
+            "canvas_inline_edit",
+            &edit.slide,
+            &edit.object,
+            edit.cell,
+            &edit.extra_id,
+        ))
+    }
+}
+
 fn draw_inline_edit(editor: &mut Editor, ui: &mut Ui, t: &SlideTransform) {
     let Some(edit) = editor.ui.inline_edit.clone() else {
         return;
@@ -7032,7 +7233,8 @@ fn draw_inline_edit(editor: &mut Editor, ui: &mut Ui, t: &SlideTransform) {
             return;
         }
     }
-    let edit_id = Id::unique(("canvas_inline_edit", &edit.slide, &edit.object));
+    // A table cell or a state extra is its own text field with its own undo history (`N109`).
+    let edit_id = inline_edit_id(&edit);
     let accent = coursecraft_render::palette(ui.ctx()).accent;
 
     if synced_changed && let Some(state) = editor.ui.inline_edit.as_mut() {
@@ -8514,8 +8716,7 @@ pub fn show_canvas_and_layers(editor: &mut Editor, ui: &mut Ui) {
             let other_modal = editor.ui.show_shortcuts_dialog
                 || editor.ui.show_course_settings_window
                 || editor.ui.show_theme_window
-                || editor.ui.trigger_form.is_some()
-                || editor.ui.layer_settings.is_open();
+                || editor.edit_keys_blocked();
             if !had_tool
                 && !had_draw
                 && !had_path_edit

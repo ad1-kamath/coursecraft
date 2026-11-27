@@ -53,11 +53,17 @@ mod m39_t_tests;
 #[cfg(test)]
 mod m46_anim_render_tests;
 #[cfg(test)]
+mod neon_render_tests;
+#[cfg(test)]
 mod outline_tests;
+#[cfg(test)]
+mod question_frame_tests;
 #[cfg(test)]
 mod review_tests;
 #[cfg(test)]
 mod shape_tests;
+#[cfg(test)]
+mod shaped_picture_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
@@ -68,8 +74,8 @@ mod u23_hand_pointer_tests;
 mod uiux_player_tests;
 
 pub use access::{
-    ANSWER_REQUIRED_ANNOUNCEMENT, AccessNode, AccessRole, AccessTree, announcement,
-    build_access_tree,
+    ANSWER_REQUIRED_ANNOUNCEMENT, AccessNode, AccessRole, AccessTree, DomKeyAction, announcement,
+    build_access_tree, dom_key_action, drag_is_held, map_dom_key,
 };
 pub use chrome::{
     DEFAULT_BAR_COLOR, DEFAULT_BAR_TEXT_COLOR, format_ms, nav_limits, progress_fraction,
@@ -82,8 +88,8 @@ pub use compose::{
     apply_sample_to_items, compose, compose_authoring, compose_authoring_layers,
     compose_authoring_layers_opts, compose_object, compose_object_items, compose_object_with_theme,
     compose_object_with_value, compose_with_pointer, flip_point, item_bounds, item_corners,
-    item_hit_test, item_hit_test_scaled, item_link_at, item_local_point, question_prompt_rect,
-    resolve_text_runs, rotate_point,
+    item_hit_test, item_hit_test_scaled, item_link_at, item_local_point, overlay_screen_rect,
+    question_prompt_rect, question_prompt_rect_in, resolve_text_runs, rotate_point,
 };
 pub use design::{
     CONTROL_COMPACT, CONTROL_PRIMARY, CONTROL_TOOLBAR, ICON_SM, ICON_TOOLBAR, PANEL_MARGIN,
@@ -103,8 +109,9 @@ pub use focus::{
 #[cfg(not(target_arch = "wasm32"))]
 pub use font::IndexFontProvider;
 pub use font::{
-    SystemFontData, SystemFontProvider, course_face_family, font_epoch, install_course_fonts,
-    install_fonts, set_system_font_provider, slide_font, slide_font_named, system_face_family,
+    SystemFontData, SystemFontProvider, UndrawableChar, course_face_family, font_epoch,
+    install_course_fonts, install_fonts, set_system_font_provider, slide_font, slide_font_named,
+    system_face_family, undrawable_chars,
 };
 pub use icons::{Icon, icon, icon_fill, icon_text};
 pub use layout::SlideTransform;

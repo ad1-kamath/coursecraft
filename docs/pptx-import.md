@@ -61,7 +61,9 @@ The PowerPoint importer treats all input as hostile and enforces strict bounds:
 - Archive entries: maximum 10,000 entries.
 - Uncompressed archive size: maximum 512 MiB total, 256 MiB per entry.
 - Slide limit: maximum 500 slides.
-- Shape limit: maximum 2,000 shapes per slide.
+- Shape limit: maximum 2,000 shapes per slide. Each path of a custom-geometry shape counts as a shape, and extra paths are skipped with a report note.
+- Table limit: a table with more than 50 rows or columns, or more than 2,500 cells, is skipped with a report note before any cell is built.
+- Shape ids (cNvPr/@id) are numbered per XML part. Master and layout ids are forgotten before the slide is read, so an animation or trigger on slide shape 2 never reaches master shape 2.
 - XML element depth: maximum 64 levels deep.
 - Invalid EMU coordinates (negative, non-numeric, or absurdly large numbers) skip that shape safely without panicking.
 - Targets escaping package boundaries (`..`, absolute paths, external URLs) are rejected and skipped.

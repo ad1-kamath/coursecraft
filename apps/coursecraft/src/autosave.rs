@@ -6,7 +6,167 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::SystemTime;
 
-/// Compute the autosave path for a named or untitled project.
+/// Pid used in the name of an autosave that has no owner (a migrated legacy file).
+/// No process has pid 0 in a user session, so such a file counts as orphaned.
+const NO_OWNER_PID: u32 = 0;
+
+/// The file name of the autosave that older builds shared between all untitled
+/// courses. It is migrated once into an ownerless session file.
+const LEGACY_UNTITLED_NAME: &str = "untitled.autosave.ccraft";
+
+const UNTITLED_PREFIX: &str = "untitled-";
+const AUTOSAVE_SUFFIX: &str = ".autosave.ccraft";
+const OWNER_SUFFIX: &str = ".owner";
+
+/// Identity of this app run: process id and start time (seconds since the epoch).
+/// Each run's untitled course autosaves to its own file, so two windows never
+/// overwrite each other and one never offers the other's live autosave.
+#[must_use]
+pub fn session_id() -> &'static (u32, u64) {
+    static ID: std::sync::OnceLock<(u32, u64)> = std::sync::OnceLock::new();
+    ID.get_or_init(|| {
+        let start = SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        (std::process::id(), start)
+    })
+}
+
+/// The untitled autosave file of the session `pid` / `start` in `config_dir`.
+#[must_use]
+pub fn untitled_autosave_path_for(config_dir: &Path, pid: u32, start: u64) -> PathBuf {
+    config_dir.join(format!("{UNTITLED_PREFIX}{pid}-{start}{AUTOSAVE_SUFFIX}"))
+}
+
+/// The untitled autosave file of this run.
+#[must_use]
+pub fn untitled_autosave_path(config_dir: &Path) -> PathBuf {
+    let (pid, start) = *session_id();
+    untitled_autosave_path_for(config_dir, pid, start)
+}
+
+/// The owner marker next to an untitled autosave: a small file holding the pid
+/// of the process that writes it.
+fn owner_marker_path(autosave_path: &Path) -> PathBuf {
+    let mut name = autosave_path.as_os_str().to_owned();
+    name.push(OWNER_SUFFIX);
+    PathBuf::from(name)
+}
+
+/// Record this process as the owner of `autosave_path`. Best effort.
+pub fn write_owner_marker(autosave_path: &Path) {
+    let _ = std::fs::write(owner_marker_path(autosave_path), session_id().0.to_string());
+}
+
+/// The pid that owns an untitled autosave: the marker's pid, else the pid in the
+/// file name. `None` when the name is not an untitled session autosave.
+fn owner_pid(autosave_path: &Path) -> Option<u32> {
+    let name = autosave_path.file_name()?.to_str()?;
+    let rest = name
+        .strip_prefix(UNTITLED_PREFIX)?
+        .strip_suffix(AUTOSAVE_SUFFIX)?;
+    let name_pid: u32 = rest.split('-').next()?.parse().ok()?;
+    let marker_pid = std::fs::read_to_string(owner_marker_path(autosave_path))
+        .ok()
+        .and_then(|text| text.trim().parse::<u32>().ok());
+    Some(marker_pid.unwrap_or(name_pid))
+}
+
+/// Delete an untitled autosave together with its owner marker.
+pub fn delete_untitled_autosave(autosave_path: &Path) {
+    delete_autosave(autosave_path);
+    let marker = owner_marker_path(autosave_path);
+    if marker.exists() {
+        let _ = std::fs::remove_file(marker);
+    }
+}
+
+/// Whether the process `pid` is running. When the check cannot be made, the
+/// process counts as running, so its autosave is never offered by mistake.
+#[must_use]
+pub fn process_is_alive(pid: u32) -> bool {
+    if pid == NO_OWNER_PID {
+        return false;
+    }
+    if pid == std::process::id() {
+        return true;
+    }
+    #[cfg(windows)]
+    {
+        let filter = format!("PID eq {pid}");
+        let Ok(output) = std::process::Command::new("tasklist")
+            .args(["/FI", &filter, "/NH", "/FO", "CSV"])
+            .stdin(std::process::Stdio::null())
+            .output()
+        else {
+            return true;
+        };
+        if !output.status.success() {
+            return true;
+        }
+        String::from_utf8_lossy(&output.stdout).contains(&format!("\"{pid}\""))
+    }
+    #[cfg(not(windows))]
+    {
+        // `ps -p` succeeds exactly when the process exists.
+        std::process::Command::new("ps")
+            .args(["-p", &pid.to_string()])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map_or(true, |status| status.success())
+    }
+}
+
+/// Move the shared autosave of older builds to an ownerless session file, so
+/// it is offered for restore once like any orphan. Best effort.
+fn migrate_legacy_untitled(config_dir: &Path) {
+    let legacy = config_dir.join(LEGACY_UNTITLED_NAME);
+    if !legacy.is_file() {
+        return;
+    }
+    let start = std::fs::metadata(&legacy)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map_or(0, |d| d.as_secs());
+    let target = untitled_autosave_path_for(config_dir, NO_OWNER_PID, start);
+    if !target.exists() {
+        let _ = std::fs::rename(&legacy, &target);
+    }
+}
+
+/// Untitled autosaves in `config_dir` whose owner is no longer running, newest
+/// first. `is_alive` tells whether a pid is running. The shared autosave of older
+/// builds is migrated first.
+#[must_use]
+pub fn orphaned_untitled_autosaves(
+    config_dir: &Path,
+    is_alive: &dyn Fn(u32) -> bool,
+) -> Vec<PathBuf> {
+    migrate_legacy_untitled(config_dir);
+    let Ok(entries) = std::fs::read_dir(config_dir) else {
+        return Vec::new();
+    };
+    let mut found: Vec<(SystemTime, PathBuf)> = entries
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.is_file())
+        .filter(|path| owner_pid(path).is_some_and(|pid| !is_alive(pid)))
+        .map(|path| {
+            let time = std::fs::metadata(&path)
+                .and_then(|m| m.modified())
+                .unwrap_or(std::time::UNIX_EPOCH);
+            (time, path)
+        })
+        .collect();
+    found.sort_by_key(|entry| std::cmp::Reverse(entry.0));
+    found.into_iter().map(|(_, path)| path).collect()
+}
+
+/// Compute the autosave path for a named or untitled project. An untitled
+/// project autosaves to this run's own file in `config_dir`.
 #[must_use]
 pub fn autosave_path_for_project(project_path: Option<&Path>, config_dir: &Path) -> PathBuf {
     match project_path {
@@ -18,7 +178,7 @@ pub fn autosave_path_for_project(project_path: Option<&Path>, config_dir: &Path)
             let base = file_name.strip_suffix(".ccraft").unwrap_or(file_name);
             path.with_file_name(format!("{base}.autosave.ccraft"))
         }
-        None => config_dir.join("untitled.autosave.ccraft"),
+        None => untitled_autosave_path(config_dir),
     }
 }
 
