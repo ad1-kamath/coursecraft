@@ -1,179 +1,2472 @@
 {
-  "schema_version": 1,
-  "id": "linear-lesson",
-  "title": "Linear Lesson",
-  "slide_size": { "w": 1280, "h": 720 },
-  "scenes": [
-    {
-      "id": "sc-lesson",
-      "title": "Lesson",
-      "slides": [
-        {
-          "id": "s-title",
-          "title": "Welcome",
-          "duration_ms": 5000,
-          "objects": [
-            {
-              "id": "title-heading",
-              "name": "Course title",
-              "kind": { "type": "text", "text": "Lesson Title", "style": { "size": 48, "bold": true } },
-              "frame": { "x": 80, "y": 160, "w": 1120, "h": 76 }
-            },
-            {
-              "id": "title-sub",
-              "name": "Subtitle",
-              "kind": { "type": "text", "text": "A short, structured lesson with objectives, key concepts, and a wrap-up.", "style": { "size": 22 } },
-              "frame": { "x": 80, "y": 256, "w": 920, "h": 80 }
-            },
-            {
-              "id": "btn-begin",
-              "name": "Begin button",
-              "kind": { "type": "button", "label": "Begin Lesson" },
-              "frame": { "x": 80, "y": 420, "w": 220, "h": 56 }
-            }
-          ],
-          "triggers": [
-            { "action": { "action": "jump_to_slide", "target": "next" }, "when": { "event": "click", "object": "btn-begin" } }
-          ]
-        },
-        {
-          "id": "s-objectives",
-          "title": "Learning Objectives",
-          "duration_ms": 5000,
-          "objects": [
-            {
-              "id": "obj-heading",
-              "name": "Heading",
-              "kind": { "type": "text", "text": "By the end of this lesson, you will be able to:", "style": { "size": 34, "bold": true } },
-              "frame": { "x": 80, "y": 80, "w": 1120, "h": 60 }
-            },
-            {
-              "id": "obj-list",
-              "name": "Objectives list",
-              "kind": { "type": "text", "text": "• Explain the core concept in plain language\n• Apply the three-step process in your daily work\n• Recognize common mistakes and how to avoid them", "style": { "size": 22 } },
-              "frame": { "x": 80, "y": 180, "w": 1000, "h": 300 }
-            },
-            {
-              "id": "obj-next",
-              "name": "Next button",
-              "kind": { "type": "button", "label": "Continue" },
-              "frame": { "x": 1000, "y": 600, "w": 200, "h": 56 }
-            }
-          ],
-          "triggers": [
-            { "action": { "action": "jump_to_slide", "target": "next" }, "when": { "event": "click", "object": "obj-next" } }
-          ]
-        },
-        {
-          "id": "s-concepts",
-          "title": "Key Concepts",
-          "duration_ms": 5000,
-          "objects": [
-            {
-              "id": "con-heading",
-              "name": "Heading",
-              "kind": { "type": "text", "text": "Explore the Three Steps", "style": { "size": 34, "bold": true } },
-              "frame": { "x": 80, "y": 60, "w": 1120, "h": 56 }
-            },
-            {
-              "id": "tab-1",
-              "name": "Step 1 tab",
-              "kind": { "type": "button", "label": "1. Prepare" },
-              "frame": { "x": 80, "y": 140, "w": 220, "h": 52 }
-            },
-            {
-              "id": "tab-2",
-              "name": "Step 2 tab",
-              "kind": { "type": "button", "label": "2. Execute" },
-              "frame": { "x": 320, "y": 140, "w": 220, "h": 52 }
-            },
-            {
-              "id": "tab-3",
-              "name": "Step 3 tab",
-              "kind": { "type": "button", "label": "3. Review" },
-              "frame": { "x": 560, "y": 140, "w": 220, "h": 52 }
-            },
-            {
-              "id": "con-intro",
-              "name": "Prompt",
-              "kind": { "type": "text", "text": "Select each step above to read the details.", "style": { "size": 20 } },
-              "frame": { "x": 80, "y": 230, "w": 1000, "h": 120 }
-            },
-            {
-              "id": "con-next",
-              "name": "Next button",
-              "kind": { "type": "button", "label": "Continue" },
-              "frame": { "x": 1000, "y": 600, "w": 200, "h": 56 }
-            }
-          ],
-          "layers": [
-            {
-              "id": "step-1",
-              "name": "Step 1",
-              "objects": [
-                {
-                  "id": "step-1-text",
-                  "name": "Step 1 details",
-                  "kind": { "type": "text", "text": "Step 1 — Prepare: Gather what you need and confirm the goal before starting.", "style": { "size": 22 } },
-                  "frame": { "x": 80, "y": 230, "w": 1000, "h": 260 }
-                }
-              ]
-            },
-            {
-              "id": "step-2",
-              "name": "Step 2",
-              "objects": [
-                {
-                  "id": "step-2-text",
-                  "name": "Step 2 details",
-                  "kind": { "type": "text", "text": "Step 2 — Execute: Follow the checklist in order and note any exceptions.", "style": { "size": 22 } },
-                  "frame": { "x": 80, "y": 230, "w": 1000, "h": 260 }
-                }
-              ]
-            },
-            {
-              "id": "step-3",
-              "name": "Step 3",
-              "objects": [
-                {
-                  "id": "step-3-text",
-                  "name": "Step 3 details",
-                  "kind": { "type": "text", "text": "Step 3 — Review: Verify the result and share a brief summary with your team.", "style": { "size": 22 } },
-                  "frame": { "x": 80, "y": 230, "w": 1000, "h": 260 }
-                }
-              ]
-            }
-          ],
-          "triggers": [
-            { "action": { "action": "show_layer", "layer": "step-1" }, "when": { "event": "click", "object": "tab-1" } },
-            { "action": { "action": "show_layer", "layer": "step-2" }, "when": { "event": "click", "object": "tab-2" } },
-            { "action": { "action": "show_layer", "layer": "step-3" }, "when": { "event": "click", "object": "tab-3" } },
-            { "action": { "action": "jump_to_slide", "target": "next" }, "when": { "event": "click", "object": "con-next" } }
-          ]
-        },
-        {
-          "id": "s-summary",
-          "title": "Summary",
-          "duration_ms": 3000,
-          "objects": [
-            {
-              "id": "sum-heading",
-              "name": "Heading",
-              "kind": { "type": "text", "text": "Lesson Complete", "style": { "size": 40, "bold": true } },
-              "frame": { "x": 80, "y": 160, "w": 1120, "h": 64 }
-            },
-            {
-              "id": "sum-body",
-              "name": "Takeaway",
-              "kind": { "type": "text", "text": "Summarize the key takeaways and next steps for learners here.", "style": { "size": 22 } },
-              "frame": { "x": 80, "y": 250, "w": 960, "h": 140 }
-            }
-          ],
-          "triggers": [
-            { "action": { "action": "complete_course", "status": "completed" }, "when": { "event": "timeline_starts" } }
-          ]
-        }
-      ]
-    }
+ "schema_version": 1,
+ "id": "linear-lesson",
+ "title": "Linear Lesson",
+ "slide_size": {
+  "w": 1280,
+  "h": 720
+ },
+ "theme": {
+  "accent": "#0E6E8C",
+  "background": "#FAFCFC",
+  "text": "#0F2A3D",
+  "font": "Inter",
+  "player": {
+   "bar": "#0A3B4F",
+   "bar_text": "#FFFFFF"
+  },
+  "palette": [
+   {
+    "id": "ink",
+    "name": "Ink",
+    "color": "#0F2A3D"
+   },
+   {
+    "id": "primary",
+    "name": "Primary",
+    "color": "#0E6E8C"
+   },
+   {
+    "id": "primary_dk",
+    "name": "Primary dark",
+    "color": "#0B5870"
+   },
+   {
+    "id": "deep",
+    "name": "Deep",
+    "color": "#0A3B4F"
+   },
+   {
+    "id": "tint",
+    "name": "Tint",
+    "color": "#E3F2F6"
+   },
+   {
+    "id": "tint2",
+    "name": "Tint 2",
+    "color": "#CBE6EE"
+   },
+   {
+    "id": "accent",
+    "name": "Accent",
+    "color": "#F28C6A"
+   },
+   {
+    "id": "accent_text",
+    "name": "Accent text",
+    "color": "#A9472E"
+   },
+   {
+    "id": "bg",
+    "name": "Background",
+    "color": "#FAFCFC"
+   }
   ]
+ },
+ "text_styles": [
+  {
+   "id": "ts_title",
+   "name": "Title",
+   "style": {
+    "font": "Inter",
+    "size": 52,
+    "color": "#0F2A3D",
+    "bold": true
+   },
+   "paragraphs": {
+    "line_spacing": 1.05
+   }
+  },
+  {
+   "id": "ts_heading",
+   "name": "Heading",
+   "style": {
+    "font": "Inter",
+    "size": 36,
+    "color": "#0F2A3D",
+    "bold": true
+   },
+   "paragraphs": {
+    "line_spacing": 1.1
+   }
+  },
+  {
+   "id": "ts_eyebrow",
+   "name": "Eyebrow",
+   "style": {
+    "font": "Inter",
+    "size": 16,
+    "color": "#0E6E8C",
+    "bold": true,
+    "letter_spacing": 2.5
+   }
+  },
+  {
+   "id": "ts_body",
+   "name": "Body",
+   "style": {
+    "font": "Inter",
+    "size": 20,
+    "color": "#2E4656",
+    "bold": false
+   },
+   "paragraphs": {
+    "line_spacing": 1.45
+   }
+  }
+ ],
+ "masters": [
+  {
+   "id": "m_content",
+   "title": "Content",
+   "background": "#FAFCFC",
+   "duration_ms": 5000,
+   "objects": [
+    {
+     "id": "m_corner",
+     "name": "Corner shape",
+     "kind": {
+      "type": "shape",
+      "shape": "ellipse",
+      "fill": "#E3F2F6B3"
+     },
+     "frame": {
+      "x": 1090,
+      "y": -150,
+      "w": 360,
+      "h": 300
+     },
+     "decorative": true
+    },
+    {
+     "id": "m_dot",
+     "name": "Brand dot",
+     "kind": {
+      "type": "shape",
+      "shape": "ellipse",
+      "fill": "#F28C6A"
+     },
+     "frame": {
+      "x": 88,
+      "y": 684,
+      "w": 8,
+      "h": 8
+     },
+     "decorative": true
+    },
+    {
+     "id": "m_brand",
+     "name": "Footer",
+     "kind": {
+      "type": "text",
+      "text": "Linear Lesson",
+      "style": {
+       "font": "Inter",
+       "size": 12,
+       "color": "#5F7381",
+       "bold": true,
+       "letter_spacing": 1
+      }
+     },
+     "frame": {
+      "x": 104,
+      "y": 677,
+      "w": 400,
+      "h": 20
+     },
+     "decorative": true
+    }
+   ]
+  }
+ ],
+ "scenes": [
+  {
+   "id": "sc-lesson",
+   "title": "Lesson",
+   "slides": [
+    {
+     "id": "s-title",
+     "title": "Welcome",
+     "duration_ms": 5000,
+     "background": "#0A3B4F",
+     "objects": [
+      {
+       "id": "t-wave",
+       "name": "Decoration",
+       "kind": {
+        "type": "shape",
+        "shape": "wave",
+        "fill": "#0E6E8C66"
+       },
+       "frame": {
+        "x": -120,
+        "y": 470,
+        "w": 1520,
+        "h": 420
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "zoom"
+        },
+        "duration_ms": 900,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "t-circle",
+       "name": "Decoration",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#0E6E8C55"
+       },
+       "frame": {
+        "x": 1010,
+        "y": -140,
+        "w": 420,
+        "h": 420
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "zoom"
+        },
+        "duration_ms": 900,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 100
+       }
+      },
+      {
+       "id": "t-dot",
+       "name": "Decoration",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#F28C6A"
+       },
+       "frame": {
+        "x": 960,
+        "y": 90,
+        "w": 26,
+        "h": 26
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "zoom"
+        },
+        "duration_ms": 900,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      },
+      {
+       "id": "title-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F28C6A"
+       },
+       "frame": {
+        "x": 88,
+        "y": 199,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "title-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "LESSON 1  ·  10 MINUTES",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#CBE6EE",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 188,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "title-heading",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "Lesson title goes\nright here",
+        "style": {
+         "font": "Inter",
+         "size": 56,
+         "color": "#FFFFFF",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         },
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_title"
+       },
+       "frame": {
+        "x": 84,
+        "y": 226,
+        "w": 640,
+        "h": 140
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "title-sub",
+       "name": "Body",
+       "kind": {
+        "type": "text",
+        "text": "A short, structured lesson with objectives, key ideas and a wrap-up.",
+        "style": {
+         "font": "Inter",
+         "size": 20,
+         "color": "#CBE6EE",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.45
+         }
+        ],
+        "text_style": "ts_body"
+       },
+       "frame": {
+        "x": 88,
+        "y": 380,
+        "w": 560,
+        "h": 70
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "btn-begin",
+       "name": "Begin the lesson button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#F28C6A",
+        "text": {
+         "text": "Begin the lesson  →",
+         "style": {
+          "font": "Inter",
+          "size": 18,
+          "color": "#0A3B4F",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.2
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 480,
+        "w": 250,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#F6A88C"
+        }
+       ],
+       "description": "Begin the lesson",
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#0F2A3D33"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1200
+       }
+      },
+      {
+       "id": "title-pic",
+       "name": "Picture placeholder",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF14",
+        "text": {
+         "text": "+  Add a picture",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#5F7381",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.06
+        ],
+        "outline": {
+         "color": "#0E6E8C66",
+         "width": 2,
+         "dash": "dash"
+        }
+       },
+       "frame": {
+        "x": 760,
+        "y": 150,
+        "w": 420,
+        "h": 400
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "shape",
+         "shape": "box",
+         "inout": "out"
+        },
+        "duration_ms": 700,
+        "easing": "ease_in_out"
+       },
+       "timing": {
+        "start_ms": 400
+       }
+      }
+     ],
+     "transition": {
+      "type": "fade",
+      "duration_ms": 600
+     },
+     "notes": "Replace the title and the one-line promise. Add your own picture in the placeholder, or delete it.",
+     "triggers": [
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": "next"
+       },
+       "when": {
+        "event": "click",
+        "object": "btn-begin"
+       }
+      }
+     ]
+    },
+    {
+     "id": "s-objectives",
+     "title": "Learning Objectives",
+     "duration_ms": 5000,
+     "background": "#FAFCFC",
+     "objects": [
+      {
+       "id": "obj-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F28C6A"
+       },
+       "frame": {
+        "x": 88,
+        "y": 105,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "obj-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "WHAT YOU'LL LEARN",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#0E6E8C",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 94,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "obj-heading",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "By the end of this lesson, you will be able to",
+        "style": {
+         "font": "Inter",
+         "size": 40,
+         "color": "#0F2A3D",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_heading"
+       },
+       "frame": {
+        "x": 84,
+        "y": 128,
+        "w": 900,
+        "h": 110
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "obj-card1",
+       "name": "Card",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF",
+        "adjust": [
+         0.08
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 300,
+        "w": 348,
+        "h": 260
+       },
+       "decorative": true,
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 10,
+        "blur": 28,
+        "color": "#0F2A3D22"
+       },
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      },
+      {
+       "id": "obj-num1",
+       "name": "Number 1",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#E3F2F6",
+        "text": {
+         "text": "01",
+         "style": {
+          "font": "Inter",
+          "size": 20,
+          "color": "#0E6E8C",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 116,
+        "y": 328,
+        "w": 56,
+        "h": 56
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 800
+       }
+      },
+      {
+       "id": "obj-item1",
+       "name": "Objective 1",
+       "kind": {
+        "type": "text",
+        "text": "Explain the core idea in plain language",
+        "style": {
+         "font": "Inter",
+         "size": 22,
+         "color": "#0F2A3D",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.3
+         }
+        ]
+       },
+       "frame": {
+        "x": 116,
+        "y": 404,
+        "w": 292,
+        "h": 120
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      },
+      {
+       "id": "obj-card2",
+       "name": "Card",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF",
+        "adjust": [
+         0.08
+        ]
+       },
+       "frame": {
+        "x": 460,
+        "y": 300,
+        "w": 348,
+        "h": 260
+       },
+       "decorative": true,
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 10,
+        "blur": 28,
+        "color": "#0F2A3D22"
+       },
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 800
+       }
+      },
+      {
+       "id": "obj-num2",
+       "name": "Number 2",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#E3F2F6",
+        "text": {
+         "text": "02",
+         "style": {
+          "font": "Inter",
+          "size": 20,
+          "color": "#0E6E8C",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 488,
+        "y": 328,
+        "w": 56,
+        "h": 56
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1000
+       }
+      },
+      {
+       "id": "obj-item2",
+       "name": "Objective 2",
+       "kind": {
+        "type": "text",
+        "text": "Apply the three-step process to your daily work",
+        "style": {
+         "font": "Inter",
+         "size": 22,
+         "color": "#0F2A3D",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.3
+         }
+        ]
+       },
+       "frame": {
+        "x": 488,
+        "y": 404,
+        "w": 292,
+        "h": 120
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1100
+       }
+      },
+      {
+       "id": "obj-card3",
+       "name": "Card",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF",
+        "adjust": [
+         0.08
+        ]
+       },
+       "frame": {
+        "x": 832,
+        "y": 300,
+        "w": 348,
+        "h": 260
+       },
+       "decorative": true,
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 10,
+        "blur": 28,
+        "color": "#0F2A3D22"
+       },
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1000
+       }
+      },
+      {
+       "id": "obj-num3",
+       "name": "Number 3",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#E3F2F6",
+        "text": {
+         "text": "03",
+         "style": {
+          "font": "Inter",
+          "size": 20,
+          "color": "#0E6E8C",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 860,
+        "y": 328,
+        "w": 56,
+        "h": 56
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1200
+       }
+      },
+      {
+       "id": "obj-item3",
+       "name": "Objective 3",
+       "kind": {
+        "type": "text",
+        "text": "Spot common mistakes before they happen",
+        "style": {
+         "font": "Inter",
+         "size": 22,
+         "color": "#0F2A3D",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.3
+         }
+        ]
+       },
+       "frame": {
+        "x": 860,
+        "y": 404,
+        "w": 292,
+        "h": 120
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1300
+       }
+      },
+      {
+       "id": "obj-next",
+       "name": "Continue button",
+       "kind": {
+        "type": "button",
+        "label": "Continue  →",
+        "fill": "#0E6E8C"
+       },
+       "frame": {
+        "x": 982,
+        "y": 600,
+        "w": 210,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#0B5870"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#0F2A3D33"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1500
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": "next"
+       },
+       "when": {
+        "event": "click",
+        "object": "obj-next"
+       }
+      }
+     ]
+    },
+    {
+     "id": "s-concepts",
+     "title": "Key Concepts",
+     "duration_ms": 5000,
+     "background": "#FAFCFC",
+     "objects": [
+      {
+       "id": "con-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F28C6A"
+       },
+       "frame": {
+        "x": 88,
+        "y": 105,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "con-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "KEY IDEAS",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#0E6E8C",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 94,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "con-heading",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "Explore the three steps",
+        "style": {
+         "font": "Inter",
+         "size": 40,
+         "color": "#0F2A3D",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_heading"
+       },
+       "frame": {
+        "x": 84,
+        "y": 128,
+        "w": 800,
+        "h": 60
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "con-intro",
+       "name": "Instruction",
+       "kind": {
+        "type": "text",
+        "text": "Select each step to read about it.",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#5F7381",
+         "bold": false
+        }
+       },
+       "frame": {
+        "x": 88,
+        "y": 190,
+        "w": 600,
+        "h": 30
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "tab-1",
+       "name": "1  Prepare button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#E3F2F6",
+        "text": {
+         "text": "1  Prepare",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#0B5870",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 240,
+        "w": 184,
+        "h": 50
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#CBE6EE"
+        },
+        {
+         "name": "selected",
+         "fill": "#0E6E8C",
+         "text_style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       ],
+       "description": "1  Prepare",
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      },
+      {
+       "id": "tab-2",
+       "name": "2  Do button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#E3F2F6",
+        "text": {
+         "text": "2  Do",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#0B5870",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 284,
+        "y": 240,
+        "w": 184,
+        "h": 50
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#CBE6EE"
+        },
+        {
+         "name": "selected",
+         "fill": "#0E6E8C",
+         "text_style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       ],
+       "description": "2  Do",
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 720
+       }
+      },
+      {
+       "id": "tab-3",
+       "name": "3  Review button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#E3F2F6",
+        "text": {
+         "text": "3  Review",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#0B5870",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 480,
+        "y": 240,
+        "w": 184,
+        "h": 50
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#CBE6EE"
+        },
+        {
+         "name": "selected",
+         "fill": "#0E6E8C",
+         "text_style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       ],
+       "description": "3  Review",
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 840
+       }
+      },
+      {
+       "id": "con-next",
+       "name": "Continue button",
+       "kind": {
+        "type": "button",
+        "label": "Continue  →",
+        "fill": "#0E6E8C"
+       },
+       "frame": {
+        "x": 982,
+        "y": 600,
+        "w": 210,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#0B5870"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#0F2A3D33"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1200
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "revisit": "reset",
+     "triggers": [
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "step-1"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-1"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-1",
+        "state": "selected"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-1"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-2",
+        "state": "normal"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-1"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-3",
+        "state": "normal"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-1"
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "step-2"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-2"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-1",
+        "state": "normal"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-2"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-2",
+        "state": "selected"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-2"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-3",
+        "state": "normal"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-2"
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "step-3"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-3"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-1",
+        "state": "normal"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-3"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-2",
+        "state": "normal"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-3"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-3",
+        "state": "selected"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-3"
+       }
+      },
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": "next"
+       },
+       "when": {
+        "event": "click",
+        "object": "con-next"
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "step-1"
+       },
+       "when": {
+        "event": "timeline_starts"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-1",
+        "state": "selected"
+       },
+       "when": {
+        "event": "timeline_starts"
+       }
+      }
+     ],
+     "layers": [
+      {
+       "id": "step-1",
+       "name": "Step 1",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "step-1-card",
+         "name": "Card",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "adjust": [
+           0.08
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 316,
+          "w": 1104,
+          "h": 260
+         },
+         "decorative": true,
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 10,
+          "blur": 28,
+          "color": "#0F2A3D22"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 600,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "step-1-head",
+         "name": "Step heading",
+         "kind": {
+          "type": "text",
+          "text": "Prepare",
+          "style": {
+           "font": "Inter",
+           "size": 30,
+           "color": "#0F2A3D",
+           "bold": true
+          }
+         },
+         "frame": {
+          "x": 124,
+          "y": 346,
+          "w": 540,
+          "h": 50
+         },
+         "entrance": {
+          "effect": {
+           "type": "rise"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 100
+         }
+        },
+        {
+         "id": "step-1-text",
+         "name": "Step text",
+         "kind": {
+          "type": "text",
+          "text": "Gather what you need and confirm the goal before you start. Replace this with your own step.",
+          "style": {
+           "font": "Inter",
+           "size": 20,
+           "color": "#2E4656",
+           "bold": false
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.45
+           }
+          ]
+         },
+         "frame": {
+          "x": 124,
+          "y": 404,
+          "w": 540,
+          "h": 140
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "step-1-pic",
+         "name": "Picture placeholder",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#E3F2F6",
+          "text": {
+           "text": "+  Add a picture",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#5F7381",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.06
+          ],
+          "outline": {
+           "color": "#0E6E8C66",
+           "width": 2,
+           "dash": "dash"
+          }
+         },
+         "frame": {
+          "x": 720,
+          "y": 340,
+          "w": 444,
+          "h": 212
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "shape",
+           "shape": "box",
+           "inout": "out"
+          },
+          "duration_ms": 700,
+          "easing": "ease_in_out"
+         },
+         "timing": {
+          "start_ms": 150
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": false
+      },
+      {
+       "id": "step-2",
+       "name": "Step 2",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "step-2-card",
+         "name": "Card",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "adjust": [
+           0.08
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 316,
+          "w": 1104,
+          "h": 260
+         },
+         "decorative": true,
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 10,
+          "blur": 28,
+          "color": "#0F2A3D22"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 600,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "step-2-head",
+         "name": "Step heading",
+         "kind": {
+          "type": "text",
+          "text": "Do",
+          "style": {
+           "font": "Inter",
+           "size": 30,
+           "color": "#0F2A3D",
+           "bold": true
+          }
+         },
+         "frame": {
+          "x": 124,
+          "y": 346,
+          "w": 540,
+          "h": 50
+         },
+         "entrance": {
+          "effect": {
+           "type": "rise"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 100
+         }
+        },
+        {
+         "id": "step-2-text",
+         "name": "Step text",
+         "kind": {
+          "type": "text",
+          "text": "Follow the checklist in order and note anything unusual. Replace this with your own step.",
+          "style": {
+           "font": "Inter",
+           "size": 20,
+           "color": "#2E4656",
+           "bold": false
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.45
+           }
+          ]
+         },
+         "frame": {
+          "x": 124,
+          "y": 404,
+          "w": 540,
+          "h": 140
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "step-2-pic",
+         "name": "Picture placeholder",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#E3F2F6",
+          "text": {
+           "text": "+  Add a picture",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#5F7381",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.06
+          ],
+          "outline": {
+           "color": "#0E6E8C66",
+           "width": 2,
+           "dash": "dash"
+          }
+         },
+         "frame": {
+          "x": 720,
+          "y": 340,
+          "w": 444,
+          "h": 212
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "shape",
+           "shape": "box",
+           "inout": "out"
+          },
+          "duration_ms": 700,
+          "easing": "ease_in_out"
+         },
+         "timing": {
+          "start_ms": 150
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": false
+      },
+      {
+       "id": "step-3",
+       "name": "Step 3",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "step-3-card",
+         "name": "Card",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "adjust": [
+           0.08
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 316,
+          "w": 1104,
+          "h": 260
+         },
+         "decorative": true,
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 10,
+          "blur": 28,
+          "color": "#0F2A3D22"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 600,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "step-3-head",
+         "name": "Step heading",
+         "kind": {
+          "type": "text",
+          "text": "Review",
+          "style": {
+           "font": "Inter",
+           "size": 30,
+           "color": "#0F2A3D",
+           "bold": true
+          }
+         },
+         "frame": {
+          "x": 124,
+          "y": 346,
+          "w": 540,
+          "h": 50
+         },
+         "entrance": {
+          "effect": {
+           "type": "rise"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 100
+         }
+        },
+        {
+         "id": "step-3-text",
+         "name": "Step text",
+         "kind": {
+          "type": "text",
+          "text": "Check the result and share a short summary with your team. Replace this with your own step.",
+          "style": {
+           "font": "Inter",
+           "size": 20,
+           "color": "#2E4656",
+           "bold": false
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.45
+           }
+          ]
+         },
+         "frame": {
+          "x": 124,
+          "y": 404,
+          "w": 540,
+          "h": 140
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "step-3-pic",
+         "name": "Picture placeholder",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#E3F2F6",
+          "text": {
+           "text": "+  Add a picture",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#5F7381",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.06
+          ],
+          "outline": {
+           "color": "#0E6E8C66",
+           "width": 2,
+           "dash": "dash"
+          }
+         },
+         "frame": {
+          "x": 720,
+          "y": 340,
+          "w": 444,
+          "h": 212
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "shape",
+           "shape": "box",
+           "inout": "out"
+          },
+          "duration_ms": 700,
+          "easing": "ease_in_out"
+         },
+         "timing": {
+          "start_ms": 150
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": false
+      }
+     ]
+    },
+    {
+     "id": "s-summary",
+     "title": "Summary",
+     "duration_ms": 5000,
+     "background": "#0A3B4F",
+     "objects": [
+      {
+       "id": "sum-glow",
+       "name": "Decoration",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#0E6E8C55"
+       },
+       "frame": {
+        "x": 880,
+        "y": 300,
+        "w": 560,
+        "h": 560
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "zoom"
+        },
+        "duration_ms": 900,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "sum-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F28C6A"
+       },
+       "frame": {
+        "x": 88,
+        "y": 119,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "sum-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "LESSON COMPLETE",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#CBE6EE",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 108,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "sum-heading",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "Key takeaways",
+        "style": {
+         "font": "Inter",
+         "size": 48,
+         "color": "#FFFFFF",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_title"
+       },
+       "frame": {
+        "x": 84,
+        "y": 142,
+        "w": 700,
+        "h": 70
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "sum-row1",
+       "name": "Takeaway 1",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF14",
+        "adjust": [
+         0.2
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 250,
+        "w": 640,
+        "h": 72
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "left"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "sum-check1",
+       "name": "Check",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#F28C6A",
+        "text": {
+         "text": "✓",
+         "style": {
+          "font": "Inter",
+          "size": 20,
+          "color": "#0A3B4F",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 108,
+        "y": 266,
+        "w": 40,
+        "h": 40
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 700
+       }
+      },
+      {
+       "id": "sum-item1",
+       "name": "Takeaway 1 text",
+       "kind": {
+        "type": "text",
+        "text": "Write your first takeaway here",
+        "style": {
+         "font": "Inter",
+         "size": 20,
+         "color": "#FFFFFF",
+         "bold": true,
+         "valign": "middle"
+        }
+       },
+       "frame": {
+        "x": 168,
+        "y": 268,
+        "w": 540,
+        "h": 40
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 750
+       }
+      },
+      {
+       "id": "sum-row2",
+       "name": "Takeaway 2",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF14",
+        "adjust": [
+         0.2
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 342,
+        "w": 640,
+        "h": 72
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "left"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 700
+       }
+      },
+      {
+       "id": "sum-check2",
+       "name": "Check",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#F28C6A",
+        "text": {
+         "text": "✓",
+         "style": {
+          "font": "Inter",
+          "size": 20,
+          "color": "#0A3B4F",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 108,
+        "y": 358,
+        "w": 40,
+        "h": 40
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      },
+      {
+       "id": "sum-item2",
+       "name": "Takeaway 2 text",
+       "kind": {
+        "type": "text",
+        "text": "Write your second takeaway here",
+        "style": {
+         "font": "Inter",
+         "size": 20,
+         "color": "#FFFFFF",
+         "bold": true,
+         "valign": "middle"
+        }
+       },
+       "frame": {
+        "x": 168,
+        "y": 360,
+        "w": 540,
+        "h": 40
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 950
+       }
+      },
+      {
+       "id": "sum-row3",
+       "name": "Takeaway 3",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF14",
+        "adjust": [
+         0.2
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 434,
+        "w": 640,
+        "h": 72
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "left"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      },
+      {
+       "id": "sum-check3",
+       "name": "Check",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#F28C6A",
+        "text": {
+         "text": "✓",
+         "style": {
+          "font": "Inter",
+          "size": 20,
+          "color": "#0A3B4F",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 108,
+        "y": 450,
+        "w": 40,
+        "h": 40
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1100
+       }
+      },
+      {
+       "id": "sum-item3",
+       "name": "Takeaway 3 text",
+       "kind": {
+        "type": "text",
+        "text": "Write your third takeaway here",
+        "style": {
+         "font": "Inter",
+         "size": 20,
+         "color": "#FFFFFF",
+         "bold": true,
+         "valign": "middle"
+        }
+       },
+       "frame": {
+        "x": 168,
+        "y": 452,
+        "w": 540,
+        "h": 40
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1150
+       }
+      },
+      {
+       "id": "sum-body",
+       "name": "Next step",
+       "kind": {
+        "type": "text",
+        "text": "Add a next step here: a job aid, a follow-up lesson or who to ask.",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#CBE6EE",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.4
+         }
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 540,
+        "w": 640,
+        "h": 60
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1400
+       }
+      }
+     ],
+     "transition": {
+      "type": "fade",
+      "duration_ms": 600
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "complete_course",
+        "status": "completed"
+       },
+       "when": {
+        "event": "timeline_starts"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
 }

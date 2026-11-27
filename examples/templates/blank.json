@@ -1,26 +1,144 @@
 {
-  "schema_version": 1,
-  "id": "blank-course",
-  "title": "Untitled Course",
-  "slide_size": { "w": 1280, "h": 720 },
-  "scenes": [
-    {
-      "id": "sc-main",
-      "title": "Scene 1",
-      "slides": [
-        {
-          "id": "s-1",
-          "title": "Slide 1",
-          "duration_ms": 5000,
-          "objects": [],
-          "triggers": [
-            {
-              "action": { "action": "complete_course", "status": "completed" },
-              "when": { "event": "timeline_ends" }
-            }
-          ]
-        }
-      ]
-    }
+ "schema_version": 1,
+ "id": "blank-course",
+ "title": "Untitled Course",
+ "slide_size": {
+  "w": 1280,
+  "h": 720
+ },
+ "theme": {
+  "accent": "#2563EB",
+  "background": "#FFFFFF",
+  "text": "#1F2937",
+  "font": "Inter",
+  "player": {
+   "bar": "#1E3A8A",
+   "bar_text": "#FFFFFF"
+  },
+  "palette": [
+   {
+    "id": "ink",
+    "name": "Ink",
+    "color": "#1F2937"
+   },
+   {
+    "id": "primary",
+    "name": "Primary",
+    "color": "#2563EB"
+   },
+   {
+    "id": "primary_dk",
+    "name": "Primary dark",
+    "color": "#1D4ED8"
+   },
+   {
+    "id": "deep",
+    "name": "Deep",
+    "color": "#1E3A8A"
+   },
+   {
+    "id": "tint",
+    "name": "Tint",
+    "color": "#EFF4FF"
+   },
+   {
+    "id": "tint2",
+    "name": "Tint 2",
+    "color": "#DBE6FE"
+   },
+   {
+    "id": "accent",
+    "name": "Accent",
+    "color": "#F59E0B"
+   },
+   {
+    "id": "accent_text",
+    "name": "Accent text",
+    "color": "#92400E"
+   },
+   {
+    "id": "bg",
+    "name": "Background",
+    "color": "#FFFFFF"
+   }
   ]
+ },
+ "text_styles": [
+  {
+   "id": "ts_title",
+   "name": "Title",
+   "style": {
+    "font": "Inter",
+    "size": 52,
+    "color": "#1F2937",
+    "bold": true
+   },
+   "paragraphs": {
+    "line_spacing": 1.05
+   }
+  },
+  {
+   "id": "ts_heading",
+   "name": "Heading",
+   "style": {
+    "font": "Inter",
+    "size": 36,
+    "color": "#1F2937",
+    "bold": true
+   },
+   "paragraphs": {
+    "line_spacing": 1.1
+   }
+  },
+  {
+   "id": "ts_eyebrow",
+   "name": "Eyebrow",
+   "style": {
+    "font": "Inter",
+    "size": 16,
+    "color": "#2563EB",
+    "bold": true,
+    "letter_spacing": 2.5
+   }
+  },
+  {
+   "id": "ts_body",
+   "name": "Body",
+   "style": {
+    "font": "Inter",
+    "size": 20,
+    "color": "#374151",
+    "bold": false
+   },
+   "paragraphs": {
+    "line_spacing": 1.45
+   }
+  }
+ ],
+ "scenes": [
+  {
+   "id": "sc-1",
+   "title": "Scene 1",
+   "slides": [
+    {
+     "id": "s-1",
+     "title": "Slide 1",
+     "duration_ms": 5000,
+     "background": "#FFFFFF",
+     "objects": [],
+     "triggers": [
+      {
+       "action": {
+        "action": "complete_course",
+        "status": "completed"
+       },
+       "when": {
+        "event": "timeline_ends"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
 }
