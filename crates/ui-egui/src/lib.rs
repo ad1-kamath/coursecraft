@@ -251,6 +251,8 @@ mod m39_p_paste_focus_tests;
 #[cfg(test)]
 mod m39_t_text_tests;
 #[cfg(test)]
+mod m48_layer_bar_tests;
+#[cfg(test)]
 mod m48_split_buttons_tests;
 #[cfg(test)]
 mod metafile_import_tests;

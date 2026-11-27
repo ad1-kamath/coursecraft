@@ -532,7 +532,7 @@ fn t5_2_rulers_tick_contrast_in_light_and_dark_and_guide_drag_clipped() {
         h.editor.session.course.editor.show_rulers = true;
         h.idle_frame();
 
-        let canvas = h.central_panel_rect();
+        let canvas = crate::canvas::canvas_rect(h.central_panel_rect());
         let top_strip = crate::rulers::top_strip(canvas);
         let p = palette(&h.ctx);
 

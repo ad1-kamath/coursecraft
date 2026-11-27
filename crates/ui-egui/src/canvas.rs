@@ -1,6 +1,6 @@
 //! Canvas center view: slide display, selection, outline, handles, zoom, and layer pills.
 
-use crate::{DrawTool, Editor, PlacementTool};
+use crate::{DrawTool, Editor, PlacementTool, tl};
 use coursecraft_course::{
     ConnectorStyle, Course, Glue, HotspotShape, LineEnd, Object, ObjectKind, Path, PathStyle,
     Point, QuestionKind, ShapeKind, shape_info, shape_label,
@@ -1198,10 +1198,20 @@ fn cancel_inline_edit(editor: &mut Editor) {
     editor.ui.inline_edit_live_rect = None;
 }
 
-/// Return the canvas rect within the central panel area.
+/// Minimum height of the dedicated layer bar above the canvas scroll area
+/// (26 px row + 4 px top and bottom padding).
+pub const LAYER_BAR_MIN_H: f32 = 34.0;
+
+/// Return the canvas rect within the central panel area, below the single-row layer bar.
 #[must_use]
 pub fn canvas_rect(central_rect: Rect) -> Rect {
-    central_rect
+    Rect::from_min_max(
+        pos2(
+            central_rect.min.x,
+            (central_rect.min.y + LAYER_BAR_MIN_H).min(central_rect.max.y),
+        ),
+        central_rect.max,
+    )
 }
 
 /// Compute the canvas fit rect reserving zoom HUD space.
@@ -1209,7 +1219,7 @@ pub fn canvas_rect(central_rect: Rect) -> Rect {
 pub fn canvas_fit_rect(canvas_rect: Rect) -> Rect {
     let zoom_hud_h = 32.0;
     let margin_x = 32.0;
-    let margin_top = 32.0;
+    let margin_top = 20.0;
     let margin_bottom = zoom_hud_h + 16.0 + coursecraft_render::SPACE_XL;
     Rect::from_min_max(
         pos2(canvas_rect.min.x + margin_x, canvas_rect.min.y + margin_top),
@@ -1950,157 +1960,133 @@ fn screen_rect_to_slide(t: &SlideTransform, rect: Rect) -> Rect {
     )
 }
 
-fn show_layer_pills(editor: &mut Editor, ui: &mut Ui, t: &SlideTransform) {
+fn show_layer_bar(editor: &mut Editor, ui: &mut Ui) {
     // A master has no layers, so there is nothing to switch between or add.
     if editor.ui.master_view {
         return;
     }
     let p = coursecraft_render::palette(ui.ctx());
-    // The pills line up with the slide's left edge. When they are too many to fit between
-    // there and the canvas edge, the row starts further left rather than running off.
-    let ruler_inset = if editor.session.course.editor.show_rulers {
-        crate::rulers::RULER_SIZE
-    } else {
-        0.0
-    };
-    let canvas_right = ui.clip_rect().max.x - coursecraft_render::PANEL_MARGIN;
-    let canvas_left = ui.clip_rect().min.x + ruler_inset + coursecraft_render::PANEL_MARGIN;
-    let estimated_w = editor
-        .session
-        .course
-        .slide(&editor.selection.slide)
-        .map_or(0.0, |slide| {
-            slide
-                .layers
-                .iter()
-                .map(|l| l.name.chars().count() as f32 * 6.5 + 28.0)
-                .sum::<f32>()
-        })
-        + 56.0
-        + 28.0
-        + if editor.selection.layer.is_some() {
-            190.0
-        } else {
-            0.0
-        };
-    let pills_x = t
-        .slide_rect()
-        .min
-        .x
-        .min(canvas_right - estimated_w)
-        .max(canvas_left);
-    let has_layer_selected = editor.selection.layer.is_some();
-    let wraps = has_layer_selected || estimated_w > (canvas_right - pills_x);
-    let pills_h = if wraps { 64.0 } else { 24.0 };
-    let pills_y = (t.slide_rect().min.y - 24.0 - 8.0).max(ui.clip_rect().min.y + ruler_inset + 2.0);
-    let pills_rect = Rect::from_min_size(
-        pos2(pills_x, pills_y),
-        vec2((canvas_right - pills_x).max(1.0), pills_h),
-    );
+    let frame_resp = egui::Frame::NONE
+        .fill(p.canvas)
+        .inner_margin(egui::Margin::symmetric(
+            coursecraft_render::PANEL_MARGIN as i8,
+            4,
+        ))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            ui.horizontal_wrapped(|pills_ui| {
+                pills_ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
 
-    let mut pills_ui = ui.new_child(
-        egui::UiBuilder::new()
-            .max_rect(pills_rect)
-            .layout(egui::Layout::left_to_right(egui::Align::Center).with_main_wrap(true)),
-    );
-    pills_ui.spacing_mut().item_spacing.x = 4.0;
-
-    let is_base = editor.selection.layer.is_none();
-    let base_text = coursecraft_render::small("Base").color(if is_base {
-        p.accent_text
-    } else {
-        p.text_secondary
-    });
-    let base_btn = egui::Button::new(base_text)
-        .fill(if is_base {
-            p.accent_subtle
-        } else {
-            Color32::TRANSPARENT
-        })
-        .corner_radius(12)
-        .min_size(vec2(0.0, 24.0));
-
-    if pills_ui.add(base_btn).clicked() {
-        editor.selection.layer = None;
-        editor.selection.repair(&editor.session.course);
-    }
-
-    if let Some(slide) = editor.session.course.slide(&editor.selection.slide) {
-        for layer in &slide.layers {
-            let is_sel = editor.selection.layer.as_deref() == Some(&layer.id);
-            let layer_text = coursecraft_render::small(&layer.name).color(if is_sel {
-                p.accent_text
-            } else {
-                p.text_secondary
-            });
-            let layer_btn = egui::Button::new(layer_text)
-                .fill(if is_sel {
-                    p.accent_subtle
+                let is_base = editor.selection.layer.is_none();
+                let base_text = coursecraft_render::small(tl!("Base")).color(if is_base {
+                    p.accent_text
                 } else {
-                    Color32::TRANSPARENT
-                })
+                    p.text_secondary
+                });
+                let base_btn = egui::Button::new(base_text)
+                    .fill(if is_base {
+                        p.accent_subtle
+                    } else {
+                        Color32::TRANSPARENT
+                    })
+                    .corner_radius(12)
+                    .min_size(vec2(0.0, 24.0));
+
+                if pills_ui.add(base_btn).clicked() {
+                    editor.selection.layer = None;
+                    editor.selection.repair(&editor.session.course);
+                }
+
+                if let Some(slide) = editor.session.course.slide(&editor.selection.slide) {
+                    for layer in &slide.layers {
+                        let is_sel = editor.selection.layer.as_deref() == Some(&layer.id);
+                        let layer_text = coursecraft_render::small(&layer.name).color(if is_sel {
+                            p.accent_text
+                        } else {
+                            p.text_secondary
+                        });
+                        let layer_btn = egui::Button::new(layer_text)
+                            .fill(if is_sel {
+                                p.accent_subtle
+                            } else {
+                                Color32::TRANSPARENT
+                            })
+                            .corner_radius(12)
+                            .min_size(vec2(0.0, 24.0));
+
+                        if pills_ui.add(layer_btn).clicked() {
+                            editor.selection.layer = Some(layer.id.clone());
+                            editor.selection.repair(&editor.session.course);
+                        }
+                    }
+                }
+
+                let plus_btn = egui::Button::new(
+                    coursecraft_render::icon(
+                        coursecraft_render::Icon::Plus,
+                        coursecraft_render::ICON_SM,
+                    )
+                    .color(p.accent_text),
+                )
+                .fill(Color32::TRANSPARENT)
                 .corner_radius(12)
-                .min_size(vec2(0.0, 24.0));
+                .min_size(vec2(24.0, 24.0));
 
-            if pills_ui.add(layer_btn).clicked() {
-                editor.selection.layer = Some(layer.id.clone());
-                editor.selection.repair(&editor.session.course);
-            }
-        }
-    }
+                let plus_resp = pills_ui.add(plus_btn).on_hover_text(tl!("Add layer"));
+                plus_resp.widget_info(|| {
+                    let mut info = egui::WidgetInfo::new(egui::Role::Button);
+                    info.label = Some(tl!("Add layer").to_owned());
+                    info
+                });
+                if plus_resp.clicked() {
+                    editor.run(
+                        "layer.add",
+                        serde_json::json!({ "slide": editor.selection.slide }),
+                    );
+                }
 
-    let plus_btn = egui::Button::new(
-        coursecraft_render::icon(coursecraft_render::Icon::Plus, coursecraft_render::ICON_SM)
-            .color(p.accent_text),
-    )
-    .fill(Color32::TRANSPARENT)
-    .corner_radius(12)
-    .min_size(vec2(24.0, 24.0));
-
-    let plus_resp = pills_ui.add(plus_btn).on_hover_text("Add layer");
-    plus_resp.widget_info(|| {
-        let mut info = egui::WidgetInfo::new(egui::Role::Button);
-        info.label = Some("Add layer".to_owned());
-        info
-    });
-    if plus_resp.clicked() {
-        editor.run(
-            "layer.add",
-            serde_json::json!({ "slide": editor.selection.slide }),
-        );
-    }
-
-    if !is_base {
-        pills_ui.add_space(8.0);
-        pills_ui.label(coursecraft_render::small("Base slide:").color(p.text_secondary));
-        let current = editor.session.course.editor.base_slide_view;
-        for (mode, label, api_val) in [
-            (coursecraft_course::BaseSlideView::Show, "Show", "show"),
-            (coursecraft_course::BaseSlideView::Dim, "Dim", "dim"),
-            (coursecraft_course::BaseSlideView::Hide, "Hide", "hide"),
-        ] {
-            let active = current == mode;
-            let text = coursecraft_render::small(label).color(if active {
-                p.accent_text
-            } else {
-                p.text_secondary
+                if !is_base {
+                    pills_ui.add_space(8.0);
+                    pills_ui.add(
+                        egui::Label::new(
+                            coursecraft_render::small(tl!("Base slide:")).color(p.text_secondary),
+                        )
+                        .wrap_mode(egui::TextWrapMode::Extend),
+                    );
+                    let current = editor.session.course.editor.base_slide_view;
+                    for (mode, label, api_val) in [
+                        (coursecraft_course::BaseSlideView::Show, tl!("Show"), "show"),
+                        (coursecraft_course::BaseSlideView::Dim, tl!("Dim"), "dim"),
+                        (coursecraft_course::BaseSlideView::Hide, tl!("Hide"), "hide"),
+                    ] {
+                        let active = current == mode;
+                        let text = coursecraft_render::small(label).color(if active {
+                            p.accent_text
+                        } else {
+                            p.text_secondary
+                        });
+                        let btn = egui::Button::new(text)
+                            .fill(if active {
+                                p.accent_subtle
+                            } else {
+                                Color32::TRANSPARENT
+                            })
+                            .corner_radius(12)
+                            .min_size(vec2(0.0, 24.0));
+                        if pills_ui.add(btn).clicked() && !active {
+                            editor.run(
+                                "view.set",
+                                serde_json::json!({ "base_slide_view": api_val }),
+                            );
+                        }
+                    }
+                }
             });
-            let btn = egui::Button::new(text)
-                .fill(if active {
-                    p.accent_subtle
-                } else {
-                    Color32::TRANSPARENT
-                })
-                .corner_radius(12)
-                .min_size(vec2(0.0, 24.0));
-            if pills_ui.add(btn).clicked() && !active {
-                editor.run(
-                    "view.set",
-                    serde_json::json!({ "base_slide_view": api_val }),
-                );
-            }
-        }
-    }
+        });
+
+    let rect = frame_resp.response.rect;
+    ui.painter()
+        .hline(rect.x_range(), rect.max.y, Stroke::new(1.0, p.border));
 }
 
 /// Movement in screen points below which a press is a click, not a drag.
@@ -8434,6 +8420,15 @@ pub fn show_canvas_and_layers(editor: &mut Editor, ui: &mut Ui) {
     if editor.ui.editing_state.is_some() {
         show_edit_state_banner(editor, ui);
     }
+    if !editor.ui.master_view
+        && editor
+            .session
+            .course
+            .slide(&editor.selection.slide)
+            .is_some()
+    {
+        show_layer_bar(editor, ui);
+    }
 
     let available_size = ui.available_size();
     if !available_size.x.is_finite()
@@ -8545,9 +8540,6 @@ pub fn show_canvas_and_layers(editor: &mut Editor, ui: &mut Ui) {
         editor.ui.last_slide_rect = Some(t.slide_rect());
         crate::content_region::mark_content_region(ui.ctx(), ui.layer_id(), t.slide_rect());
         editor.ui.last_zoom_hud_rect = Some(zoom_hud_rect);
-
-        // Layer pills above the slide, left-aligned with slide left edge
-        show_layer_pills(editor, ui, &t);
 
         // Enter edits the selected text-bearing object in place, like a
         // double click. Text fields and other modals keep their own Enter.
