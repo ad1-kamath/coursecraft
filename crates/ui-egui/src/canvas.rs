@@ -2086,7 +2086,7 @@ fn show_layer_bar(editor: &mut Editor, ui: &mut Ui) {
 
     let rect = frame_resp.response.rect;
     ui.painter()
-        .hline(rect.x_range(), rect.max.y, Stroke::new(1.0, p.border));
+        .hline(rect.x_range(), rect.max.y - 0.5, Stroke::new(1.0, p.border));
 }
 
 /// Movement in screen points below which a press is a click, not a drag.
