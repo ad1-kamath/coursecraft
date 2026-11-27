@@ -5036,6 +5036,17 @@ fn check_object_unknown_variable_refs(
                         &shape_text.runs,
                     );
                 }
+                StateExtraKind::Path { path } => {
+                    if let Some(shape_text) = &path.text {
+                        check_rich_text_unknown_variable_refs(
+                            course,
+                            cx,
+                            slide,
+                            &shape_text.text,
+                            &shape_text.runs,
+                        );
+                    }
+                }
                 _ => {}
             }
         }

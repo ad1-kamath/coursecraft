@@ -8416,3 +8416,56 @@ fn m47_s1_examples_and_templates_have_no_unknown_variable_warnings() {
         );
     }
 }
+
+#[test]
+fn m47_s1_state_extra_path_table_bank_and_pairs_refs_are_found_without_run_duplicates() {
+    let json = r##"{
+        "schema_version":1,"id":"c","title":"T","slide_size":{"w":1280,"h":720},
+        "banks":[{"id":"b0","title":"Bank","slides":[{
+            "id":"bs0","title":"Bank slide",
+            "objects":[{"id":"bt","kind":{"type":"text","text":"%BankMissing%"},"frame":{"x":0,"y":0,"w":100,"h":40}}],
+            "question":{
+                "kind":"matching",
+                "prompt":"Match",
+                "choices":[],
+                "pairs":[{"id":"p0","left":"%PairLeftMissing%","right":"%PairRightMissing%"}]
+            }
+        }]}],
+        "scenes":[{"id":"sc0","title":"S","slides":[{"id":"s0","title":"Slide","objects":[
+            {"id":"runs","kind":{"type":"text","text":"%FallbackIgnored%","runs":[{"text":"%RunOnlyMissing%"}]},"frame":{"x":0,"y":0,"w":120,"h":40}},
+            {"id":"tbl","kind":{"type":"table","columns":[1.0],"rows":[{"height":1.0,"cells":[{"text":"%CellMissing%"}]}]},"frame":{"x":0,"y":50,"w":200,"h":60}},
+            {"id":"st","kind":{"type":"text","text":"ok"},"states":[{"name":"hover","extras":[
+                {"id":"ex_path","kind":{"type":"path","points":[{"x":0,"y":0},{"x":10,"y":0}],"outline":{"color":"#000000","width":1},"text":{"text":"%ExtraPathMissing%","style":{}}},"frame":{"x":0,"y":0,"w":40,"h":40}}
+            ]}],"frame":{"x":0,"y":120,"w":120,"h":40}}
+        ]}]}]
+    }"##;
+    let course = Course::from_json(json).expect("valid json");
+    let issues = course.validate();
+    let var_warnings: Vec<_> = issues
+        .iter()
+        .filter(|i| i.severity == Severity::Warning && i.message.contains("has no variable called"))
+        .map(|i| (i.path.as_str(), i.message.as_str()))
+        .collect();
+
+    assert!(
+        !var_warnings
+            .iter()
+            .any(|(_, m)| m.contains("FallbackIgnored")),
+        "runs should suppress scanning fallback text: {var_warnings:#?}"
+    );
+    for (expected_path, expected_var) in [
+        ("/scenes/0/slides/0/objects/0", "RunOnlyMissing"),
+        ("/scenes/0/slides/0/objects/1", "CellMissing"),
+        ("/scenes/0/slides/0/objects/2", "ExtraPathMissing"),
+        ("/banks/0/slides/0/objects/0", "BankMissing"),
+        ("/banks/0/slides/0/question/pairs/0", "PairLeftMissing"),
+        ("/banks/0/slides/0/question/pairs/0", "PairRightMissing"),
+    ] {
+        assert!(
+            var_warnings
+                .iter()
+                .any(|(p, m)| *p == expected_path && m.contains(expected_var)),
+            "missing warning for {expected_var} at {expected_path}; got: {var_warnings:#?}"
+        );
+    }
+}
