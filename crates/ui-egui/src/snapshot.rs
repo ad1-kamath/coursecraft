@@ -275,6 +275,9 @@ pub fn snapshot_editor(
 ) -> Result<RgbaImage, RenderError> {
     let mut editor = Editor::new(course);
     editor.media.set_all(media);
+    // `Editor::new` validated before the media arrived; check again so the status bar does
+    // not count every media file as missing.
+    editor.refresh_validate_only();
     select.apply(&mut editor);
 
     render_ui(
