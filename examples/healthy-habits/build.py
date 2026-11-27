@@ -209,13 +209,14 @@ def button(oid, label, frame, fill=TEAL, hover=None, name=None):
     o["shadow"] = LIFT if fill == CORAL else TEAL_LIFT
     return o
 
-def image(oid, src, alt, frame, crop=None, name=None, mask=None):
+def image(oid, src, alt, frame, crop=None, name=None, mask=None, precut=True):
     k = {"type": "image", "src": src, "alt": alt}
     if mask:
-        # A shape mask draws the whole source and ignores `crop`, so masked pictures use a
-        # square copy cut ahead of time (`<name>-round.jpg`) and no crop.
-        k["src"] = src.replace(".jpg", "-round.jpg")
         k["shape"] = mask
+    if mask == "ellipse" and precut:
+        # Round pictures use a square copy cut ahead of time (`<name>-round.jpg`): lighter
+        # than the full picture and already framed on the subject.
+        k["src"] = src.replace(".jpg", "-round.jpg")
         crop = None
     if crop:
         k["crop"] = crop
@@ -1119,9 +1120,11 @@ for n, (sid, kind) in enumerate([(q[0], q[1]) for q in QUIZ] + REFLECT, 1):
     else:
         label = f"REFLECTION {sid[1:]} OF 3  ·  NOT SCORED"
     if sid in QSIDE:
-        # The player lays out the prompt and answers across the slide, so the picture sits in the free corner.
+        # The question's frame keeps the prompt and answers on the left, so a tall picture fits on the right.
         src, focus = QSIDE[sid]
-        side = add(sid, picture_card(f"{sid}_side", src, "", F(792, 430, 408, 228), 0.06, "Corner picture"), index=0)
+        q["frame"] = {"x": 88, "y": 92, "w": 640, "h": 486}
+        pfr = F(784, 92, 408, 486)
+        side = add(sid, image(f"{sid}_side", src, "", pfr, crop=crop_for(pfr, focus), name="Side picture", mask="rounded_rectangle"), index=0)
         side["decorative"] = True
         side["shadow"] = CARD
         ent(side, reveal_shape("box"), 800, 300, "ease_in_out")
@@ -1277,7 +1280,7 @@ for oid in ("title1", "learner1", "course1"):
     find(s, oid)["kind"]["style"]["bold"] = False
 find(s, "learner1")["kind"]["style"]["size"] = 56
 find(s, "learner1")["frame"] = F(128, 256, 1024, 80)
-ent(find(s, "learner1"), RISE, 1000, 600, "overshoot")
+ent(find(s, "learner1"), RISE, 1000, 600, "overshoot", "by_letter")
 for k, oid in enumerate(("title1", "certifies1", "completed1", "course1", "score1", "date1")):
     ent(find(s, oid), FADE, 500, 300 + k * 150)
 seal = add(s, image("ce_seal", "badge.jpg", "A rosette seal", F(1030, 470, 130, 130), crop={"x": 0.22, "y": 0.0, "w": 0.558, "h": 1.0}, name="Seal", mask="ellipse"))
