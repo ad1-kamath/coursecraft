@@ -53,6 +53,8 @@ mod m39_t_tests;
 #[cfg(test)]
 mod m46_anim_render_tests;
 #[cfg(test)]
+mod m48_nofill_effects_tests;
+#[cfg(test)]
 mod neon_render_tests;
 #[cfg(test)]
 mod outline_tests;

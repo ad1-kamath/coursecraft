@@ -1325,6 +1325,46 @@ fn paint_shape_effect(
     }
 }
 
+/// Paint an outline-only shadow or glow behind a shape when its fill is off.
+#[allow(clippy::too_many_arguments)]
+fn paint_shape_outline_effect(
+    painter: &Painter,
+    rect: Rect,
+    kind: ShapeKind,
+    adjust: &[f32],
+    outline: &ResolvedOutline,
+    scale: f32,
+    color: Color32,
+    offset: (f32, f32),
+    radius: f32,
+    glow: bool,
+    dimmed: bool,
+    opacity: f32,
+) {
+    if !scale.is_finite() || scale <= 0.0 {
+        return;
+    }
+    let base = apply_dim(color, dimmed, opacity);
+    let max_layers = active_max_effect_layers(painter.ctx());
+    for (dx, dy, expansion, alpha) in effect_copies(offset, radius, glow, max_layers) {
+        if alpha <= 0.0 {
+            continue;
+        }
+        let layer_color = base.gamma_multiply(alpha.clamp(0.0, 1.0));
+        let layer_rect = rect.translate(vec2(dx, dy));
+        let layer_width = (outline.width + (expansion * 2.0) / scale).max(0.5 / scale);
+        let layer_outline = ResolvedOutline {
+            color: layer_color,
+            width: layer_width,
+            dash: outline.dash,
+            dash_pattern: outline.dash_pattern.clone(),
+            join: outline.join,
+            miter_limit: outline.miter_limit,
+        };
+        paint_outline(painter, layer_rect, kind, adjust, &layer_outline, scale);
+    }
+}
+
 /// Paint one shape into `rect`.
 ///
 /// Geometry is computed for the rect's size, so details keep their proportions
@@ -2372,6 +2412,7 @@ fn paint_path_silhouette(
     path: &ResolvedPath,
     color: Color32,
     extra_width: f32,
+    fill_interior: bool,
 ) {
     if !screen_rect.is_positive() || scale <= 0.0 {
         return;
@@ -2386,9 +2427,9 @@ fn paint_path_silhouette(
             )
         })
         .collect();
-    let width =
-        path.outline.as_ref().map_or(2.0, |outline| outline.width) * scale + extra_width * 2.0;
-    let fill = path.closed.then_some(color);
+    let base_width = path.outline.as_ref().map_or(2.0, |outline| outline.width);
+    let width = (base_width * scale + extra_width * 2.0).max(0.5);
+    let fill = fill_interior.then_some(color);
     let mesh = path_mesh(
         &points,
         path.style,
@@ -2780,33 +2821,36 @@ pub fn paint_items(
                     true,
                 );
                 let (button_kind, button_adjust) = button_shape(screen_rect, scale);
-                if let Some(shadow) = &item.shadow {
-                    paint_shape_effect(
-                        &item_painter,
-                        screen_rect,
-                        button_kind,
-                        &button_adjust,
-                        shadow.color,
-                        (shadow.offset_x * scale, shadow.offset_y * scale),
-                        shadow.blur * scale,
-                        false,
-                        item.dimmed,
-                        op,
-                    );
-                }
-                if let Some(glow) = &item.glow {
-                    paint_shape_effect(
-                        &item_painter,
-                        screen_rect,
-                        button_kind,
-                        &button_adjust,
-                        glow.color,
-                        (0.0, 0.0),
-                        glow.size * scale,
-                        true,
-                        item.dimmed,
-                        op,
-                    );
+                let has_fill = (!solid_override && fill_style.is_some()) || effective_fill.a() > 0;
+                if has_fill {
+                    if let Some(shadow) = &item.shadow {
+                        paint_shape_effect(
+                            &item_painter,
+                            screen_rect,
+                            button_kind,
+                            &button_adjust,
+                            shadow.color,
+                            (shadow.offset_x * scale, shadow.offset_y * scale),
+                            shadow.blur * scale,
+                            false,
+                            item.dimmed,
+                            op,
+                        );
+                    }
+                    if let Some(glow) = &item.glow {
+                        paint_shape_effect(
+                            &item_painter,
+                            screen_rect,
+                            button_kind,
+                            &button_adjust,
+                            glow.color,
+                            (0.0, 0.0),
+                            glow.size * scale,
+                            true,
+                            item.dimmed,
+                            op,
+                        );
+                    }
                 }
 
                 let fill_color = apply_dim(effective_fill, item.dimmed, op);
@@ -2903,33 +2947,71 @@ pub fn paint_items(
                     is_pressed,
                     false,
                 );
+                let has_fill = (!solid_override && fill_style.is_some()) || effective_fill.a() > 0;
+                let visible_outline = outline
+                    .as_ref()
+                    .filter(|o| o.color.a() > 0 && o.width > 0.0);
                 if let Some(shadow) = &item.shadow {
-                    paint_shape_effect(
-                        &item_painter,
-                        screen_rect,
-                        *shape,
-                        adjust,
-                        shadow.color,
-                        (shadow.offset_x * scale, shadow.offset_y * scale),
-                        shadow.blur * scale,
-                        false,
-                        item.dimmed,
-                        op,
-                    );
+                    if has_fill {
+                        paint_shape_effect(
+                            &item_painter,
+                            screen_rect,
+                            *shape,
+                            adjust,
+                            shadow.color,
+                            (shadow.offset_x * scale, shadow.offset_y * scale),
+                            shadow.blur * scale,
+                            false,
+                            item.dimmed,
+                            op,
+                        );
+                    } else if let Some(out) = visible_outline {
+                        paint_shape_outline_effect(
+                            &item_painter,
+                            screen_rect,
+                            *shape,
+                            adjust,
+                            out,
+                            scale,
+                            shadow.color,
+                            (shadow.offset_x * scale, shadow.offset_y * scale),
+                            shadow.blur * scale,
+                            false,
+                            item.dimmed,
+                            op,
+                        );
+                    }
                 }
                 if let Some(glow) = &item.glow {
-                    paint_shape_effect(
-                        &item_painter,
-                        screen_rect,
-                        *shape,
-                        adjust,
-                        glow.color,
-                        (0.0, 0.0),
-                        glow.size * scale,
-                        true,
-                        item.dimmed,
-                        op,
-                    );
+                    if has_fill {
+                        paint_shape_effect(
+                            &item_painter,
+                            screen_rect,
+                            *shape,
+                            adjust,
+                            glow.color,
+                            (0.0, 0.0),
+                            glow.size * scale,
+                            true,
+                            item.dimmed,
+                            op,
+                        );
+                    } else if let Some(out) = visible_outline {
+                        paint_shape_outline_effect(
+                            &item_painter,
+                            screen_rect,
+                            *shape,
+                            adjust,
+                            out,
+                            scale,
+                            glow.color,
+                            (0.0, 0.0),
+                            glow.size * scale,
+                            true,
+                            item.dimmed,
+                            op,
+                        );
+                    }
                 }
 
                 let fill_color = apply_dim(effective_fill, item.dimmed, op);
@@ -3035,35 +3117,61 @@ pub fn paint_items(
                 }
             }
             Visual::Path(path) => {
-                let max_layers = active_max_effect_layers(item_painter.ctx());
-                if let Some(shadow) = &item.shadow {
-                    for (dx, dy, expansion, alpha) in effect_copies(
-                        (shadow.offset_x * scale, shadow.offset_y * scale),
-                        shadow.blur * scale,
-                        false,
-                        max_layers,
-                    ) {
-                        let color = apply_dim(shadow.color, item.dimmed, op)
-                            .gamma_multiply(alpha.clamp(0.0, 1.0));
-                        let rect = expand_clamped(screen_rect.translate(vec2(dx, dy)), expansion);
-                        paint_path_silhouette(
-                            &item_painter,
-                            rect,
-                            scale,
-                            path,
-                            color,
-                            expansion.max(0.0),
-                        );
+                let has_fill = path.closed
+                    && (path.fill_style.is_some() || path.fill.is_some_and(|c| c.a() > 0));
+                let has_outline = path
+                    .outline
+                    .as_ref()
+                    .is_some_and(|o| o.color.a() > 0 && o.width > 0.0);
+                if has_fill || has_outline {
+                    let max_layers = active_max_effect_layers(item_painter.ctx());
+                    if let Some(shadow) = &item.shadow {
+                        for (dx, dy, expansion, alpha) in effect_copies(
+                            (shadow.offset_x * scale, shadow.offset_y * scale),
+                            shadow.blur * scale,
+                            false,
+                            max_layers,
+                        ) {
+                            let color = apply_dim(shadow.color, item.dimmed, op)
+                                .gamma_multiply(alpha.clamp(0.0, 1.0));
+                            let translated = screen_rect.translate(vec2(dx, dy));
+                            let (rect, extra_width) = if has_fill {
+                                (expand_clamped(translated, expansion), expansion.max(0.0))
+                            } else {
+                                (translated, expansion)
+                            };
+                            paint_path_silhouette(
+                                &item_painter,
+                                rect,
+                                scale,
+                                path,
+                                color,
+                                extra_width,
+                                has_fill,
+                            );
+                        }
                     }
-                }
-                if let Some(glow) = &item.glow {
-                    for (_, _, expansion, alpha) in
-                        effect_copies((0.0, 0.0), glow.size * scale, true, max_layers)
-                    {
-                        let color = apply_dim(glow.color, item.dimmed, op)
-                            .gamma_multiply(alpha.clamp(0.0, 1.0));
-                        let rect = screen_rect.expand(expansion);
-                        paint_path_silhouette(&item_painter, rect, scale, path, color, expansion);
+                    if let Some(glow) = &item.glow {
+                        for (_, _, expansion, alpha) in
+                            effect_copies((0.0, 0.0), glow.size * scale, true, max_layers)
+                        {
+                            let color = apply_dim(glow.color, item.dimmed, op)
+                                .gamma_multiply(alpha.clamp(0.0, 1.0));
+                            let rect = if has_fill {
+                                screen_rect.expand(expansion)
+                            } else {
+                                screen_rect
+                            };
+                            paint_path_silhouette(
+                                &item_painter,
+                                rect,
+                                scale,
+                                path,
+                                color,
+                                expansion,
+                                has_fill,
+                            );
+                        }
                     }
                 }
                 paint_path(
