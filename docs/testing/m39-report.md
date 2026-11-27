@@ -48,7 +48,9 @@ Changed old tests: `eye_and_dim_are_editor_only…`, `d7_6` (layers), `bughunt_m
 - `cargo test --workspace` without `coursecraft-ui-egui` and `coursecraft-video-native`: pass.
 - `coursecraft-ui-egui` lib: 1634 passed, 0 failed, 11 ignored, with `--skip bughunt_m26_a7`.
 - `bughunt_m26_a7` (video) and `coursecraft-video-native`: stop with `STATUS_ACCESS_VIOLATION` on
-  this computer. The 0.6.0 code does the same; it is not caused by M39.
+  this computer. The 0.6.0 code does the same; it is not caused by M39. (Later found to be a real
+  bug: the Windows video seek passed a null time format, issue #16. It is fixed, and these tests
+  pass on Windows again.)
 - `cargo xtask layers`: ok. `cargo xtask wasm`: ok.
 
 ## Known limits

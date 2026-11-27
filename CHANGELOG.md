@@ -2,6 +2,20 @@
 
 What changed in each release, newest first. Versions follow [semantic versioning](https://semver.org): until 1.0, a minor version (0.x) may change things, but a project saved by an older CourseCraft always opens in a newer one.
 
+## Unreleased
+
+Thanks to LucaFontanot for EMF and WMF clip art and the player settings work (#14 and #15), and to cocoon, who reported the Windows video crash (#16).
+
+**Fixes**
+- Playing a video no longer closes the app on Windows (#16).
+
+**Pictures**
+- EMF and WMF clip art, from PowerPoint import or Insert › Picture, is kept as vectors.
+
+**Player settings**
+- A slide's own player settings no longer silently beat the course settings. Course settings names the slides that change each setting and offers "Use on all slides".
+- With the player bar hidden on a slide, Next, Previous and the slide menu are refused everywhere, not only in the player window.
+
 ## 0.6.3
 
 More than 150 bug fixes from a review of 0.6.1 and from rebuilding a sample course, and a redesigned Healthy Habits at Work sample course.

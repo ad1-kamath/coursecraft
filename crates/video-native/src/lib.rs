@@ -1395,11 +1395,15 @@ mod windows_impl {
             let value_ptr = (&mut variant as *mut PROPVARIANT as *mut u8).add(8) as *mut i64;
             std::ptr::write(value_ptr, ticks);
         }
-        // SAFETY: reader is live; null GUID means "use the format for the type".
+        // The time format must point to a GUID, never be null: Media Foundation reads it,
+        // and a null pointer crashed every video play on Windows (issue #16). GUID_NULL
+        // means 100 ns units.
+        let time_format = windows::core::GUID::zeroed();
+        // SAFETY: reader is live, and both pointers point to values owned by this frame.
         let _ = unsafe {
             reader
                 .reader
-                .SetCurrentPosition(std::ptr::null(), &variant as *const PROPVARIANT)
+                .SetCurrentPosition(&time_format, &variant as *const PROPVARIANT)
         };
         file.windows = Some(reader);
         Ok(())
