@@ -6807,8 +6807,97 @@ fn apply_color_alpha(color: &mut Color, alpha: u8) {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum EffectsHiddenReason {
+    Visible,
+    NoFillOrOutline,
+    NoFill,
+}
+
+fn effects_hidden_reason(
+    obj: &coursecraft_course::Object,
+    state_ctx: Option<&StateEditCtx<'_>>,
+) -> EffectsHiddenReason {
+    let state = state_ctx.map(|ctx| ctx.state);
+    match &obj.kind {
+        ObjectKind::Shape {
+            shape,
+            fill,
+            fill_style,
+            outline,
+            ..
+        } => {
+            let eff_fill = state.and_then(|s| s.fill.as_ref()).unwrap_or(fill);
+            let eff_fill_style = match state {
+                Some(s) if s.clear_fill_style => None,
+                Some(s) if s.fill_style.is_some() => s.fill_style.as_ref(),
+                _ => fill_style.as_ref(),
+            };
+            let eff_outline = if !coursecraft_course::shape_allows_text(*shape) {
+                None
+            } else {
+                match state {
+                    Some(s) if s.clear_outline => None,
+                    Some(s) if s.outline.is_some() => s.outline.as_ref(),
+                    _ => outline.as_ref(),
+                }
+            };
+            let has_fill =
+                eff_fill_style.is_some() || parse_color(eff_fill).is_some_and(|c| c.a() > 0);
+            let has_outline = eff_outline
+                .is_some_and(|o| o.width > 0.0 && parse_color(&o.color).is_some_and(|c| c.a() > 0));
+            if !has_fill && !has_outline {
+                EffectsHiddenReason::NoFillOrOutline
+            } else {
+                EffectsHiddenReason::Visible
+            }
+        }
+        ObjectKind::Button {
+            fill, fill_style, ..
+        } => {
+            let eff_fill = state.and_then(|s| s.fill.as_ref()).unwrap_or(fill);
+            let eff_fill_style = match state {
+                Some(s) if s.clear_fill_style => None,
+                Some(s) if s.fill_style.is_some() => s.fill_style.as_ref(),
+                _ => fill_style.as_ref(),
+            };
+            let has_fill =
+                eff_fill_style.is_some() || parse_color(eff_fill).is_some_and(|c| c.a() > 0);
+            if !has_fill {
+                EffectsHiddenReason::NoFill
+            } else {
+                EffectsHiddenReason::Visible
+            }
+        }
+        ObjectKind::Path { path } => {
+            let eff_fill = state.and_then(|s| s.fill.as_ref()).or(path.fill.as_ref());
+            let eff_fill_style = match state {
+                Some(s) if s.clear_fill_style => None,
+                Some(s) if s.fill_style.is_some() => s.fill_style.as_ref(),
+                _ => path.fill_style.as_ref(),
+            };
+            let eff_outline = match state {
+                Some(s) if s.clear_outline => None,
+                Some(s) if s.outline.is_some() => s.outline.as_ref(),
+                _ => Some(&path.outline),
+            };
+            let has_fill = path.closed
+                && (eff_fill_style.is_some()
+                    || eff_fill.is_some_and(|f| parse_color(f).is_some_and(|c| c.a() > 0)));
+            let has_outline = eff_outline
+                .is_some_and(|o| o.width > 0.0 && parse_color(&o.color).is_some_and(|c| c.a() > 0));
+            if !has_fill && !has_outline {
+                EffectsHiddenReason::NoFillOrOutline
+            } else {
+                EffectsHiddenReason::Visible
+            }
+        }
+        _ => EffectsHiddenReason::Visible,
+    }
+}
+
 /// Shadow and glow toggles with their values.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 fn show_effect_controls(
     ui: &mut Ui,
     props: &mut PropertiesState,
@@ -6817,6 +6906,7 @@ fn show_effect_controls(
     state_ctx: Option<&StateEditCtx<'_>>,
     base_shadow_some: bool,
     base_glow_some: bool,
+    hidden_reason: EffectsHiddenReason,
     actions: &mut Vec<(&'static str, Json)>,
 ) {
     let mut shadow_changed = false;
@@ -6826,129 +6916,181 @@ fn show_effect_controls(
 
     let shadow_overridden =
         state_ctx.is_some_and(|ctx| ctx.state.shadow.is_some() || ctx.state.clear_shadow);
-    inspector_row_state(
-        ui,
-        "Shadow",
-        state_ctx,
-        shadow_overridden,
-        "Shadow",
-        serde_json::json!({ "shadow": null, "clear_shadow": false }),
-        actions,
-        |ui| {
-            if ui.checkbox(&mut props.shadow_enabled, "").changed() {
-                shadow_changed = true;
-            }
-        },
-    );
-    if props.shadow_enabled {
-        inspector_row(ui, "Colour", |ui| {
-            let (response, valid) =
-                show_color_field(ui, "", &mut props.shadow.color.0, "prop_shadow_color");
-            if is_committed(&response, ui) && valid {
-                apply_color_alpha(&mut props.shadow.color, props.shadow_alpha);
-                shadow_changed = true;
-            }
-        });
-        inspector_row(ui, "Opacity", |ui| {
-            let mut opacity_pct = alpha_to_percent(props.shadow_alpha);
-            let rem_w = ui.available_width().max(30.0);
-            let response = add_drag_left(
-                ui,
-                [rem_w, coursecraft_render::CONTROL_COMPACT],
-                DragValue::new(&mut opacity_pct)
-                    .speed(1.0)
-                    .range(0.0..=100.0)
-                    .fixed_decimals(0)
-                    .suffix(" %"),
-            );
-            if response.changed() {
-                props.shadow_alpha = set_color_alpha_percent(&mut props.shadow.color, opacity_pct);
-            }
-            let enter = response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-            if response.drag_stopped() || response.lost_focus() || enter {
-                shadow_changed = true;
-            }
-        });
-        for (label, value, range) in [
-            ("Offset X", &mut props.shadow.offset_x, -200.0..=200.0),
-            ("Offset Y", &mut props.shadow.offset_y, -200.0..=200.0),
-            ("Blur", &mut props.shadow.blur, 0.0..=100.0),
-        ] {
-            inspector_row(ui, label, |ui| {
+    let mut draw_shadow = |ui: &mut Ui| {
+        inspector_row_state(
+            ui,
+            "Shadow",
+            state_ctx,
+            shadow_overridden,
+            "Shadow",
+            serde_json::json!({ "shadow": null, "clear_shadow": false }),
+            actions,
+            |ui| {
+                if ui.checkbox(&mut props.shadow_enabled, "").changed() {
+                    shadow_changed = true;
+                }
+            },
+        );
+        if props.shadow_enabled {
+            inspector_row(ui, "Colour", |ui| {
+                let (response, valid) =
+                    show_color_field(ui, "", &mut props.shadow.color.0, "prop_shadow_color");
+                if is_committed(&response, ui) && valid {
+                    apply_color_alpha(&mut props.shadow.color, props.shadow_alpha);
+                    shadow_changed = true;
+                }
+            });
+            inspector_row(ui, "Opacity", |ui| {
+                let mut opacity_pct = alpha_to_percent(props.shadow_alpha);
                 let rem_w = ui.available_width().max(30.0);
                 let response = add_drag_left(
                     ui,
                     [rem_w, coursecraft_render::CONTROL_COMPACT],
-                    DragValue::new(value).speed(0.5).range(range).suffix(" px"),
+                    DragValue::new(&mut opacity_pct)
+                        .speed(1.0)
+                        .range(0.0..=100.0)
+                        .fixed_decimals(0)
+                        .suffix(" %"),
                 );
+                if response.changed() {
+                    props.shadow_alpha =
+                        set_color_alpha_percent(&mut props.shadow.color, opacity_pct);
+                }
                 let enter = response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                 if response.drag_stopped() || response.lost_focus() || enter {
                     shadow_changed = true;
                 }
             });
+            for (label, value, range) in [
+                ("Offset X", &mut props.shadow.offset_x, -200.0..=200.0),
+                ("Offset Y", &mut props.shadow.offset_y, -200.0..=200.0),
+                ("Blur", &mut props.shadow.blur, 0.0..=100.0),
+            ] {
+                inspector_row(ui, label, |ui| {
+                    let rem_w = ui.available_width().max(30.0);
+                    let response = add_drag_left(
+                        ui,
+                        [rem_w, coursecraft_render::CONTROL_COMPACT],
+                        DragValue::new(value).speed(0.5).range(range).suffix(" px"),
+                    );
+                    let enter =
+                        response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                    if response.drag_stopped() || response.lost_focus() || enter {
+                        shadow_changed = true;
+                    }
+                });
+            }
         }
+    };
+    let shadow_note = match hidden_reason {
+        EffectsHiddenReason::NoFillOrOutline => {
+            Some(tl!("Add a fill or outline to see the shadow."))
+        }
+        EffectsHiddenReason::NoFill => Some(tl!("Add a fill to see the shadow.")),
+        EffectsHiddenReason::Visible => None,
+    };
+    if let Some(note) = shadow_note {
+        ui.scope(|ui| {
+            ui.multiply_opacity(0.6);
+            draw_shadow(ui);
+        });
+        let p = coursecraft_render::palette(ui.ctx());
+        ui.add(
+            egui::Label::new(
+                RichText::new(note)
+                    .size(coursecraft_render::SIZE_CAPTION)
+                    .color(p.text_secondary),
+            )
+            .wrap(),
+        );
+    } else {
+        draw_shadow(ui);
     }
 
     let glow_overridden =
         state_ctx.is_some_and(|ctx| ctx.state.glow.is_some() || ctx.state.clear_glow);
-    inspector_row_state(
-        ui,
-        "Glow",
-        state_ctx,
-        glow_overridden,
-        "Glow",
-        serde_json::json!({ "glow": null, "clear_glow": false }),
-        actions,
-        |ui| {
-            if ui.checkbox(&mut props.glow_enabled, "").changed() {
-                glow_changed = true;
-            }
-        },
-    );
-    if props.glow_enabled {
-        inspector_row(ui, "Colour", |ui| {
-            let (response, valid) =
-                show_color_field(ui, "", &mut props.glow.color.0, "prop_glow_color");
-            if is_committed(&response, ui) && valid {
-                apply_color_alpha(&mut props.glow.color, props.glow_alpha);
-                glow_changed = true;
-            }
+    let mut draw_glow = |ui: &mut Ui| {
+        inspector_row_state(
+            ui,
+            "Glow",
+            state_ctx,
+            glow_overridden,
+            "Glow",
+            serde_json::json!({ "glow": null, "clear_glow": false }),
+            actions,
+            |ui| {
+                if ui.checkbox(&mut props.glow_enabled, "").changed() {
+                    glow_changed = true;
+                }
+            },
+        );
+        if props.glow_enabled {
+            inspector_row(ui, "Colour", |ui| {
+                let (response, valid) =
+                    show_color_field(ui, "", &mut props.glow.color.0, "prop_glow_color");
+                if is_committed(&response, ui) && valid {
+                    apply_color_alpha(&mut props.glow.color, props.glow_alpha);
+                    glow_changed = true;
+                }
+            });
+            inspector_row(ui, "Opacity", |ui| {
+                let mut opacity_pct = alpha_to_percent(props.glow_alpha);
+                let rem_w = ui.available_width().max(30.0);
+                let response = add_drag_left(
+                    ui,
+                    [rem_w, coursecraft_render::CONTROL_COMPACT],
+                    DragValue::new(&mut opacity_pct)
+                        .speed(1.0)
+                        .range(0.0..=100.0)
+                        .fixed_decimals(0)
+                        .suffix(" %"),
+                );
+                if response.changed() {
+                    props.glow_alpha = set_color_alpha_percent(&mut props.glow.color, opacity_pct);
+                }
+                let enter = response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                if response.drag_stopped() || response.lost_focus() || enter {
+                    glow_changed = true;
+                }
+            });
+            inspector_row(ui, "Size", |ui| {
+                let rem_w = ui.available_width().max(30.0);
+                let response = add_drag_left(
+                    ui,
+                    [rem_w, coursecraft_render::CONTROL_COMPACT],
+                    DragValue::new(&mut props.glow.size)
+                        .speed(0.5)
+                        .range(0.0..=100.0)
+                        .suffix(" px"),
+                );
+                let enter = response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                if response.drag_stopped() || response.lost_focus() || enter {
+                    glow_changed = true;
+                }
+            });
+        }
+    };
+    let glow_note = match hidden_reason {
+        EffectsHiddenReason::NoFillOrOutline => Some(tl!("Add a fill or outline to see the glow.")),
+        EffectsHiddenReason::NoFill => Some(tl!("Add a fill to see the glow.")),
+        EffectsHiddenReason::Visible => None,
+    };
+    if let Some(note) = glow_note {
+        ui.scope(|ui| {
+            ui.multiply_opacity(0.6);
+            draw_glow(ui);
         });
-        inspector_row(ui, "Opacity", |ui| {
-            let mut opacity_pct = alpha_to_percent(props.glow_alpha);
-            let rem_w = ui.available_width().max(30.0);
-            let response = add_drag_left(
-                ui,
-                [rem_w, coursecraft_render::CONTROL_COMPACT],
-                DragValue::new(&mut opacity_pct)
-                    .speed(1.0)
-                    .range(0.0..=100.0)
-                    .fixed_decimals(0)
-                    .suffix(" %"),
-            );
-            if response.changed() {
-                props.glow_alpha = set_color_alpha_percent(&mut props.glow.color, opacity_pct);
-            }
-            let enter = response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-            if response.drag_stopped() || response.lost_focus() || enter {
-                glow_changed = true;
-            }
-        });
-        inspector_row(ui, "Size", |ui| {
-            let rem_w = ui.available_width().max(30.0);
-            let response = add_drag_left(
-                ui,
-                [rem_w, coursecraft_render::CONTROL_COMPACT],
-                DragValue::new(&mut props.glow.size)
-                    .speed(0.5)
-                    .range(0.0..=100.0)
-                    .suffix(" px"),
-            );
-            let enter = response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-            if response.drag_stopped() || response.lost_focus() || enter {
-                glow_changed = true;
-            }
-        });
+        let p = coursecraft_render::palette(ui.ctx());
+        ui.add(
+            egui::Label::new(
+                RichText::new(note)
+                    .size(coursecraft_render::SIZE_CAPTION)
+                    .color(p.text_secondary),
+            )
+            .wrap(),
+        );
+    } else {
+        draw_glow(ui);
     }
 
     if shadow_changed {
@@ -10278,6 +10420,7 @@ fn show_object_properties(
         state_ctx_ref,
         obj.shadow.is_some(),
         obj.glow.is_some(),
+        effects_hidden_reason(obj, state_ctx_ref),
         actions_to_run,
     );
 
@@ -10520,6 +10663,7 @@ fn shape_style_sections(
         state_ctx_ref,
         obj.shadow.is_some(),
         obj.glow.is_some(),
+        effects_hidden_reason(obj, state_ctx_ref),
         actions_to_run,
     );
     if let Some(action) = action_to_run {
