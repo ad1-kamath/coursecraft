@@ -2,7 +2,9 @@
 
 What changed in each release, newest first. Versions follow [semantic versioning](https://semver.org): until 1.0, a minor version (0.x) may change things, but a project saved by an older CourseCraft always opens in a newer one.
 
-## Unreleased
+## 0.6.4
+
+A fix for videos crashing the app on Windows, EMF and WMF clip art, and clearer player settings.
 
 Thanks to LucaFontanot for EMF and WMF clip art and the player settings work (#14 and #15), and to cocoon, who reported the Windows video crash (#16).
 
