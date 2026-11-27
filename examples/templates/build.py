@@ -34,11 +34,7 @@ BLANK = palette(ink="#1F2937", body="#374151", muted="#6B7280", primary="#2563EB
                 deep="#1E3A8A", tint="#EFF4FF", tint2="#DBE6FE", accent="#F59E0B", accent_text="#92400E",
                 good="#0F7B5F", bad="#B42318", bg="#FFFFFF")
 
-P = QUICK
-
-
-def shadow(alpha="22", y=10, blur=28):
-    return {"offset_x": 0, "offset_y": y, "blur": blur, "color": P["ink"] + alpha}
+P = cd.P = QUICK
 
 
 def course(cid, title, extra=None):
@@ -84,97 +80,8 @@ def new_slide(sc, sid, title, bg=None, master=True, transition=None, notes=None)
     return sid
 
 
-# ---------------------------------------------------------------- building blocks
-def eyebrow(sid, oid, s, x, y, color=None, start=0, lid=None):
-    color = color or P["primary"]
-    r = add(sid, shape(f"{oid}_rule", F(x, y + 9, 28, 3), P["accent"], "rectangle", "Eyebrow rule", decorative=True), lid)
-    t = add(sid, text(oid, s, F(x + 40, y - 2, 700, 26), 16, color, True, "Eyebrow", ts="ts_eyebrow", letter_spacing=2.5), lid)
-    ent(r, wipe("left"), 450, start)
-    ent(t, FADE, 500, start + 150)
-    return t
-
-
-def title(sid, oid, s, x, y, w, h, size=52, color=None, start=200, lid=None):
-    o = add(sid, text(oid, s, F(x, y, w, h), size, color or P["ink"], True, "Title", ls=1.05,
-                      ts="ts_title" if size >= 48 else "ts_heading"), lid)
-    return ent(o, RISE, 800, start, "overshoot", "by_paragraph")
-
-
-def body(sid, oid, s, x, y, w, h, size=20, color=None, start=500, lid=None):
-    o = add(sid, text(oid, s, F(x, y, w, h), size, color or P["body"], False, "Body", ls=1.45, ts="ts_body"), lid)
-    return ent(o, FADE, 600, start)
-
-
-def pill(sid, oid, label, x, y, w, fill=None, color=None, start=None, lid=None):
-    o = add(sid, shape(oid, F(x, y, w, 36), fill or P["tint"], name=label, label=label, adjust=[0.5],
-                       lstyle=style(16, color or P["primary_dk"], True, align="center", valign="middle")), lid)
-    if start is not None:
-        ent(o, POP, 400, start, "overshoot")
-    return o
-
-
-def btn(sid, oid, label, x, y, w=210, fill=None, hover=None, start=None, lid=None, h=56):
-    fill, hover = fill or P["primary"], hover or P["primary_dk"]
-    o = add(sid, button(oid, label, F(x, y, w, h), fill, hover, shadow=shadow("33", 8, 18)), lid)
-    if start is not None:
-        ent(o, POP, 450, start, "overshoot")
-    return o
-
-
-def placeholder(sid, oid, frame, label="+  Add a picture", start=None, lid=None, fill=None):
-    o = add(sid, shape(oid, frame, fill or P["tint"], name="Picture placeholder", adjust=[0.06],
-                       outline={"color": P["primary"] + "66", "width": 2, "dash": "dash"},
-                       label=label, lstyle=style(16, P["muted"], True, align="center", valign="middle"),
-                       decorative=True), lid)
-    if start is not None:
-        ent(o, reveal_shape("box"), 700, start, "ease_in_out")
-    return o
-
-
-def card(sid, oid, frame, fill=None, start=None, lid=None, radius=0.08, effect=None, name="Card"):
-    o = add(sid, shape(oid, frame, fill or P["white"], name=name, adjust=[radius], decorative=True), lid)
-    o["shadow"] = shadow()
-    if start is not None:
-        ent(o, effect or floaty("bottom"), 600, start)
-    return o
-
-
-def blob(sid, oid, frame, fill, kind="ellipse", start=None, lid=None):
-    o = add(sid, shape(oid, frame, fill, kind, "Decoration", decorative=True), lid)
-    if start is not None:
-        ent(o, ZOOM, 900, start)
-    return o
-
-
-def progress(sid, oid, frac, start=0):
-    add(sid, shape(f"{oid}_track", F(88, 76, 300, 6), P["tint2"], name="Progress track", adjust=[0.5], decorative=True))
-    f = add(sid, shape(f"{oid}_fill", F(88, 76, max(12, int(300 * frac)), 6), P["primary"], name="Progress", adjust=[0.5], decorative=True))
-    ent(f, wipe("left"), 700, start)
-
-
-def feedback(sid, lid, oid_text, message, good, go_label, go_id, go_action):
-    """A feedback bar on a question layer: icon, message and one button."""
-    L = layer(sid, lid)
-    L["prevent_base_clicks"] = True
-    fill = P["good"] if good else P["bad"]
-    L["objects"] = []
-    bar = add(sid, shape(f"{sid}_{lid}_bar", F(240, 588, 800, 92), fill, name="Feedback panel", adjust=[0.2]), lid)
-    bar["shadow"] = shadow("40", 12, 30)
-    ent(bar, fly("bottom"), 450, 0, "overshoot")
-    ic = add(sid, shape(f"{sid}_{lid}_icon", F(262, 610, 48, 48), "#FFFFFF33", "ellipse", "Feedback icon",
-                        label="✓" if good else "!", lstyle=style(24, "#FFFFFF", True, align="center", valign="middle"),
-                        decorative=True), lid)
-    ent(ic, POP, 400, 250, "overshoot")
-    emph(ic if good else bar, "jump" if good else "shake", 700, 700)
-    t = add(sid, text(oid_text, message, F(326, 604, 520, 60), 18, "#FFFFFF", True, "Feedback text", valign="middle"), lid)
-    ent(t, FADE, 400, 200)
-    b = add(sid, soft_button(go_id, go_label, F(860, 612, 160, 46), "#FFFFFF", P["tint"], fill, 16), lid)
-    ent(b, POP, 400, 350, "overshoot")
-    trig(sid, click(go_id), go_action, lid=lid)
-
-
 # ================================================================ Quick Knowledge Check
-P = QUICK
+P = cd.P = QUICK
 course("quick-knowledge-check", "Quick Knowledge Check", {"quiz": {"passing_percent": 80}})
 sc = scene("sc-quiz", "Knowledge Check")
 
@@ -266,7 +173,7 @@ trig(s, {"event": "timeline_starts"}, {"action": "submit_results"})
 save(os.path.join(HERE, "quick-knowledge-check.json"))
 
 # ================================================================ Linear Lesson
-P = LESSON
+P = cd.P = LESSON
 course("linear-lesson", "Linear Lesson")
 sc = scene("sc-lesson", "Lesson")
 
@@ -343,7 +250,7 @@ trig(s, {"event": "timeline_starts"}, {"action": "complete_course", "status": "c
 save(os.path.join(HERE, "linear-lesson.json"))
 
 # ================================================================ Branching Scenario
-P = BRANCH
+P = cd.P = BRANCH
 course("branching-scenario", "Branching Scenario")
 sc = scene("sc-scenario", "Scenario")
 
@@ -455,7 +362,7 @@ trig(s, {"event": "timeline_starts"}, {"action": "complete_course", "status": "c
 save(os.path.join(HERE, "branching-scenario.json"))
 
 # ================================================================ Blank
-P = BLANK
+P = cd.P = BLANK
 course("blank-course", "Untitled Course")
 c = cd.C
 c.pop("masters")

@@ -1,0 +1,5909 @@
+{
+ "schema_version": 1,
+ "id": "workplace-safety-basics",
+ "title": "Workplace Safety Basics",
+ "slide_size": {
+  "w": 1280,
+  "h": 720
+ },
+ "variables": [],
+ "quiz": {
+  "passing_percent": 75
+ },
+ "player": {
+  "show_nav": true,
+  "show_menu": true,
+  "show_seekbar": true
+ },
+ "theme": {
+  "accent": "#1F4E8C",
+  "background": "#F7F5F1",
+  "text": "#14213D",
+  "font": "Inter",
+  "player": {
+   "bar": "#0F1B33",
+   "bar_text": "#FFFFFF"
+  },
+  "palette": [
+   {
+    "id": "pal1",
+    "name": "Ink",
+    "color": "#14213D"
+   },
+   {
+    "id": "pal2",
+    "name": "Night",
+    "color": "#0F1B33"
+   },
+   {
+    "id": "pal3",
+    "name": "Safety blue",
+    "color": "#1F4E8C"
+   },
+   {
+    "id": "pal4",
+    "name": "Mist",
+    "color": "#EAF0F8"
+   },
+   {
+    "id": "pal5",
+    "name": "Hi-vis yellow",
+    "color": "#F2B705"
+   },
+   {
+    "id": "pal6",
+    "name": "Amber text",
+    "color": "#6B4F00"
+   },
+   {
+    "id": "pal7",
+    "name": "Wall",
+    "color": "#EFEBE5"
+   },
+   {
+    "id": "pal8",
+    "name": "Paper",
+    "color": "#F7F5F1"
+   }
+  ]
+ },
+ "text_styles": [
+  {
+   "id": "ts_title",
+   "name": "Title",
+   "style": {
+    "font": "Inter",
+    "size": 56,
+    "color": "#14213D",
+    "bold": true
+   }
+  },
+  {
+   "id": "ts_heading",
+   "name": "Heading",
+   "style": {
+    "font": "Inter",
+    "size": 36,
+    "color": "#14213D",
+    "bold": true
+   }
+  },
+  {
+   "id": "ts_eyebrow",
+   "name": "Eyebrow",
+   "style": {
+    "font": "Inter",
+    "size": 16,
+    "color": "#1F4E8C",
+    "bold": true,
+    "letter_spacing": 2.5
+   }
+  },
+  {
+   "id": "ts_body",
+   "name": "Body",
+   "style": {
+    "font": "Inter",
+    "size": 20,
+    "color": "#33405A",
+    "bold": false
+   }
+  }
+ ],
+ "masters": [
+  {
+   "id": "m_content",
+   "title": "Content",
+   "background": "#F7F5F1",
+   "objects": [
+    {
+     "id": "m_stripe",
+     "name": "Hi-vis stripe",
+     "kind": {
+      "type": "shape",
+      "shape": "rectangle",
+      "fill": "#F2B705"
+     },
+     "frame": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 6
+     },
+     "decorative": true
+    },
+    {
+     "id": "m_dot",
+     "name": "Brand dot",
+     "kind": {
+      "type": "shape",
+      "shape": "ellipse",
+      "fill": "#C99700"
+     },
+     "frame": {
+      "x": 88,
+      "y": 684,
+      "w": 8,
+      "h": 8
+     },
+     "decorative": true
+    },
+    {
+     "id": "m_brand",
+     "name": "Footer",
+     "kind": {
+      "type": "text",
+      "text": "Workplace Safety Basics",
+      "style": {
+       "font": "Inter",
+       "size": 12,
+       "color": "#5E6880",
+       "bold": true,
+       "letter_spacing": 1
+      }
+     },
+     "frame": {
+      "x": 104,
+      "y": 677,
+      "w": 400,
+      "h": 20
+     },
+     "decorative": true
+    }
+   ]
+  }
+ ],
+ "scenes": [
+  {
+   "id": "sc_welcome",
+   "title": "Welcome",
+   "slides": [
+    {
+     "id": "welcome",
+     "title": "Welcome",
+     "duration_ms": 5000,
+     "background": "#EFEBE5",
+     "objects": [
+      {
+       "id": "w-hero",
+       "name": "Hero picture",
+       "kind": {
+        "type": "image",
+        "src": "hero.jpg",
+        "alt": "A smiling warehouse worker in a hi-vis vest holds a tablet beside shelves of boxes.",
+        "shape": "rectangle",
+        "crop": {
+         "x": 0.0042,
+         "y": 0.0,
+         "w": 0.9917,
+         "h": 1.0
+        }
+       },
+       "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 720
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 900,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "w-stripe",
+       "name": "Hi-vis stripe",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F2B705"
+       },
+       "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 8
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 700,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "w-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F2B705"
+       },
+       "frame": {
+        "x": 88,
+        "y": 177,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 300
+       }
+      },
+      {
+       "id": "w-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "SAFETY ESSENTIALS  ·  5 MINUTES",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#1F4E8C",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 166,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 450
+       }
+      },
+      {
+       "id": "w-title",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "Workplace\nSafety Basics",
+        "style": {
+         "font": "Inter",
+         "size": 60,
+         "color": "#14213D",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         },
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_title"
+       },
+       "frame": {
+        "x": 84,
+        "y": 204,
+        "w": 560,
+        "h": 150
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 450
+       }
+      },
+      {
+       "id": "w-body",
+       "name": "Body",
+       "kind": {
+        "type": "text",
+        "text": "Most workplace injuries start with something small. Learn to spot three everyday hazards and the habit that stops each one.",
+        "style": {
+         "font": "Inter",
+         "size": 20,
+         "color": "#33405A",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.45
+         }
+        ],
+        "text_style": "ts_body"
+       },
+       "frame": {
+        "x": 88,
+        "y": 370,
+        "w": 470,
+        "h": 100
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 800
+       }
+      },
+      {
+       "id": "w-chip1",
+       "name": "3 hazards",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFFB3",
+        "text": {
+         "text": "3 hazards",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#183D6E",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 492,
+        "w": 112,
+        "h": 36
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1000
+       }
+      },
+      {
+       "id": "w-chip2",
+       "name": "4 questions",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFFB3",
+        "text": {
+         "text": "4 questions",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#183D6E",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 212,
+        "y": 492,
+        "w": 128,
+        "h": 36
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1120
+       }
+      },
+      {
+       "id": "w-chip3",
+       "name": "Pass mark 75%",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFFB3",
+        "text": {
+         "text": "Pass mark 75%",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#183D6E",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 352,
+        "y": 492,
+        "w": 156,
+        "h": 36
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1240
+       }
+      },
+      {
+       "id": "w-start",
+       "name": "Start the course button",
+       "kind": {
+        "type": "button",
+        "label": "Start the course  →",
+        "fill": "#1F4E8C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 560,
+        "w": 240,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#183D6E"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#14213D33"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1300
+       }
+      },
+      {
+       "id": "w-about",
+       "name": "About this course button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFFB3",
+        "text": {
+         "text": "About this course",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#183D6E",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.2
+        ],
+        "outline": {
+         "color": "#1F4E8C55",
+         "width": 1.5
+        }
+       },
+       "frame": {
+        "x": 344,
+        "y": 560,
+        "w": 200,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#FFFFFF"
+        }
+       ],
+       "description": "About this course",
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1420
+       }
+      }
+     ],
+     "transition": {
+      "type": "fade",
+      "duration_ms": 700
+     },
+     "notes": "The course opens here. About this course opens a layer with what to expect.",
+     "triggers": [
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": "next"
+       },
+       "when": {
+        "event": "click",
+        "object": "w-start"
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "about"
+       },
+       "when": {
+        "event": "click",
+        "object": "w-about"
+       }
+      }
+     ],
+     "layers": [
+      {
+       "id": "about",
+       "name": "About this course",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "ab-dim",
+         "name": "Dim",
+         "kind": {
+          "type": "shape",
+          "shape": "rectangle",
+          "fill": "#0F1B3399"
+         },
+         "frame": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 720
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 300,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "ab-card",
+         "name": "About panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "adjust": [
+           0.05
+          ]
+         },
+         "frame": {
+          "x": 340,
+          "y": 150,
+          "w": 600,
+          "h": 410
+         },
+         "decorative": true,
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 18,
+          "blur": 40,
+          "color": "#14213D40"
+         },
+         "entrance": {
+          "effect": {
+           "type": "zoom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "ab-rule",
+         "name": "Hi-vis rule",
+         "kind": {
+          "type": "shape",
+          "shape": "rectangle",
+          "fill": "#F2B705"
+         },
+         "frame": {
+          "x": 388,
+          "y": 186,
+          "w": 40,
+          "h": 5
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "wipe",
+           "from": "left"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 150
+         }
+        },
+        {
+         "id": "ab-title",
+         "name": "Heading",
+         "kind": {
+          "type": "text",
+          "text": "About this course",
+          "style": {
+           "font": "Inter",
+           "size": 32,
+           "color": "#14213D",
+           "bold": true
+          },
+          "text_style": "ts_heading"
+         },
+         "frame": {
+          "x": 388,
+          "y": 198,
+          "w": 500,
+          "h": 50
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 150
+         }
+        },
+        {
+         "id": "ab-body",
+         "name": "Body",
+         "kind": {
+          "type": "text",
+          "text": "A short course for anyone who works in a shop, a warehouse or an office.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#33405A",
+           "bold": false
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.4
+           }
+          ]
+         },
+         "frame": {
+          "x": 388,
+          "y": 250,
+          "w": 500,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 250
+         }
+        },
+        {
+         "id": "ab-row1-icon",
+         "name": "Icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#F2B705",
+          "text": {
+           "text": "5",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#14213D",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 388,
+          "y": 322,
+          "w": 32,
+          "h": 32
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        },
+        {
+         "id": "ab-row1",
+         "name": "Point",
+         "kind": {
+          "type": "text",
+          "text": "About 5 minutes, at your own pace",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#33405A",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 436,
+          "y": 323,
+          "w": 452,
+          "h": 30
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "right"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 430
+         }
+        },
+        {
+         "id": "ab-row2-icon",
+         "name": "Icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#F2B705",
+          "text": {
+           "text": "3",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#14213D",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 388,
+          "y": 370,
+          "w": 32,
+          "h": 32
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 450
+         }
+        },
+        {
+         "id": "ab-row2",
+         "name": "Point",
+         "kind": {
+          "type": "text",
+          "text": "Three hazards, each with one simple habit",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#33405A",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 436,
+          "y": 371,
+          "w": 452,
+          "h": 30
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "right"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 530
+         }
+        },
+        {
+         "id": "ab-row3-icon",
+         "name": "Icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#F2B705",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#14213D",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 388,
+          "y": 418,
+          "w": 32,
+          "h": 32
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 550
+         }
+        },
+        {
+         "id": "ab-row3",
+         "name": "Point",
+         "kind": {
+          "type": "text",
+          "text": "Four graded questions. You need 75% to pass",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#33405A",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 436,
+          "y": 419,
+          "w": 452,
+          "h": 30
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "right"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 630
+         }
+        },
+        {
+         "id": "ab-close",
+         "name": "Got it button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#1F4E8C",
+          "text": {
+           "text": "Got it",
+           "style": {
+            "font": "Inter",
+            "size": 17,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 388,
+          "y": 478,
+          "w": 150,
+          "h": 50
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#183D6E"
+          }
+         ],
+         "description": "Got it",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 700
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "hide_layer",
+          "layer": "about"
+         },
+         "when": {
+          "event": "click",
+          "object": "ab-close"
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sc_learn",
+   "title": "Three hazards",
+   "slides": [
+    {
+     "id": "hazards",
+     "title": "Three everyday hazards",
+     "duration_ms": 5000,
+     "background": "#F7F5F1",
+     "objects": [
+      {
+       "id": "hz-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F2B705"
+       },
+       "frame": {
+        "x": 88,
+        "y": 57,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "hz-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "THREE EVERYDAY HAZARDS",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#1F4E8C",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 46,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "hz-title",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "Know what to look for",
+        "style": {
+         "font": "Inter",
+         "size": 40,
+         "color": "#14213D",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_heading"
+       },
+       "frame": {
+        "x": 84,
+        "y": 82,
+        "w": 700,
+        "h": 60
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "tab-trips",
+       "name": "1  Trips button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#EAF0F8",
+        "text": {
+         "text": "1  Trips",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#183D6E",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 166,
+        "w": 172,
+        "h": 46
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#D3DEEE"
+        },
+        {
+         "name": "selected",
+         "fill": "#1F4E8C",
+         "text_style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       ],
+       "description": "1  Trips",
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "tab-lifting",
+       "name": "2  Lifting button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#EAF0F8",
+        "text": {
+         "text": "2  Lifting",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#183D6E",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 274,
+        "y": 166,
+        "w": 172,
+        "h": 46
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#D3DEEE"
+        },
+        {
+         "name": "selected",
+         "fill": "#1F4E8C",
+         "text_style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       ],
+       "description": "2  Lifting",
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      },
+      {
+       "id": "tab-spills",
+       "name": "3  Spills button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#EAF0F8",
+        "text": {
+         "text": "3  Spills",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#183D6E",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 460,
+        "y": 166,
+        "w": 172,
+        "h": 46
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#D3DEEE"
+        },
+        {
+         "name": "selected",
+         "fill": "#1F4E8C",
+         "text_style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       ],
+       "description": "3  Spills",
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 700
+       }
+      },
+      {
+       "id": "hz-next",
+       "name": "Spot the hazards button",
+       "kind": {
+        "type": "button",
+        "label": "Spot the hazards  →",
+        "fill": "#1F4E8C"
+       },
+       "frame": {
+        "x": 976,
+        "y": 600,
+        "w": 216,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#183D6E"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#14213D33"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "notes": "Each tab shows one hazard on its own layer. The selected tab keeps its Selected state.",
+     "revisit": "reset",
+     "layers": [
+      {
+       "id": "layer-trips",
+       "name": "Trips and falls",
+       "duration_ms": 4000,
+       "objects": [
+        {
+         "id": "trips-pic",
+         "name": "Picture",
+         "kind": {
+          "type": "image",
+          "src": "trips.jpg",
+          "alt": "A worker steps over a loose cable and an open box left on the floor.",
+          "shape": "rounded_rectangle",
+          "crop": {
+           "x": 0.2378,
+           "y": 0.0,
+           "w": 0.7622,
+           "h": 1.0
+          }
+         },
+         "frame": {
+          "x": 640,
+          "y": 166,
+          "w": 552,
+          "h": 404
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#14213D26"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "right"
+          },
+          "duration_ms": 600,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "trips-head",
+         "name": "Heading",
+         "kind": {
+          "type": "text",
+          "text": "Trips and falls",
+          "style": {
+           "font": "Inter",
+           "size": 30,
+           "color": "#14213D",
+           "bold": true
+          },
+          "text_style": "ts_heading"
+         },
+         "frame": {
+          "x": 88,
+          "y": 250,
+          "w": 520,
+          "h": 46
+         },
+         "entrance": {
+          "effect": {
+           "type": "rise"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 100
+         }
+        },
+        {
+         "id": "trips-desc",
+         "name": "Body",
+         "kind": {
+          "type": "text",
+          "text": "Cables, boxes and open drawers in a walkway catch your feet when you are busy.",
+          "style": {
+           "font": "Inter",
+           "size": 19,
+           "color": "#33405A",
+           "bold": false
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.4
+           }
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 302,
+          "w": 500,
+          "h": 64
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "trips-tip1-icon",
+         "name": "Icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#F2B705",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#14213D",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 88,
+          "y": 392,
+          "w": 32,
+          "h": 32
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        },
+        {
+         "id": "trips-tip1",
+         "name": "Point",
+         "kind": {
+          "type": "text",
+          "text": "Keep walkways clear",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#33405A",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 136,
+          "y": 393,
+          "w": 452,
+          "h": 30
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "right"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 430
+         }
+        },
+        {
+         "id": "trips-tip2-icon",
+         "name": "Icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#F2B705",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#14213D",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 88,
+          "y": 442,
+          "w": 32,
+          "h": 32
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 470
+         }
+        },
+        {
+         "id": "trips-tip2",
+         "name": "Point",
+         "kind": {
+          "type": "text",
+          "text": "Tape down or reroute cables",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#33405A",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 136,
+          "y": 443,
+          "w": 452,
+          "h": 30
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "right"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 550
+         }
+        },
+        {
+         "id": "trips-tip3-icon",
+         "name": "Icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#F2B705",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#14213D",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 88,
+          "y": 492,
+          "w": 32,
+          "h": 32
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 590
+         }
+        },
+        {
+         "id": "trips-tip3",
+         "name": "Point",
+         "kind": {
+          "type": "text",
+          "text": "Close drawers after use",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#33405A",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 136,
+          "y": 493,
+          "w": 452,
+          "h": 30
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "right"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 670
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": false
+      },
+      {
+       "id": "layer-lifting",
+       "name": "Lifting and carrying",
+       "duration_ms": 4000,
+       "objects": [
+        {
+         "id": "lifting-pic",
+         "name": "Picture",
+         "kind": {
+          "type": "image",
+          "src": "lifting.jpg",
+          "alt": "A worker squats with a straight back to lift a box from the floor.",
+          "shape": "rounded_rectangle",
+          "crop": {
+           "x": 0.2378,
+           "y": 0.0,
+           "w": 0.7622,
+           "h": 1.0
+          }
+         },
+         "frame": {
+          "x": 640,
+          "y": 166,
+          "w": 552,
+          "h": 404
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#14213D26"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "right"
+          },
+          "duration_ms": 600,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "lifting-head",
+         "name": "Heading",
+         "kind": {
+          "type": "text",
+          "text": "Lifting and carrying",
+          "style": {
+           "font": "Inter",
+           "size": 30,
+           "color": "#14213D",
+           "bold": true
+          },
+          "text_style": "ts_heading"
+         },
+         "frame": {
+          "x": 88,
+          "y": 250,
+          "w": 520,
+          "h": 46
+         },
+         "entrance": {
+          "effect": {
+           "type": "rise"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 100
+         }
+        },
+        {
+         "id": "lifting-desc",
+         "name": "Body",
+         "kind": {
+          "type": "text",
+          "text": "Lifting with a bent back strains it. Your legs are much stronger.",
+          "style": {
+           "font": "Inter",
+           "size": 19,
+           "color": "#33405A",
+           "bold": false
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.4
+           }
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 302,
+          "w": 500,
+          "h": 64
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "lifting-tip1-icon",
+         "name": "Icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#F2B705",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#14213D",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 88,
+          "y": 392,
+          "w": 32,
+          "h": 32
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        },
+        {
+         "id": "lifting-tip1",
+         "name": "Point",
+         "kind": {
+          "type": "text",
+          "text": "Test the weight first",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#33405A",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 136,
+          "y": 393,
+          "w": 452,
+          "h": 30
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "right"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 430
+         }
+        },
+        {
+         "id": "lifting-tip2-icon",
+         "name": "Icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#F2B705",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#14213D",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 88,
+          "y": 442,
+          "w": 32,
+          "h": 32
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 470
+         }
+        },
+        {
+         "id": "lifting-tip2",
+         "name": "Point",
+         "kind": {
+          "type": "text",
+          "text": "Bend your knees, not your back",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#33405A",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 136,
+          "y": 443,
+          "w": 452,
+          "h": 30
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "right"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 550
+         }
+        },
+        {
+         "id": "lifting-tip3-icon",
+         "name": "Icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#F2B705",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#14213D",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 88,
+          "y": 492,
+          "w": 32,
+          "h": 32
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 590
+         }
+        },
+        {
+         "id": "lifting-tip3",
+         "name": "Point",
+         "kind": {
+          "type": "text",
+          "text": "Hold the load close",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#33405A",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 136,
+          "y": 493,
+          "w": 452,
+          "h": 30
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "right"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 670
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": false
+      },
+      {
+       "id": "layer-spills",
+       "name": "Spills and wet floors",
+       "duration_ms": 4000,
+       "objects": [
+        {
+         "id": "spills-pic",
+         "name": "Picture",
+         "kind": {
+          "type": "image",
+          "src": "spills.jpg",
+          "alt": "A wet floor sign and a mop bucket stand beside a puddle in a corridor.",
+          "shape": "rounded_rectangle",
+          "crop": {
+           "x": 0.2378,
+           "y": 0.0,
+           "w": 0.7622,
+           "h": 1.0
+          }
+         },
+         "frame": {
+          "x": 640,
+          "y": 166,
+          "w": 552,
+          "h": 404
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#14213D26"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "right"
+          },
+          "duration_ms": 600,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "spills-head",
+         "name": "Heading",
+         "kind": {
+          "type": "text",
+          "text": "Spills and wet floors",
+          "style": {
+           "font": "Inter",
+           "size": 30,
+           "color": "#14213D",
+           "bold": true
+          },
+          "text_style": "ts_heading"
+         },
+         "frame": {
+          "x": 88,
+          "y": 250,
+          "w": 520,
+          "h": 46
+         },
+         "entrance": {
+          "effect": {
+           "type": "rise"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 100
+         }
+        },
+        {
+         "id": "spills-desc",
+         "name": "Body",
+         "kind": {
+          "type": "text",
+          "text": "A small puddle near a door is easy to miss and easy to slip on.",
+          "style": {
+           "font": "Inter",
+           "size": 19,
+           "color": "#33405A",
+           "bold": false
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.4
+           }
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 302,
+          "w": 500,
+          "h": 64
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "spills-tip1-icon",
+         "name": "Icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#F2B705",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#14213D",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 88,
+          "y": 392,
+          "w": 32,
+          "h": 32
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        },
+        {
+         "id": "spills-tip1",
+         "name": "Point",
+         "kind": {
+          "type": "text",
+          "text": "Stop and warn others",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#33405A",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 136,
+          "y": 393,
+          "w": 452,
+          "h": 30
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "right"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 430
+         }
+        },
+        {
+         "id": "spills-tip2-icon",
+         "name": "Icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#F2B705",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#14213D",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 88,
+          "y": 442,
+          "w": 32,
+          "h": 32
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 470
+         }
+        },
+        {
+         "id": "spills-tip2",
+         "name": "Point",
+         "kind": {
+          "type": "text",
+          "text": "Put out a wet floor sign",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#33405A",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 136,
+          "y": 443,
+          "w": 452,
+          "h": 30
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "right"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 550
+         }
+        },
+        {
+         "id": "spills-tip3-icon",
+         "name": "Icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#F2B705",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#14213D",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 88,
+          "y": 492,
+          "w": 32,
+          "h": 32
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 590
+         }
+        },
+        {
+         "id": "spills-tip3",
+         "name": "Point",
+         "kind": {
+          "type": "text",
+          "text": "Clean it up or report it",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#33405A",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 136,
+          "y": 493,
+          "w": 452,
+          "h": 30
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "right"
+          },
+          "duration_ms": 500,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 670
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": false
+      }
+     ],
+     "triggers": [
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-trips",
+        "state": "selected"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-trips"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-lifting",
+        "state": "normal"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-trips"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-spills",
+        "state": "normal"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-trips"
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "layer-trips"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-trips"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-trips",
+        "state": "normal"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-lifting"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-lifting",
+        "state": "selected"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-lifting"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-spills",
+        "state": "normal"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-lifting"
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "layer-lifting"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-lifting"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-trips",
+        "state": "normal"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-spills"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-lifting",
+        "state": "normal"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-spills"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-spills",
+        "state": "selected"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-spills"
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "layer-spills"
+       },
+       "when": {
+        "event": "click",
+        "object": "tab-spills"
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "layer-trips"
+       },
+       "when": {
+        "event": "timeline_starts"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "tab-trips",
+        "state": "selected"
+       },
+       "when": {
+        "event": "timeline_starts"
+       }
+      },
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": "next"
+       },
+       "when": {
+        "event": "click",
+        "object": "hz-next"
+       }
+      }
+     ]
+    },
+    {
+     "id": "spot",
+     "title": "Spot the hazards",
+     "duration_ms": 5000,
+     "background": "#F7F5F1",
+     "objects": [
+      {
+       "id": "sp-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F2B705"
+       },
+       "frame": {
+        "x": 88,
+        "y": 41,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "sp-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "YOUR TURN",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#1F4E8C",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 30,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "sp-scene",
+       "name": "Workshop picture",
+       "kind": {
+        "type": "image",
+        "src": "workshop.jpg",
+        "alt": "A workshop with a tall unsteady stack of boxes, a loose cable across the floor and a puddle under a table.",
+        "shape": "rounded_rectangle"
+       },
+       "frame": {
+        "x": 88,
+        "y": 136,
+        "w": 760,
+        "h": 424
+       },
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 12,
+        "blur": 30,
+        "color": "#14213D26"
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 700,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "sp-side",
+       "name": "Card",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF",
+        "adjust": [
+         0.08
+        ]
+       },
+       "frame": {
+        "x": 880,
+        "y": 136,
+        "w": 312,
+        "h": 424
+       },
+       "decorative": true,
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 10,
+        "blur": 28,
+        "color": "#14213D22"
+       },
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "right"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 300
+       }
+      },
+      {
+       "id": "sp-side-title",
+       "name": "Heading",
+       "kind": {
+        "type": "text",
+        "text": "Look for",
+        "style": {
+         "font": "Inter",
+         "size": 24,
+         "color": "#14213D",
+         "bold": true
+        }
+       },
+       "frame": {
+        "x": 912,
+        "y": 156,
+        "w": 250,
+        "h": 36
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "sp-hint1-icon",
+       "name": "Icon",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#EAF0F8",
+        "text": {
+         "text": "1",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#14213D",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 912,
+        "y": 214,
+        "w": 32,
+        "h": 32
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      },
+      {
+       "id": "sp-hint1",
+       "name": "Point",
+       "kind": {
+        "type": "text",
+        "text": "Stacked too high",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#33405A",
+         "bold": true,
+         "valign": "middle"
+        }
+       },
+       "frame": {
+        "x": 960,
+        "y": 215,
+        "w": 222,
+        "h": 30
+       },
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "right"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 680
+       }
+      },
+      {
+       "id": "sp-hint2-icon",
+       "name": "Icon",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#EAF0F8",
+        "text": {
+         "text": "2",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#14213D",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 912,
+        "y": 270,
+        "w": 32,
+        "h": 32
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 720
+       }
+      },
+      {
+       "id": "sp-hint2",
+       "name": "Point",
+       "kind": {
+        "type": "text",
+        "text": "Across the floor",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#33405A",
+         "bold": true,
+         "valign": "middle"
+        }
+       },
+       "frame": {
+        "x": 960,
+        "y": 271,
+        "w": 222,
+        "h": 30
+       },
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "right"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 800
+       }
+      },
+      {
+       "id": "sp-hint3-icon",
+       "name": "Icon",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#EAF0F8",
+        "text": {
+         "text": "3",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#14213D",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 912,
+        "y": 326,
+        "w": 32,
+        "h": 32
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 840
+       }
+      },
+      {
+       "id": "sp-hint3",
+       "name": "Point",
+       "kind": {
+        "type": "text",
+        "text": "Slippery underfoot",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#33405A",
+         "bold": true,
+         "valign": "middle"
+        }
+       },
+       "frame": {
+        "x": 960,
+        "y": 327,
+        "w": 222,
+        "h": 30
+       },
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "right"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 920
+       }
+      },
+      {
+       "id": "sp-tip",
+       "name": "Tip",
+       "kind": {
+        "type": "text",
+        "text": "Tip: select a marker again to move it.",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#5E6880",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.4
+         }
+        ]
+       },
+       "frame": {
+        "x": 912,
+        "y": 400,
+        "w": 250,
+        "h": 60
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1000
+       }
+      },
+      {
+       "id": "sp-submit",
+       "name": "Submit button",
+       "kind": {
+        "type": "button",
+        "label": "Submit",
+        "fill": "#1F4E8C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 584,
+        "w": 180,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#183D6E"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#14213D33"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 800
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "notes": "A hotspot question with three markers. Each marker must land on a hazard.",
+     "question": {
+      "kind": "hotspot",
+      "prompt": "Find the three hazards. Place a marker on each one.",
+      "choices": [],
+      "points": 10,
+      "attempts": 2,
+      "scoring": "partial",
+      "markers": 3,
+      "hotspot_image": "sp-scene",
+      "regions": [
+       {
+        "id": "boxes",
+        "shape": "rect",
+        "x": 134,
+        "y": 178,
+        "w": 236,
+        "h": 348,
+        "correct": true
+       },
+       {
+        "id": "cable",
+        "shape": "rect",
+        "x": 362,
+        "y": 399,
+        "w": 236,
+        "h": 157,
+        "correct": true
+       },
+       {
+        "id": "spill",
+        "shape": "ellipse",
+        "x": 620,
+        "y": 458,
+        "w": 122,
+        "h": 72,
+        "correct": true
+       },
+       {
+        "id": "extinguisher",
+        "shape": "rect",
+        "x": 772,
+        "y": 306,
+        "w": 68,
+        "h": 119,
+        "correct": false
+       }
+      ],
+      "frame": {
+       "x": 88,
+       "y": 70,
+       "w": 760,
+       "h": 50
+      },
+      "correct_layer": "sp-correct",
+      "incorrect_layer": "sp-incorrect"
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "submit_question"
+       },
+       "when": {
+        "event": "click",
+        "object": "sp-submit"
+       }
+      }
+     ],
+     "layers": [
+      {
+       "id": "sp-correct",
+       "name": "Correct",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "spot_sp-correct_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#0F7B5F",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#14213D40"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "spot_sp-correct_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "jump"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "sp-ok-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Well spotted! Boxes stacked high, a loose cable and a puddle.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "sp-ok-next",
+         "name": "Continue button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Continue  →",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#0F7B5F",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#EAF0F8"
+          }
+         ],
+         "description": "Continue",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "jump_to_slide",
+          "target": "next"
+         },
+         "when": {
+          "event": "click",
+          "object": "sp-ok-next"
+         }
+        }
+       ]
+      },
+      {
+       "id": "sp-incorrect",
+       "name": "Incorrect",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "spot_sp-incorrect_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#B42318",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#14213D40"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "shake"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "spot_sp-incorrect_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "!",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         }
+        },
+        {
+         "id": "sp-no-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Not all of your markers are on a hazard. Look again at the floor and the stack.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "sp-no-retry",
+         "name": "Try again button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Try again",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#B42318",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#EAF0F8"
+          }
+         ],
+         "description": "Try again",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "hide_layer"
+         },
+         "when": {
+          "event": "click",
+          "object": "sp-no-retry"
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sc_quiz",
+   "title": "Check your knowledge",
+   "slides": [
+    {
+     "id": "q1",
+     "title": "Question 1",
+     "duration_ms": 5000,
+     "background": "#F7F5F1",
+     "objects": [
+      {
+       "id": "q1-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F2B705"
+       },
+       "frame": {
+        "x": 88,
+        "y": 49,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "q1-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "QUESTION 1 OF 3",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#1F4E8C",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 38,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "q1-progress_track",
+       "name": "Progress track",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#D3DEEE",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 300,
+        "h": 6
+       },
+       "decorative": true
+      },
+      {
+       "id": "q1-progress_fill",
+       "name": "Progress",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#1F4E8C",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 100,
+        "h": 6
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 700,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "q1-pic",
+       "name": "Picture",
+       "kind": {
+        "type": "image",
+        "src": "spills.jpg",
+        "alt": "A wet floor sign and a mop bucket beside a puddle.",
+        "shape": "rounded_rectangle",
+        "crop": {
+         "x": 0.4458,
+         "y": 0.0,
+         "w": 0.4284,
+         "h": 1.0
+        }
+       },
+       "frame": {
+        "x": 808,
+        "y": 96,
+        "w": 384,
+        "h": 500
+       },
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 12,
+        "blur": 30,
+        "color": "#14213D26"
+       },
+       "entrance": {
+        "effect": {
+         "type": "shape",
+         "shape": "box",
+         "inout": "out"
+        },
+        "duration_ms": 800,
+        "easing": "ease_in_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "q1-submit",
+       "name": "Submit button",
+       "kind": {
+        "type": "button",
+        "label": "Submit",
+        "fill": "#1F4E8C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 584,
+        "w": 180,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#183D6E"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#14213D33"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "question": {
+      "kind": "multiple_choice",
+      "prompt": "You notice water on the floor near a busy doorway. What should you do first?",
+      "points": 10,
+      "attempts": 2,
+      "frame": {
+       "x": 88,
+       "y": 112,
+       "w": 660,
+       "h": 440
+      },
+      "correct_layer": "q1-correct",
+      "incorrect_layer": "q1-incorrect",
+      "choices": [
+       {
+        "id": "a",
+        "text": "Walk around it carefully and carry on"
+       },
+       {
+        "id": "b",
+        "text": "Warn people nearby and put out a wet floor sign",
+        "correct": true
+       },
+       {
+        "id": "c",
+        "text": "Wait until the end of your shift to report it"
+       }
+      ]
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "submit_question"
+       },
+       "when": {
+        "event": "click",
+        "object": "q1-submit"
+       }
+      }
+     ],
+     "layers": [
+      {
+       "id": "q1-correct",
+       "name": "Correct",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q1_q1-correct_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#0F7B5F",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#14213D40"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "q1_q1-correct_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "jump"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q1-ok-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Right. Warn people first, then clean it up or report it.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q1-ok-next",
+         "name": "Continue button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Continue  →",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#0F7B5F",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#EAF0F8"
+          }
+         ],
+         "description": "Continue",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "jump_to_slide",
+          "target": "next"
+         },
+         "when": {
+          "event": "click",
+          "object": "q1-ok-next"
+         }
+        }
+       ]
+      },
+      {
+       "id": "q1-incorrect",
+       "name": "Incorrect",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q1_q1-incorrect_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#B42318",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#14213D40"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "shake"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q1_q1-incorrect_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "!",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         }
+        },
+        {
+         "id": "q1-no-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Not quite. Someone could slip before it is dealt with.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q1-no-retry",
+         "name": "Try again button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Try again",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#B42318",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#EAF0F8"
+          }
+         ],
+         "description": "Try again",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "hide_layer"
+         },
+         "when": {
+          "event": "click",
+          "object": "q1-no-retry"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "q2",
+     "title": "Question 2",
+     "duration_ms": 5000,
+     "background": "#F7F5F1",
+     "objects": [
+      {
+       "id": "q2-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F2B705"
+       },
+       "frame": {
+        "x": 88,
+        "y": 49,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "q2-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "QUESTION 2 OF 3",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#1F4E8C",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 38,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "q2-progress_track",
+       "name": "Progress track",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#D3DEEE",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 300,
+        "h": 6
+       },
+       "decorative": true
+      },
+      {
+       "id": "q2-progress_fill",
+       "name": "Progress",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#1F4E8C",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 200,
+        "h": 6
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 700,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "q2-pic",
+       "name": "Picture",
+       "kind": {
+        "type": "image",
+        "src": "lifting.jpg",
+        "alt": "A worker lifting a box with bent knees.",
+        "shape": "rounded_rectangle",
+        "crop": {
+         "x": 0.4458,
+         "y": 0.0,
+         "w": 0.4284,
+         "h": 1.0
+        }
+       },
+       "frame": {
+        "x": 808,
+        "y": 96,
+        "w": 384,
+        "h": 500
+       },
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 12,
+        "blur": 30,
+        "color": "#14213D26"
+       },
+       "entrance": {
+        "effect": {
+         "type": "shape",
+         "shape": "box",
+         "inout": "out"
+        },
+        "duration_ms": 800,
+        "easing": "ease_in_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "q2-submit",
+       "name": "Submit button",
+       "kind": {
+        "type": "button",
+        "label": "Submit",
+        "fill": "#1F4E8C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 584,
+        "w": 180,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#183D6E"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#14213D33"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "question": {
+      "kind": "multiple_response",
+      "prompt": "Which of these make lifting a box safer? Choose all that apply.",
+      "points": 10,
+      "attempts": 2,
+      "frame": {
+       "x": 88,
+       "y": 112,
+       "w": 660,
+       "h": 440
+      },
+      "correct_layer": "q2-correct",
+      "incorrect_layer": "q2-incorrect",
+      "choices": [
+       {
+        "id": "a",
+        "text": "Bend your knees and keep your back straight",
+        "correct": true
+       },
+       {
+        "id": "b",
+        "text": "Twist your body to turn while you lift"
+       },
+       {
+        "id": "c",
+        "text": "Hold the box close to your body",
+        "correct": true
+       },
+       {
+        "id": "d",
+        "text": "Test the weight before you lift",
+        "correct": true
+       }
+      ],
+      "scoring": "partial"
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "submit_question"
+       },
+       "when": {
+        "event": "click",
+        "object": "q2-submit"
+       }
+      }
+     ],
+     "layers": [
+      {
+       "id": "q2-correct",
+       "name": "Correct",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q2_q2-correct_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#0F7B5F",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#14213D40"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "q2_q2-correct_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "jump"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q2-ok-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Exactly. Bent knees, a close load and a quick test lift.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q2-ok-next",
+         "name": "Continue button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Continue  →",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#0F7B5F",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#EAF0F8"
+          }
+         ],
+         "description": "Continue",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "jump_to_slide",
+          "target": "next"
+         },
+         "when": {
+          "event": "click",
+          "object": "q2-ok-next"
+         }
+        }
+       ]
+      },
+      {
+       "id": "q2-incorrect",
+       "name": "Incorrect",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q2_q2-incorrect_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#B42318",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#14213D40"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "shake"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q2_q2-incorrect_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "!",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         }
+        },
+        {
+         "id": "q2-no-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Not quite. Twisting while you lift strains your back.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q2-no-retry",
+         "name": "Try again button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Try again",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#B42318",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#EAF0F8"
+          }
+         ],
+         "description": "Try again",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "hide_layer"
+         },
+         "when": {
+          "event": "click",
+          "object": "q2-no-retry"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "q3",
+     "title": "Question 3",
+     "duration_ms": 5000,
+     "background": "#F7F5F1",
+     "objects": [
+      {
+       "id": "q3-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F2B705"
+       },
+       "frame": {
+        "x": 88,
+        "y": 49,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "q3-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "QUESTION 3 OF 3",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#1F4E8C",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 38,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "q3-progress_track",
+       "name": "Progress track",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#D3DEEE",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 300,
+        "h": 6
+       },
+       "decorative": true
+      },
+      {
+       "id": "q3-progress_fill",
+       "name": "Progress",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#1F4E8C",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 300,
+        "h": 6
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 700,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "q3-pic",
+       "name": "Picture",
+       "kind": {
+        "type": "image",
+        "src": "trips.jpg",
+        "alt": "A loose cable across a walkway.",
+        "shape": "rounded_rectangle",
+        "crop": {
+         "x": 0.5058,
+         "y": 0.0,
+         "w": 0.4284,
+         "h": 1.0
+        }
+       },
+       "frame": {
+        "x": 808,
+        "y": 96,
+        "w": 384,
+        "h": 500
+       },
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 12,
+        "blur": 30,
+        "color": "#14213D26"
+       },
+       "entrance": {
+        "effect": {
+         "type": "shape",
+         "shape": "box",
+         "inout": "out"
+        },
+        "duration_ms": 800,
+        "easing": "ease_in_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "q3-submit",
+       "name": "Submit button",
+       "kind": {
+        "type": "button",
+        "label": "Submit",
+        "fill": "#1F4E8C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 584,
+        "w": 180,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#183D6E"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#14213D33"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "question": {
+      "kind": "sequence",
+      "prompt": "You find a cable across a walkway. Put these steps in the right order.",
+      "points": 10,
+      "attempts": 2,
+      "frame": {
+       "x": 88,
+       "y": 112,
+       "w": 660,
+       "h": 440
+      },
+      "correct_layer": "q3-correct",
+      "incorrect_layer": "q3-incorrect",
+      "choices": [
+       {
+        "id": "a",
+        "text": "Stop and warn anyone walking past"
+       },
+       {
+        "id": "b",
+        "text": "Unplug the cable if it is safe to do so"
+       },
+       {
+        "id": "c",
+        "text": "Reroute it or cover it with a cable protector"
+       },
+       {
+        "id": "d",
+        "text": "Report it so it is fixed for good"
+       }
+      ]
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "submit_question"
+       },
+       "when": {
+        "event": "click",
+        "object": "q3-submit"
+       }
+      }
+     ],
+     "layers": [
+      {
+       "id": "q3-correct",
+       "name": "Correct",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q3_q3-correct_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#0F7B5F",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#14213D40"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "q3_q3-correct_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "jump"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q3-ok-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Well done. Warn, make safe, fix, then report.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q3-ok-next",
+         "name": "See result button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "See result  →",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#0F7B5F",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#EAF0F8"
+          }
+         ],
+         "description": "See result",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "jump_to_slide",
+          "target": "next"
+         },
+         "when": {
+          "event": "click",
+          "object": "q3-ok-next"
+         }
+        }
+       ]
+      },
+      {
+       "id": "q3-incorrect",
+       "name": "Incorrect",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q3_q3-incorrect_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#B42318",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#14213D40"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "shake"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q3_q3-incorrect_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "!",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         }
+        },
+        {
+         "id": "q3-no-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Not quite. Think about keeping people safe first.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q3-no-retry",
+         "name": "Try again button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Try again",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#B42318",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#EAF0F8"
+          }
+         ],
+         "description": "Try again",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "hide_layer"
+         },
+         "when": {
+          "event": "click",
+          "object": "q3-no-retry"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "results",
+     "title": "Your result",
+     "duration_ms": 5000,
+     "background": "#0F1B33",
+     "objects": [
+      {
+       "id": "r-glow",
+       "name": "Decoration",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#1F4E8C66"
+       },
+       "frame": {
+        "x": -180,
+        "y": 360,
+        "w": 600,
+        "h": 600
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "zoom"
+        },
+        "duration_ms": 900,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "r-glow2",
+       "name": "Decoration",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#1F4E8C44"
+       },
+       "frame": {
+        "x": 1010,
+        "y": -200,
+        "w": 480,
+        "h": 480
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "zoom"
+        },
+        "duration_ms": 900,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 100
+       }
+      },
+      {
+       "id": "r-stripe",
+       "name": "Hi-vis stripe",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F2B705"
+       },
+       "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 8
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 700,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "r-ring",
+       "name": "Score ring",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#FFFFFF14",
+        "outline": {
+         "color": "#F2B705",
+         "width": 10
+        }
+       },
+       "frame": {
+        "x": 800,
+        "y": 150,
+        "w": 360,
+        "h": 360
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wheel",
+         "spokes": 1
+        },
+        "duration_ms": 1000,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 300
+       }
+      },
+      {
+       "id": "r-score",
+       "name": "Score",
+       "kind": {
+        "type": "text",
+        "text": "%Course.ScorePercent%%",
+        "style": {
+         "font": "Inter",
+         "size": 80,
+         "color": "#FFFFFF",
+         "bold": true,
+         "align": "center",
+         "valign": "middle"
+        }
+       },
+       "frame": {
+        "x": 800,
+        "y": 260,
+        "w": 360,
+        "h": 110
+       },
+       "entrance": {
+        "effect": {
+         "type": "zoom"
+        },
+        "duration_ms": 700,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      },
+      {
+       "id": "r-score-label",
+       "name": "Score label",
+       "kind": {
+        "type": "text",
+        "text": "YOUR SCORE",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#D3DEEE",
+         "bold": true,
+         "align": "center",
+         "letter_spacing": 2.5
+        }
+       },
+       "frame": {
+        "x": 800,
+        "y": 370,
+        "w": 360,
+        "h": 30
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1100
+       }
+      }
+     ],
+     "transition": {
+      "type": "zoom",
+      "duration_ms": 700
+     },
+     "notes": "Submits the quiz on start, then shows the passed or failed layer.",
+     "triggers": [
+      {
+       "action": {
+        "action": "submit_results"
+       },
+       "when": {
+        "event": "timeline_starts"
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "passed"
+       },
+       "when": {
+        "event": "timeline_starts"
+       },
+       "condition": {
+        "compare": {
+         "variable": "Quiz.Passed",
+         "op": "eq",
+         "value": true
+        }
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "failed"
+       },
+       "when": {
+        "event": "timeline_starts"
+       },
+       "condition": {
+        "compare": {
+         "variable": "Quiz.Passed",
+         "op": "eq",
+         "value": false
+        }
+       }
+      }
+     ],
+     "layers": [
+      {
+       "id": "passed",
+       "name": "Passed",
+       "duration_ms": 3000,
+       "objects": [
+        {
+         "id": "passed-tag",
+         "name": "Result",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#0F7B5F",
+          "text": {
+           "text": "✓  Passed",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.5
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 150,
+          "w": 170,
+          "h": 40
+         },
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "passed-title",
+         "name": "Title",
+         "kind": {
+          "type": "text",
+          "text": "You're ready to\nwork safely",
+          "style": {
+           "font": "Inter",
+           "size": 52,
+           "color": "#FFFFFF",
+           "bold": true
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.05
+           },
+           {
+            "line_spacing": 1.05
+           }
+          ],
+          "text_style": "ts_title"
+         },
+         "frame": {
+          "x": 84,
+          "y": 206,
+          "w": 620,
+          "h": 140
+         },
+         "entrance": {
+          "effect": {
+           "type": "rise"
+          },
+          "duration_ms": 800,
+          "easing": "overshoot",
+          "sequence": "by_paragraph"
+         },
+         "timing": {
+          "start_ms": 300
+         }
+        },
+        {
+         "id": "passed-body",
+         "name": "Body",
+         "kind": {
+          "type": "text",
+          "text": "Keep walkways clear, lift with your legs and deal with spills straight away.",
+          "style": {
+           "font": "Inter",
+           "size": 20,
+           "color": "#D3DEEE",
+           "bold": false
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.45
+           }
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 360,
+          "w": 520,
+          "h": 70
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 600,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 600
+         }
+        },
+        {
+         "id": "r-finish",
+         "name": "Finish  ✓ button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#F2B705",
+          "text": {
+           "text": "Finish  ✓",
+           "style": {
+            "font": "Inter",
+            "size": 18,
+            "color": "#14213D",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 470,
+          "w": 180,
+          "h": 56
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#F7CB3D"
+          }
+         ],
+         "description": "Finish  ✓",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 900
+         }
+        },
+        {
+         "id": "r-restart",
+         "name": "Start again button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF1F",
+          "text": {
+           "text": "Start again",
+           "style": {
+            "font": "Inter",
+            "size": 17,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 284,
+          "y": 470,
+          "w": 180,
+          "h": 56
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#FFFFFF33"
+          }
+         ],
+         "description": "Start again",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 1000
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": false,
+       "triggers": [
+        {
+         "action": {
+          "action": "exit_course"
+         },
+         "when": {
+          "event": "click",
+          "object": "r-finish"
+         }
+        },
+        {
+         "action": {
+          "action": "jump_to_slide",
+          "target": {
+           "id": "welcome"
+          }
+         },
+         "when": {
+          "event": "click",
+          "object": "r-restart"
+         }
+        }
+       ]
+      },
+      {
+       "id": "failed",
+       "name": "Failed",
+       "duration_ms": 3000,
+       "objects": [
+        {
+         "id": "failed-tag",
+         "name": "Result",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#B42318",
+          "text": {
+           "text": "Not yet",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.5
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 150,
+          "w": 170,
+          "h": 40
+         },
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "failed-title",
+         "name": "Title",
+         "kind": {
+          "type": "text",
+          "text": "Not quite\nthere yet",
+          "style": {
+           "font": "Inter",
+           "size": 52,
+           "color": "#FFFFFF",
+           "bold": true
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.05
+           },
+           {
+            "line_spacing": 1.05
+           }
+          ],
+          "text_style": "ts_title"
+         },
+         "frame": {
+          "x": 84,
+          "y": 206,
+          "w": 620,
+          "h": 140
+         },
+         "entrance": {
+          "effect": {
+           "type": "rise"
+          },
+          "duration_ms": 800,
+          "easing": "overshoot",
+          "sequence": "by_paragraph"
+         },
+         "timing": {
+          "start_ms": 300
+         }
+        },
+        {
+         "id": "failed-body",
+         "name": "Body",
+         "kind": {
+          "type": "text",
+          "text": "You need 75% to pass. Review the three hazards and try the questions again.",
+          "style": {
+           "font": "Inter",
+           "size": 20,
+           "color": "#D3DEEE",
+           "bold": false
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.45
+           }
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 360,
+          "w": 520,
+          "h": 70
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 600,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 600
+         }
+        },
+        {
+         "id": "r-retry",
+         "name": "Try the questions again button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#F2B705",
+          "text": {
+           "text": "Try the questions again",
+           "style": {
+            "font": "Inter",
+            "size": 18,
+            "color": "#14213D",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 470,
+          "w": 260,
+          "h": 56
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#F7CB3D"
+          }
+         ],
+         "description": "Try the questions again",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 900
+         }
+        },
+        {
+         "id": "r-review",
+         "name": "Review the hazards button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF1F",
+          "text": {
+           "text": "Review the hazards",
+           "style": {
+            "font": "Inter",
+            "size": 17,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 364,
+          "y": 470,
+          "w": 220,
+          "h": 56
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#FFFFFF33"
+          }
+         ],
+         "description": "Review the hazards",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 1000
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": false,
+       "triggers": [
+        {
+         "action": {
+          "action": "retry_quiz"
+         },
+         "when": {
+          "event": "click",
+          "object": "r-retry"
+         }
+        },
+        {
+         "action": {
+          "action": "jump_to_slide",
+          "target": {
+           "id": "hazards"
+          }
+         },
+         "when": {
+          "event": "click",
+          "object": "r-review"
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
