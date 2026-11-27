@@ -2,6 +2,14 @@
 
 What changed in each release, newest first. Versions follow [semantic versioning](https://semver.org): until 1.0, a minor version (0.x) may change things, but a project saved by an older CourseCraft always opens in a newer one.
 
+## Unreleased
+
+**Authoring**
+- Ribbon split buttons are now easier to hit: large split buttons use a two-part layout (icon for the main action, label and arrow for the menu) with separate hover highlights, and small/toggle split buttons have a wider arrow strip (#17).
+- Selecting slides now uses a single italic preview tab instead of piling up permanent tabs; double-click a slide or tab, or edit the slide, to pin it, and overflowed tabs scroll horizontally with `‹` / `›` buttons.
+- The layer bar above the slide is now always fully visible and never covered by the slide.
+- Turning off a shape's fill now makes its shadow and glow follow the outline only (or hide when the outline is also off), without losing the saved effect settings.
+
 ## 0.6.5
 
 Two new sample courses, redesigned templates, and fixes for triggers, question banks and variable text.
