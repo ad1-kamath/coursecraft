@@ -225,7 +225,7 @@
             {
               "id": "results-score",
               "name": "Score readout",
-              "kind": { "type": "text", "text": "Score: %Results.ScorePercent%% (passing score: %Results.PassPercent%%)", "style": { "size": 24 } },
+              "kind": { "type": "text", "text": "Score: %Course.ScorePercent%%% (passing score: 80%)", "style": { "size": 24 } },
               "frame": { "x": 80, "y": 240, "w": 1000, "h": 80 }
             }
           ],

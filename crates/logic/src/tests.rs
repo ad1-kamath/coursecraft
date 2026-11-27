@@ -14100,3 +14100,39 @@ fn n33_a_disabled_or_modal_blocked_object_ignores_a_drop() {
     assert!(effects.is_empty(), "{effects:?}");
     assert_eq!(p.variable("hit"), Some(&Value::Number(0.0)));
 }
+
+#[test]
+fn m47_s1_display_text_and_validator_parser_agree() {
+    let json = r##"{
+        "schema_version":1,"id":"c","title":"T","slide_size":{"w":1280,"h":720},
+        "variables":[{"name":"score","value":42}],
+        "scenes":[{"id":"sc0","title":"S","slides":[{"id":"s0","title":"Slide","objects":[]}]}]
+    }"##;
+    let c = Course::from_json(json).expect("valid json");
+    let mut p = Player::new(&c).expect("player");
+    p.handle(&Input::Start);
+
+    assert_eq!(
+        p.display_text("Score: %Course.ScorePercent%%%"),
+        "Score: 100%"
+    );
+    assert_eq!(p.display_text("Pass mark 80%"), "Pass mark 80%");
+    assert_eq!(p.display_text("100% of %score%"), "100% of 42");
+    assert_eq!(p.display_text("%%score%%"), "%score%");
+    assert_eq!(p.display_text("%Missing%"), "%Missing%");
+
+    assert_eq!(
+        coursecraft_course::variable_reference_spans("Score: %Course.ScorePercent%%%"),
+        vec![7..28]
+    );
+    assert!(coursecraft_course::variable_reference_spans("Pass mark 80%").is_empty());
+    assert_eq!(
+        coursecraft_course::variable_reference_spans("100% of %score%"),
+        vec![8..15]
+    );
+    assert!(coursecraft_course::variable_reference_spans("%%score%%").is_empty());
+    assert_eq!(
+        coursecraft_course::variable_reference_spans("%Missing%"),
+        vec![0..9]
+    );
+}

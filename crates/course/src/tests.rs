@@ -8265,3 +8265,154 @@ fn huge_paragraph_start_at_is_a_warning_not_an_error() {
         "{issues:?}"
     );
 }
+
+#[test]
+fn m47_s1_unknown_variable_reference_warns() {
+    let json = r##"{"schema_version":1,"id":"c","title":"T","slide_size":{"w":1280,"h":720},"scenes":[{"id":"sc0","title":"S","slides":[{"id":"s0","title":"Slide","objects":[
+        {"id":"t","kind":{"type":"text","text":"Score: %Results.ScorePercent%"},"frame":{"x":0,"y":0,"w":200,"h":60}}
+    ]}]}]}"##;
+    let course = Course::from_json(json).expect("valid json");
+    let issues = course.validate();
+    assert!(
+        issues.iter().any(|i| i.severity == Severity::Warning
+            && i.path == "/scenes/0/slides/0/objects/0"
+            && i.message
+                == "Text uses %Results.ScorePercent%, but the course has no variable called Results.ScorePercent."),
+        "{issues:?}"
+    );
+    assert!(course.is_playable());
+}
+
+#[test]
+fn m47_s1_declared_builtin_timer_and_escaped_percent_do_not_warn() {
+    let json = r##"{
+        "schema_version":1,"id":"c","title":"T","slide_size":{"w":1280,"h":720},
+        "variables":[{"name":"score","value":0}],
+        "scenes":[{"id":"sc0","title":"S","slides":[{"id":"s0","title":"Slide","objects":[
+            {"id":"t1","kind":{"type":"timer","duration_ms":5000,"autostart":true},"frame":{"x":0,"y":0,"w":100,"h":40}},
+            {"id":"txt","kind":{"type":"text","text":"User %score%, built-in %Course.ScorePercent%%%, timer %Timer.t1.Remaining%, escaped %%Nope%% and 100%%."},"frame":{"x":0,"y":60,"w":400,"h":60}}
+        ]}]}]
+    }"##;
+    let course = Course::from_json(json).expect("valid json");
+    let issues = course.validate();
+    assert!(
+        !issues
+            .iter()
+            .any(|i| i.message.contains("has no variable called")),
+        "{issues:?}"
+    );
+}
+
+#[test]
+fn m47_s1_lone_percent_does_not_warn() {
+    let json = r##"{"schema_version":1,"id":"c","title":"T","slide_size":{"w":1280,"h":720},"scenes":[{"id":"sc0","title":"S","slides":[{"id":"s0","title":"Slide","objects":[
+        {"id":"t1","kind":{"type":"text","text":"Pass mark 80%"},"frame":{"x":0,"y":0,"w":200,"h":40}},
+        {"id":"t2","kind":{"type":"text","text":"80% to 90%"},"frame":{"x":0,"y":50,"w":200,"h":40}},
+        {"id":"t3","kind":{"type":"text","text":"Pass mark 80% (%Missing%)"},"frame":{"x":0,"y":100,"w":200,"h":40}}
+    ]}]}]}"##;
+    let course = Course::from_json(json).expect("valid json");
+    let issues = course.validate();
+    let var_warnings: Vec<_> = issues
+        .iter()
+        .filter(|i| i.message.contains("has no variable called"))
+        .collect();
+    assert_eq!(var_warnings.len(), 1, "{var_warnings:?}");
+    assert_eq!(var_warnings[0].path, "/scenes/0/slides/0/objects/2");
+    assert!(var_warnings[0].message.contains("Missing"));
+}
+
+#[test]
+fn m47_s1_layer_button_state_marker_question_master_and_template_refs_are_found() {
+    let json = r##"{
+        "schema_version":1,"id":"c","title":"T","slide_size":{"w":1280,"h":720},
+        "masters":[{"id":"m0","title":"Master","objects":[
+            {"id":"m_txt","kind":{"type":"text","text":"%MasterMissing%"},"frame":{"x":0,"y":0,"w":100,"h":40}}
+        ]}],
+        "templates":[{"id":"tpl0","title":"Template","objects":[
+            {"id":"tpl_txt","kind":{"type":"text","text":"%TemplateMissing%"},"frame":{"x":0,"y":0,"w":100,"h":40}}
+        ]}],
+        "scenes":[{"id":"sc0","title":"S","slides":[{"id":"s0","title":"Slide",
+            "objects":[
+                {"id":"btn","kind":{"type":"button","label":"%BtnMissing%"},"frame":{"x":0,"y":0,"w":120,"h":40}},
+                {"id":"shp","kind":{"type":"shape","shape":"rectangle","fill":"#000000","text":{"text":"%ShapeMissing%","style":{}}},"frame":{"x":0,"y":50,"w":120,"h":40}},
+                {"id":"runs","kind":{"type":"text","text":"ignored","runs":[{"text":"%RunMissing%"}]},"frame":{"x":0,"y":100,"w":120,"h":40}},
+                {"id":"st","kind":{"type":"text","text":"ok"},"states":[{"name":"hover","text":"%StateMissing%"}],"frame":{"x":0,"y":150,"w":120,"h":40}},
+                {"id":"mk","kind":{"type":"marker","title":"%MarkerTitleMissing%","body":"%MarkerBodyMissing%"},"frame":{"x":0,"y":200,"w":40,"h":40}}
+            ],
+            "layers":[{"id":"l0","name":"Layer","objects":[
+                {"id":"l_txt","kind":{"type":"text","text":"%LayerMissing%"},"frame":{"x":0,"y":0,"w":100,"h":40}}
+            ]}],
+            "question":{
+                "kind":"multiple_choice",
+                "prompt":"%PromptMissing%",
+                "choices":[
+                    {"id":"c0","text":"%ChoiceMissing%","correct":true},
+                    {"id":"c1","text":"Other","correct":false}
+                ]
+            }
+        }]}]
+    }"##;
+    let course = Course::from_json(json).expect("valid json");
+    let issues = course.validate();
+    let var_warnings: Vec<_> = issues
+        .iter()
+        .filter(|i| i.severity == Severity::Warning && i.message.contains("has no variable called"))
+        .map(|i| (i.path.as_str(), i.message.as_str()))
+        .collect();
+
+    for (expected_path, expected_var) in [
+        ("/scenes/0/slides/0/objects/0", "BtnMissing"),
+        ("/scenes/0/slides/0/objects/1", "ShapeMissing"),
+        ("/scenes/0/slides/0/objects/2", "RunMissing"),
+        ("/scenes/0/slides/0/objects/3", "StateMissing"),
+        ("/scenes/0/slides/0/objects/4", "MarkerTitleMissing"),
+        ("/scenes/0/slides/0/objects/4", "MarkerBodyMissing"),
+        ("/scenes/0/slides/0/layers/0/objects/0", "LayerMissing"),
+        ("/scenes/0/slides/0/question/prompt", "PromptMissing"),
+        ("/scenes/0/slides/0/question/choices/0", "ChoiceMissing"),
+        ("/masters/0/objects/0", "MasterMissing"),
+        ("/templates/0/objects/0", "TemplateMissing"),
+    ] {
+        assert!(
+            var_warnings
+                .iter()
+                .any(|(p, m)| *p == expected_path && m.contains(expected_var)),
+            "missing warning for {expected_var} at {expected_path}; got: {var_warnings:#?}"
+        );
+    }
+}
+
+#[test]
+fn m47_s1_examples_and_templates_have_no_unknown_variable_warnings() {
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .expect("workspace root");
+    let paths = [
+        "examples/hello-course/course.json",
+        "examples/showcase/course.json",
+        "examples/healthy-habits/course.json",
+        "examples/reference-course/course.json",
+        "examples/reference-course/completion-only.json",
+        "examples/rich-states/course.json",
+        "examples/templates/blank.json",
+        "examples/templates/branching-scenario.json",
+        "examples/templates/linear-lesson.json",
+        "examples/templates/quick-knowledge-check.json",
+    ];
+    for rel in paths {
+        let full = root.join(rel);
+        let raw = std::fs::read_to_string(&full).unwrap_or_else(|e| panic!("read {rel}: {e}"));
+        let course = Course::from_json(&raw).unwrap_or_else(|e| panic!("parse {rel}: {e}"));
+        let issues = course.validate();
+        let bad: Vec<_> = issues
+            .iter()
+            .filter(|i| i.message.contains("has no variable called"))
+            .collect();
+        assert!(
+            bad.is_empty(),
+            "{rel} has unknown variable warnings: {bad:#?}"
+        );
+    }
+}

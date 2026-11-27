@@ -372,6 +372,7 @@ impl Course {
         }
         if !cx.skip_warnings {
             check_course_results(self, cx);
+            check_unknown_variable_refs(self, cx);
         }
         if let Some(start) = &self.start_slide
             && self.slide_index(start).is_none()
@@ -4844,5 +4845,241 @@ fn check_question_submit(cx: &mut Ctx<'_>, slide: &Slide) {
         cx.warn("no trigger runs submit_question, so this question can never be graded");
     } else if all_from_submit_event {
         cx.warn("no control on this slide submits the question: add a Submit button");
+    }
+}
+
+fn check_unknown_variable_refs(course: &Course, cx: &mut Ctx<'_>) {
+    if cx.skip_warnings || cx.should_stop() {
+        return;
+    }
+    if !course.scenes.is_empty() {
+        cx.with_field("scenes", |cx| {
+            for (si, scene) in course.scenes.iter().enumerate() {
+                cx.with_index(si, |cx| {
+                    cx.with_field("slides", |cx| {
+                        for (li, slide) in scene.slides.iter().enumerate() {
+                            cx.with_index(li, |cx| {
+                                check_slide_unknown_variable_refs(course, cx, slide);
+                            });
+                        }
+                    });
+                });
+            }
+        });
+    }
+    if !course.banks.is_empty() {
+        cx.with_field("banks", |cx| {
+            for (bi, bank) in course.banks.iter().enumerate() {
+                cx.with_index(bi, |cx| {
+                    cx.with_field("slides", |cx| {
+                        for (si, slide) in bank.slides.iter().enumerate() {
+                            cx.with_index(si, |cx| {
+                                check_slide_unknown_variable_refs(course, cx, slide);
+                            });
+                        }
+                    });
+                });
+            }
+        });
+    }
+    if !course.masters.is_empty() {
+        cx.with_field("masters", |cx| {
+            for (mi, master) in course.masters.iter().enumerate() {
+                cx.with_index(mi, |cx| {
+                    check_slide_unknown_variable_refs(course, cx, master);
+                });
+            }
+        });
+    }
+    if !course.templates.is_empty() {
+        cx.with_field("templates", |cx| {
+            for (ti, template) in course.templates.iter().enumerate() {
+                cx.with_index(ti, |cx| {
+                    check_slide_unknown_variable_refs(course, cx, template);
+                });
+            }
+        });
+    }
+}
+
+fn check_slide_unknown_variable_refs(course: &Course, cx: &mut Ctx<'_>, slide: &Slide) {
+    if !slide.objects.is_empty() {
+        cx.with_field("objects", |cx| {
+            for (oi, obj) in slide.objects.iter().enumerate() {
+                cx.with_index(oi, |cx| {
+                    check_object_unknown_variable_refs(course, cx, slide, obj);
+                });
+            }
+        });
+    }
+    if !slide.layers.is_empty() {
+        cx.with_field("layers", |cx| {
+            for (ki, layer) in slide.layers.iter().enumerate() {
+                if !layer.objects.is_empty() {
+                    cx.with_index(ki, |cx| {
+                        cx.with_field("objects", |cx| {
+                            for (oi, obj) in layer.objects.iter().enumerate() {
+                                cx.with_index(oi, |cx| {
+                                    check_object_unknown_variable_refs(course, cx, slide, obj);
+                                });
+                            }
+                        });
+                    });
+                }
+            }
+        });
+    }
+    if let Some(q) = &slide.question {
+        cx.with_field("question", |cx| {
+            check_text_unknown_variable_refs(course, cx, slide, &q.prompt, Some("prompt"));
+            if !q.choices.is_empty() {
+                cx.with_field("choices", |cx| {
+                    for (ci, choice) in q.choices.iter().enumerate() {
+                        cx.with_index(ci, |cx| {
+                            check_text_unknown_variable_refs(course, cx, slide, &choice.text, None);
+                        });
+                    }
+                });
+            }
+            if !q.pairs.is_empty() {
+                cx.with_field("pairs", |cx| {
+                    for (pi, pair) in q.pairs.iter().enumerate() {
+                        cx.with_index(pi, |cx| {
+                            check_text_unknown_variable_refs(course, cx, slide, &pair.left, None);
+                            check_text_unknown_variable_refs(course, cx, slide, &pair.right, None);
+                        });
+                    }
+                });
+            }
+        });
+    }
+}
+
+fn check_object_unknown_variable_refs(
+    course: &Course,
+    cx: &mut Ctx<'_>,
+    slide: &Slide,
+    obj: &Object,
+) {
+    match &obj.kind {
+        ObjectKind::Text { text, runs, .. } => {
+            check_rich_text_unknown_variable_refs(course, cx, slide, text, runs);
+        }
+        ObjectKind::Shape {
+            text: Some(shape_text),
+            ..
+        } => {
+            check_rich_text_unknown_variable_refs(
+                course,
+                cx,
+                slide,
+                &shape_text.text,
+                &shape_text.runs,
+            );
+        }
+        ObjectKind::Button { label, .. } => {
+            check_text_unknown_variable_refs(course, cx, slide, label, None);
+        }
+        ObjectKind::Marker {
+            title, body, runs, ..
+        } => {
+            check_text_unknown_variable_refs(course, cx, slide, title, None);
+            check_rich_text_unknown_variable_refs(course, cx, slide, body, runs);
+        }
+        ObjectKind::Table { rows, .. } => {
+            for row in rows {
+                for cell in &row.cells {
+                    check_rich_text_unknown_variable_refs(
+                        course, cx, slide, &cell.text, &cell.runs,
+                    );
+                }
+            }
+        }
+        ObjectKind::Path { path } => {
+            if let Some(shape_text) = &path.text {
+                check_rich_text_unknown_variable_refs(
+                    course,
+                    cx,
+                    slide,
+                    &shape_text.text,
+                    &shape_text.runs,
+                );
+            }
+        }
+        _ => {}
+    }
+
+    for state in &obj.states {
+        if let Some(runs) = &state.runs
+            && !runs.is_empty()
+        {
+            for run in runs {
+                check_text_unknown_variable_refs(course, cx, slide, &run.text, None);
+            }
+        } else if let Some(text) = &state.text {
+            check_text_unknown_variable_refs(course, cx, slide, text, None);
+        }
+        for extra in &state.extras {
+            match &extra.kind {
+                StateExtraKind::Text { text, runs, .. } => {
+                    check_rich_text_unknown_variable_refs(course, cx, slide, text, runs);
+                }
+                StateExtraKind::Shape {
+                    text: Some(shape_text),
+                    ..
+                } => {
+                    check_rich_text_unknown_variable_refs(
+                        course,
+                        cx,
+                        slide,
+                        &shape_text.text,
+                        &shape_text.runs,
+                    );
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+fn check_rich_text_unknown_variable_refs(
+    course: &Course,
+    cx: &mut Ctx<'_>,
+    slide: &Slide,
+    text: &str,
+    runs: &[crate::TextRun],
+) {
+    if !runs.is_empty() {
+        for run in runs {
+            check_text_unknown_variable_refs(course, cx, slide, &run.text, None);
+        }
+    } else {
+        check_text_unknown_variable_refs(course, cx, slide, text, None);
+    }
+}
+
+fn check_text_unknown_variable_refs(
+    course: &Course,
+    cx: &mut Ctx<'_>,
+    slide: &Slide,
+    text: &str,
+    suffix: Option<&str>,
+) {
+    for span in crate::variable_reference_spans(text) {
+        let Some(name) = text.get(span.start.saturating_add(1)..span.end.saturating_sub(1)) else {
+            continue;
+        };
+        let known = course.variable(name).is_some()
+            || crate::builtin_variable_kind(name).is_some()
+            || crate::is_timer_remaining_variable_on(slide, name);
+        if !known {
+            let message =
+                format!("Text uses %{name}%, but the course has no variable called {name}.");
+            if let Some(s) = suffix {
+                cx.warn_at(s, message);
+            } else {
+                cx.warn(message);
+            }
+        }
     }
 }
