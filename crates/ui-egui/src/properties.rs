@@ -6814,6 +6814,41 @@ enum EffectsHiddenReason {
     NoFill,
 }
 
+fn effective_fill_style<'a>(
+    base: Option<&'a coursecraft_course::FillStyle>,
+    state: Option<&'a coursecraft_course::StateDef>,
+) -> Option<&'a coursecraft_course::FillStyle> {
+    match state {
+        Some(s) if s.fill_style.is_some() => s.fill_style.as_ref(),
+        // ST-05: solid `fill` without `fill_style` suppresses the base `fill_style`.
+        Some(s) if s.clear_fill_style || s.fill.is_some() => None,
+        _ => base,
+    }
+}
+
+fn fill_style_visible(style: &coursecraft_course::FillStyle) -> bool {
+    match style {
+        coursecraft_course::FillStyle::Linear { stops, .. }
+        | coursecraft_course::FillStyle::Radial { stops, .. } => {
+            stops
+                .iter()
+                .take(coursecraft_course::MAX_GRADIENT_STOPS)
+                .filter(|stop| parse_color(&stop.color).is_some())
+                .count()
+                >= 2
+        }
+        coursecraft_course::FillStyle::Picture { src, .. } => !src.trim().is_empty(),
+        coursecraft_course::FillStyle::Pattern { .. } => true,
+    }
+}
+
+fn outline_visible(outline: &coursecraft_course::Outline) -> bool {
+    outline.width.is_finite()
+        && outline.width > 0.0
+        && outline.width <= 50.0
+        && parse_color(&outline.color).is_some_and(|c| c.a() > 0)
+}
+
 fn effects_hidden_reason(
     obj: &coursecraft_course::Object,
     state_ctx: Option<&StateEditCtx<'_>>,
@@ -6828,24 +6863,19 @@ fn effects_hidden_reason(
             ..
         } => {
             let eff_fill = state.and_then(|s| s.fill.as_ref()).unwrap_or(fill);
-            let eff_fill_style = match state {
-                Some(s) if s.clear_fill_style => None,
-                Some(s) if s.fill_style.is_some() => s.fill_style.as_ref(),
-                _ => fill_style.as_ref(),
-            };
+            let eff_fill_style = effective_fill_style(fill_style.as_ref(), state);
             let eff_outline = if !coursecraft_course::shape_allows_text(*shape) {
                 None
             } else {
                 match state {
-                    Some(s) if s.clear_outline => None,
                     Some(s) if s.outline.is_some() => s.outline.as_ref(),
+                    Some(s) if s.clear_outline => None,
                     _ => outline.as_ref(),
                 }
             };
-            let has_fill =
-                eff_fill_style.is_some() || parse_color(eff_fill).is_some_and(|c| c.a() > 0);
-            let has_outline = eff_outline
-                .is_some_and(|o| o.width > 0.0 && parse_color(&o.color).is_some_and(|c| c.a() > 0));
+            let has_fill = eff_fill_style.is_some_and(fill_style_visible)
+                || parse_color(eff_fill).is_some_and(|c| c.a() > 0);
+            let has_outline = eff_outline.is_some_and(outline_visible);
             if !has_fill && !has_outline {
                 EffectsHiddenReason::NoFillOrOutline
             } else {
@@ -6856,13 +6886,9 @@ fn effects_hidden_reason(
             fill, fill_style, ..
         } => {
             let eff_fill = state.and_then(|s| s.fill.as_ref()).unwrap_or(fill);
-            let eff_fill_style = match state {
-                Some(s) if s.clear_fill_style => None,
-                Some(s) if s.fill_style.is_some() => s.fill_style.as_ref(),
-                _ => fill_style.as_ref(),
-            };
-            let has_fill =
-                eff_fill_style.is_some() || parse_color(eff_fill).is_some_and(|c| c.a() > 0);
+            let eff_fill_style = effective_fill_style(fill_style.as_ref(), state);
+            let has_fill = eff_fill_style.is_some_and(fill_style_visible)
+                || parse_color(eff_fill).is_some_and(|c| c.a() > 0);
             if !has_fill {
                 EffectsHiddenReason::NoFill
             } else {
@@ -6871,21 +6897,16 @@ fn effects_hidden_reason(
         }
         ObjectKind::Path { path } => {
             let eff_fill = state.and_then(|s| s.fill.as_ref()).or(path.fill.as_ref());
-            let eff_fill_style = match state {
-                Some(s) if s.clear_fill_style => None,
-                Some(s) if s.fill_style.is_some() => s.fill_style.as_ref(),
-                _ => path.fill_style.as_ref(),
-            };
+            let eff_fill_style = effective_fill_style(path.fill_style.as_ref(), state);
             let eff_outline = match state {
-                Some(s) if s.clear_outline => None,
                 Some(s) if s.outline.is_some() => s.outline.as_ref(),
+                Some(s) if s.clear_outline => None,
                 _ => Some(&path.outline),
             };
             let has_fill = path.closed
-                && (eff_fill_style.is_some()
+                && (eff_fill_style.is_some_and(fill_style_visible)
                     || eff_fill.is_some_and(|f| parse_color(f).is_some_and(|c| c.a() > 0)));
-            let has_outline = eff_outline
-                .is_some_and(|o| o.width > 0.0 && parse_color(&o.color).is_some_and(|c| c.a() > 0));
+            let has_outline = eff_outline.is_some_and(outline_visible);
             if !has_fill && !has_outline {
                 EffectsHiddenReason::NoFillOrOutline
             } else {
