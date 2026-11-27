@@ -1084,6 +1084,7 @@ fn shrunk_group(
         let (main, arrow) = widgets::large(ui, icon, caption, true, true, false);
         let main = main.on_hover_text(caption);
         if let Some(arrow) = arrow {
+            let arrow = arrow.on_hover_text(caption);
             widgets::split_popup(&main, &arrow, true).show(|ui| {
                 ui.horizontal_top(|ui| {
                     ui.spacing_mut().item_spacing = vec2(2.0, 0.0);

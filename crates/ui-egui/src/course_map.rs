@@ -402,7 +402,8 @@ fn show_map_thumbnail(
     }
     if !covered && resp.double_clicked() {
         select_single_slide(editor, slide_id);
-        editor.ui.story_view = false;
+        crate::doc_tabs::open_slide(editor, slide_id);
+        crate::doc_tabs::pin(editor, slide_id);
     }
 
     let border = if resp.hovered() && !is_selected {

@@ -1027,6 +1027,7 @@ fn show_masters_panel(editor: &mut Editor, ui: &mut Ui, _panel_rect: Rect) {
         editor.selection.layer = None;
         editor.selection.clear_objects();
     }
+
     if let Some(id) = rename {
         start_master_rename(editor, &id);
     }
@@ -1812,6 +1813,7 @@ fn show_slides_content(editor: &mut Editor, ui: &mut Ui, panel_rect: Rect) {
     let mut action_to_run: Option<(&'static str, Json)> = None;
     let mut slide_action: Option<SlideMenuAction> = None;
     let mut slide_to_select: Option<SlideClick> = None;
+    let mut slide_to_pin: Option<String> = None;
     let mut slide_to_rename: Option<String> = None;
     let mut scene_to_rename: Option<String> = None;
     let mut scene_to_delete: Option<String> = None;
@@ -2077,6 +2079,10 @@ fn show_slides_content(editor: &mut Editor, ui: &mut Ui, panel_rect: Rect) {
                 } else {
                     SlideClick::Single(slide.id.clone())
                 });
+            }
+            if !covered && thumb_response.double_clicked() {
+                editor.ui.last_active_area = crate::ActiveArea::Navigator;
+                slide_to_pin = Some(slide.id.clone());
             }
             if (!covered && thumb_response.secondary_clicked()) || thumb_response.has_focus() {
                 editor.ui.last_active_area = crate::ActiveArea::Navigator;
@@ -2449,6 +2455,10 @@ fn show_slides_content(editor: &mut Editor, ui: &mut Ui, panel_rect: Rect) {
                     editor.ui.last_active_area = crate::ActiveArea::Navigator;
                     slide_to_select = Some(SlideClick::Single(slide.id.clone()));
                 }
+                if row_resp.double_clicked() {
+                    editor.ui.last_active_area = crate::ActiveArea::Navigator;
+                    slide_to_pin = Some(slide.id.clone());
+                }
                 row_resp.context_menu(|ui| {
                     if ui.button("Delete").clicked() {
                         action_to_run = Some((
@@ -2555,6 +2565,11 @@ fn show_slides_content(editor: &mut Editor, ui: &mut Ui, panel_rect: Rect) {
         }
         editor.selection.layer = None;
         editor.selection.clear_objects();
+    }
+
+    if let Some(id) = slide_to_pin {
+        crate::doc_tabs::open_slide(editor, &id);
+        crate::doc_tabs::pin(editor, &id);
     }
 
     if let Some(id) = slide_to_rename {

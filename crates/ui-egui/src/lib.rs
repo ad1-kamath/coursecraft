@@ -251,6 +251,12 @@ mod m39_p_paste_focus_tests;
 #[cfg(test)]
 mod m39_t_text_tests;
 #[cfg(test)]
+mod m48_layer_bar_tests;
+#[cfg(test)]
+mod m48_nofill_effects_ui_tests;
+#[cfg(test)]
+mod m48_split_buttons_tests;
+#[cfg(test)]
 mod metafile_import_tests;
 #[cfg(test)]
 mod neon_editor_fix_tests;
@@ -4628,6 +4634,8 @@ impl Editor {
         let before_for_log = std::env::var("CC_FAILED_LOG")
             .ok()
             .map(|_| self.session.course.clone());
+        let rev_before = self.session.revision;
+        let slide_before = self.selection.slide.clone();
         match self.session.execute(id, &params) {
             Ok(v) => {
                 #[cfg(test)]
@@ -4640,6 +4648,16 @@ impl Editor {
                 }
                 self.ui.pending_undo_redo = matches!(id, "edit.undo" | "edit.redo");
                 self.select_created(id, &v);
+                if self.session.revision != rev_before
+                    && !self.ui.story_view
+                    && !self.ui.master_view
+                    && self.selection.slide == slide_before
+                    && !matches!(id, "edit.undo" | "edit.redo")
+                    && self.ui.ribbon.visible
+                    && !self.ui.doc_tabs.open.contains(&slide_before)
+                {
+                    doc_tabs::pin(self, &slide_before);
+                }
                 self.note_removed_triggers(&v);
                 Some(v)
             }
@@ -4658,11 +4676,26 @@ impl Editor {
     /// On `Err` it stores the error message in `ui.last_error` and returns `None`.
     /// On success, selects the last created item if any.
     pub fn run_batch(&mut self, steps: &[(String, Json)]) -> Option<Vec<Json>> {
+        let rev_before = self.session.revision;
+        let slide_before = self.selection.slide.clone();
         match self.session.execute_batch(steps) {
             Ok(results) => {
                 self.ui.pending_undo_redo = false;
                 for (step, res) in steps.iter().zip(&results) {
                     self.select_created(&step.0, res);
+                }
+                let is_undo_redo = steps
+                    .iter()
+                    .any(|(cmd, _)| matches!(cmd.as_str(), "edit.undo" | "edit.redo"));
+                if self.session.revision != rev_before
+                    && !self.ui.story_view
+                    && !self.ui.master_view
+                    && self.selection.slide == slide_before
+                    && !is_undo_redo
+                    && self.ui.ribbon.visible
+                    && !self.ui.doc_tabs.open.contains(&slide_before)
+                {
+                    doc_tabs::pin(self, &slide_before);
                 }
                 let removed: u64 = results
                     .iter()
