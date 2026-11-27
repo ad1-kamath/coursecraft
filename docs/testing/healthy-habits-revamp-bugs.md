@@ -4,6 +4,10 @@ Found while building and testing the redesigned sample course with `render`, `sn
 `simulate`, `a11y-check` and the full gate. None of them blocks the course; each has a
 workaround in `examples/healthy-habits/build.py`. Ordered by how much an author would notice.
 
+**Status after the 0.6.1 fixes (released in 0.6.3):** bugs 1 to 6 are fixed, and 7 was the
+snapshot tool, now fixed too. The course uses the fixes: the certificate name plays in by letter
+again, and question pictures sit beside questions that have a frame. One gap is left, listed as 8.
+
 ## 1. Text that plays in by letter never substitutes `%variables%`
 
 - **Seen:** the certificate name, set to `%learner_name%` with a by-letter entrance, shows the raw
@@ -67,6 +71,12 @@ workaround in `examples/healthy-habits/build.py`. Ordered by how much an author 
   start after a pause trigger, which makes the frame look broken when the player is fine.
 - **Status:** not confirmed as a player bug; it may be how the snapshot advances time. Worth a
   look before trusting snapshots for layout checks.
+
+## 8. A slider question does not follow its question frame
+
+- **Seen:** with a question `frame`, the prompt follows the frame but the slider track and its
+  labels still span the slide, so they run under a picture placed beside the frame.
+- **Workaround used:** the slider question keeps a small corner picture.
 
 ## Outside the app
 

@@ -393,8 +393,7 @@
           "type": "heartbeat"
          },
          "start_ms": 15536,
-         "duration_ms": 1000,
-         "repeat": 2
+         "duration_ms": 1000
         }
        ],
        "focus_order": 1
@@ -692,7 +691,7 @@
           "type": "spin"
          },
          "start_ms": 2000,
-         "duration_ms": 24000,
+         "duration_ms": 4781,
          "easing": "linear"
         }
        ]
@@ -3746,7 +3745,7 @@
           "type": "spin"
          },
          "start_ms": 1600,
-         "duration_ms": 30000,
+         "duration_ms": 6769,
          "easing": "linear"
         }
        ]
@@ -8348,8 +8347,7 @@
             "type": "teeter"
            },
            "start_ms": 1765,
-           "duration_ms": 1764,
-           "repeat": 2
+           "duration_ms": 1764
           }
          ]
         },
@@ -8386,8 +8384,7 @@
             "type": "spin"
            },
            "start_ms": 1655,
-           "duration_ms": 2088,
-           "repeat": 2
+           "duration_ms": 2088
           }
          ]
         },
@@ -8423,8 +8420,7 @@
             "type": "teeter"
            },
            "start_ms": 1896,
-           "duration_ms": 1931,
-           "repeat": 2
+           "duration_ms": 1931
           }
          ]
         },
@@ -8499,8 +8495,7 @@
             "type": "jump"
            },
            "start_ms": 1737,
-           "duration_ms": 2125,
-           "repeat": 2
+           "duration_ms": 2125
           }
          ]
         },
@@ -8611,8 +8606,7 @@
             "type": "jump"
            },
            "start_ms": 2100,
-           "duration_ms": 1538,
-           "repeat": 2
+           "duration_ms": 1538
           }
          ]
         },
@@ -8686,8 +8680,7 @@
             "type": "teeter"
            },
            "start_ms": 1971,
-           "duration_ms": 2090,
-           "repeat": 2
+           "duration_ms": 2090
           }
          ]
         }
@@ -8705,27 +8698,25 @@
      "objects": [
       {
        "id": "q1_side",
-       "name": "Corner picture",
+       "name": "Side picture",
        "kind": {
-        "type": "shape",
+        "type": "image",
+        "src": "desk.jpg",
+        "alt": "",
         "shape": "rounded_rectangle",
-        "fill": "#F4EBDD",
-        "adjust": [
-         0.06
-        ],
-        "fill_style": {
-         "type": "picture",
-         "src": "desk.jpg",
-         "mode": "stretch"
+        "crop": {
+         "x": 0.2157,
+         "y": 0.0,
+         "w": 0.4686,
+         "h": 1.0
         }
        },
        "frame": {
-        "x": 792,
-        "y": 430,
+        "x": 784,
+        "y": 92,
         "w": 408,
-        "h": 228
+        "h": 486
        },
-       "description": "",
        "decorative": true,
        "shadow": {
         "offset_x": 0,
@@ -9244,7 +9235,13 @@
       "attempts": 2,
       "shuffle": true,
       "correct_layer": "Correct1",
-      "incorrect_layer": "Incorrect1"
+      "incorrect_layer": "Incorrect1",
+      "frame": {
+       "x": 88,
+       "y": 92,
+       "w": 640,
+       "h": 486
+      }
      },
      "background": "#FBF6EE",
      "transition": {
@@ -9344,7 +9341,7 @@
           "type": "spin"
          },
          "start_ms": 1600,
-         "duration_ms": 30000,
+         "duration_ms": 7690,
          "easing": "linear"
         }
        ]
@@ -12636,27 +12633,25 @@
      "objects": [
       {
        "id": "q2_side",
-       "name": "Corner picture",
+       "name": "Side picture",
        "kind": {
-        "type": "shape",
+        "type": "image",
+        "src": "breathe.jpg",
+        "alt": "",
         "shape": "rounded_rectangle",
-        "fill": "#F4EBDD",
-        "adjust": [
-         0.06
-        ],
-        "fill_style": {
-         "type": "picture",
-         "src": "breathe.jpg",
-         "mode": "stretch"
+        "crop": {
+         "x": 0.4857,
+         "y": 0.0,
+         "w": 0.4686,
+         "h": 1.0
         }
        },
        "frame": {
-        "x": 792,
-        "y": 430,
+        "x": 784,
+        "y": 92,
         "w": 408,
-        "h": 228
+        "h": 486
        },
-       "description": "",
        "decorative": true,
        "shadow": {
         "offset_x": 0,
@@ -13176,7 +13171,13 @@
       "shuffle": false,
       "correct_layer": "Correct1",
       "incorrect_layer": "Incorrect1",
-      "scoring": "partial"
+      "scoring": "partial",
+      "frame": {
+       "x": 88,
+       "y": 92,
+       "w": 640,
+       "h": 486
+      }
      },
      "background": "#FBF6EE",
      "transition": {
@@ -13277,7 +13278,7 @@
           "type": "spin"
          },
          "start_ms": 1600,
-         "duration_ms": 30000,
+         "duration_ms": 8702,
          "easing": "linear"
         }
        ]
@@ -17725,27 +17726,25 @@
      "objects": [
       {
        "id": "q3_side",
-       "name": "Corner picture",
+       "name": "Side picture",
        "kind": {
-        "type": "shape",
+        "type": "image",
+        "src": "connect.jpg",
+        "alt": "",
         "shape": "rounded_rectangle",
-        "fill": "#F4EBDD",
-        "adjust": [
-         0.06
-        ],
-        "fill_style": {
-         "type": "picture",
-         "src": "connect.jpg",
-         "mode": "stretch"
+        "crop": {
+         "x": 0.4857,
+         "y": 0.0,
+         "w": 0.4686,
+         "h": 1.0
         }
        },
        "frame": {
-        "x": 792,
-        "y": 430,
+        "x": 784,
+        "y": 92,
         "w": 408,
-        "h": 228
+        "h": 486
        },
-       "description": "",
        "decorative": true,
        "shadow": {
         "offset_x": 0,
@@ -18254,7 +18253,13 @@
       "attempts": 1,
       "shuffle": false,
       "correct_layer": "Correct1",
-      "incorrect_layer": "Incorrect1"
+      "incorrect_layer": "Incorrect1",
+      "frame": {
+       "x": 88,
+       "y": 92,
+       "w": 640,
+       "h": 486
+      }
      },
      "background": "#FBF6EE",
      "transition": {
@@ -18280,27 +18285,25 @@
      "objects": [
       {
        "id": "q4_side",
-       "name": "Corner picture",
+       "name": "Side picture",
        "kind": {
-        "type": "shape",
+        "type": "image",
+        "src": "eyes.jpg",
+        "alt": "",
         "shape": "rounded_rectangle",
-        "fill": "#F4EBDD",
-        "adjust": [
-         0.06
-        ],
-        "fill_style": {
-         "type": "picture",
-         "src": "eyes.jpg",
-         "mode": "stretch"
+        "crop": {
+         "x": 0.1157,
+         "y": 0.0,
+         "w": 0.4686,
+         "h": 1.0
         }
        },
        "frame": {
-        "x": 792,
-        "y": 430,
+        "x": 784,
+        "y": 92,
         "w": 408,
-        "h": 228
+        "h": 486
        },
-       "description": "",
        "decorative": true,
        "shadow": {
         "offset_x": 0,
@@ -18802,7 +18805,13 @@
       "accepted": [
        "20",
        "twenty"
-      ]
+      ],
+      "frame": {
+       "x": 88,
+       "y": 92,
+       "w": 640,
+       "h": 486
+      }
      },
      "background": "#FBF6EE",
      "transition": {
@@ -18821,27 +18830,25 @@
      "objects": [
       {
        "id": "q5_side",
-       "name": "Corner picture",
+       "name": "Side picture",
        "kind": {
-        "type": "shape",
+        "type": "image",
+        "src": "breathe.jpg",
+        "alt": "",
         "shape": "rounded_rectangle",
-        "fill": "#F4EBDD",
-        "adjust": [
-         0.06
-        ],
-        "fill_style": {
-         "type": "picture",
-         "src": "breathe.jpg",
-         "mode": "stretch"
+        "crop": {
+         "x": 0.4857,
+         "y": 0.0,
+         "w": 0.4686,
+         "h": 1.0
         }
        },
        "frame": {
-        "x": 792,
-        "y": 430,
+        "x": 784,
+        "y": 92,
         "w": 408,
-        "h": 228
+        "h": 486
        },
-       "description": "",
        "decorative": true,
        "shadow": {
         "offset_x": 0,
@@ -19312,7 +19319,13 @@
       "attempts": 1,
       "shuffle": false,
       "correct_layer": "Correct1",
-      "incorrect_layer": "Incorrect1"
+      "incorrect_layer": "Incorrect1",
+      "frame": {
+       "x": 88,
+       "y": 92,
+       "w": 640,
+       "h": 486
+      }
      },
      "background": "#FBF6EE",
      "transition": {
@@ -19332,27 +19345,25 @@
      "objects": [
       {
        "id": "q6_side",
-       "name": "Corner picture",
+       "name": "Side picture",
        "kind": {
-        "type": "shape",
+        "type": "image",
+        "src": "evening.jpg",
+        "alt": "",
         "shape": "rounded_rectangle",
-        "fill": "#F4EBDD",
-        "adjust": [
-         0.06
-        ],
-        "fill_style": {
-         "type": "picture",
-         "src": "evening.jpg",
-         "mode": "stretch"
+        "crop": {
+         "x": 0.4857,
+         "y": 0.0,
+         "w": 0.4686,
+         "h": 1.0
         }
        },
        "frame": {
-        "x": 792,
-        "y": 430,
+        "x": 784,
+        "y": 92,
         "w": 408,
-        "h": 228
+        "h": 486
        },
-       "description": "",
        "decorative": true,
        "shadow": {
         "offset_x": 0,
@@ -19819,7 +19830,13 @@
         "left": "Write tomorrow's first task",
         "right": "End of the day"
        }
-      ]
+      ],
+      "frame": {
+       "x": 88,
+       "y": 92,
+       "w": 640,
+       "h": 486
+      }
      },
      "background": "#FBF6EE",
      "transition": {
@@ -21904,7 +21921,7 @@
           "type": "spin"
          },
          "start_ms": 1400,
-         "duration_ms": 30000,
+         "duration_ms": 3600,
          "easing": "linear"
         }
        ]
@@ -22144,8 +22161,7 @@
             "type": "teeter"
            },
            "start_ms": 1761,
-           "duration_ms": 1838,
-           "repeat": 2
+           "duration_ms": 1838
           }
          ]
         },
@@ -22181,8 +22197,7 @@
             "type": "teeter"
            },
            "start_ms": 1800,
-           "duration_ms": 1731,
-           "repeat": 2
+           "duration_ms": 1731
           }
          ]
         },
@@ -22256,8 +22271,7 @@
             "type": "spin"
            },
            "start_ms": 1617,
-           "duration_ms": 2067,
-           "repeat": 2
+           "duration_ms": 2067
           }
          ]
         },
@@ -22294,8 +22308,7 @@
             "type": "spin"
            },
            "start_ms": 2179,
-           "duration_ms": 1844,
-           "repeat": 2
+           "duration_ms": 1844
           }
          ]
         },
@@ -22481,8 +22494,7 @@
             "type": "teeter"
            },
            "start_ms": 1730,
-           "duration_ms": 2182,
-           "repeat": 2
+           "duration_ms": 2182
           }
          ]
         },
@@ -22668,8 +22680,7 @@
             "type": "teeter"
            },
            "start_ms": 1938,
-           "duration_ms": 1872,
-           "repeat": 2
+           "duration_ms": 1872
           }
          ]
         },
@@ -22743,8 +22754,7 @@
             "type": "spin"
            },
            "start_ms": 1732,
-           "duration_ms": 2012,
-           "repeat": 2
+           "duration_ms": 2012
           }
          ]
         }
@@ -23030,27 +23040,25 @@
      "objects": [
       {
        "id": "r1_side",
-       "name": "Corner picture",
+       "name": "Side picture",
        "kind": {
-        "type": "shape",
+        "type": "image",
+        "src": "hero.jpg",
+        "alt": "",
         "shape": "rounded_rectangle",
-        "fill": "#F4EBDD",
-        "adjust": [
-         0.06
-        ],
-        "fill_style": {
-         "type": "picture",
-         "src": "hero.jpg",
-         "mode": "stretch"
+        "crop": {
+         "x": 0.3857,
+         "y": 0.0,
+         "w": 0.4686,
+         "h": 1.0
         }
        },
        "frame": {
-        "x": 792,
-        "y": 430,
+        "x": 784,
+        "y": 92,
         "w": 408,
-        "h": 228
+        "h": 486
        },
-       "description": "",
        "decorative": true,
        "shadow": {
         "offset_x": 0,
@@ -23574,7 +23582,13 @@
       "attempts": 1,
       "shuffle": false,
       "correct_layer": "Correct1",
-      "incorrect_layer": "Incorrect1"
+      "incorrect_layer": "Incorrect1",
+      "frame": {
+       "x": 88,
+       "y": 92,
+       "w": 640,
+       "h": 486
+      }
      },
      "background": "#FBF6EE",
      "transition": {
@@ -23591,27 +23605,25 @@
      "objects": [
       {
        "id": "r2_side",
-       "name": "Corner picture",
+       "name": "Side picture",
        "kind": {
-        "type": "shape",
+        "type": "image",
+        "src": "plan.jpg",
+        "alt": "",
         "shape": "rounded_rectangle",
-        "fill": "#F4EBDD",
-        "adjust": [
-         0.06
-        ],
-        "fill_style": {
-         "type": "picture",
-         "src": "plan.jpg",
-         "mode": "stretch"
+        "crop": {
+         "x": 0.2657,
+         "y": 0.0,
+         "w": 0.4686,
+         "h": 1.0
         }
        },
        "frame": {
-        "x": 792,
-        "y": 430,
+        "x": 784,
+        "y": 92,
         "w": 408,
-        "h": 228
+        "h": 486
        },
-       "description": "",
        "decorative": true,
        "shadow": {
         "offset_x": 0,
@@ -24061,7 +24073,13 @@
       "attempts": 1,
       "shuffle": false,
       "correct_layer": "Correct1",
-      "incorrect_layer": "Incorrect1"
+      "incorrect_layer": "Incorrect1",
+      "frame": {
+       "x": 88,
+       "y": 92,
+       "w": 640,
+       "h": 486
+      }
      },
      "background": "#FBF6EE",
      "transition": {
@@ -24078,27 +24096,25 @@
      "objects": [
       {
        "id": "r3_side",
-       "name": "Corner picture",
+       "name": "Side picture",
        "kind": {
-        "type": "shape",
+        "type": "image",
+        "src": "evening.jpg",
+        "alt": "",
         "shape": "rounded_rectangle",
-        "fill": "#F4EBDD",
-        "adjust": [
-         0.06
-        ],
-        "fill_style": {
-         "type": "picture",
-         "src": "evening.jpg",
-         "mode": "stretch"
+        "crop": {
+         "x": 0.4857,
+         "y": 0.0,
+         "w": 0.4686,
+         "h": 1.0
         }
        },
        "frame": {
-        "x": 792,
-        "y": 430,
+        "x": 784,
+        "y": 92,
         "w": 408,
-        "h": 228
+        "h": 486
        },
-       "description": "",
        "decorative": true,
        "shadow": {
         "offset_x": 0,
@@ -24548,7 +24564,13 @@
       "attempts": 1,
       "shuffle": false,
       "correct_layer": "Correct1",
-      "incorrect_layer": "Incorrect1"
+      "incorrect_layer": "Incorrect1",
+      "frame": {
+       "x": 88,
+       "y": 92,
+       "w": 640,
+       "h": 486
+      }
      },
      "background": "#FBF6EE",
      "transition": {
@@ -24693,7 +24715,8 @@
          "type": "rise"
         },
         "duration_ms": 1000,
-        "easing": "overshoot"
+        "easing": "overshoot",
+        "sequence": "by_letter"
        }
       },
       {
@@ -25026,7 +25049,7 @@
           "type": "spin"
          },
          "start_ms": 1500,
-         "duration_ms": 30000,
+         "duration_ms": 10120,
          "easing": "linear"
         }
        ]
@@ -26558,27 +26581,25 @@
      "objects": [
       {
        "id": "bank_side",
-       "name": "Corner picture",
+       "name": "Side picture",
        "kind": {
-        "type": "shape",
+        "type": "image",
+        "src": "connect.jpg",
+        "alt": "",
         "shape": "rounded_rectangle",
-        "fill": "#F4EBDD",
-        "adjust": [
-         0.06
-        ],
-        "fill_style": {
-         "type": "picture",
-         "src": "connect.jpg",
-         "mode": "stretch"
+        "crop": {
+         "x": 0.4857,
+         "y": 0.0,
+         "w": 0.4686,
+         "h": 1.0
         }
        },
        "frame": {
-        "x": 792,
-        "y": 430,
+        "x": 784,
+        "y": 92,
         "w": 408,
-        "h": 228
+        "h": 486
        },
-       "description": "",
        "decorative": true,
        "shadow": {
         "offset_x": 0,
@@ -27039,7 +27060,13 @@
       "attempts": 1,
       "shuffle": false,
       "correct_layer": "Correct1",
-      "incorrect_layer": "Incorrect1"
+      "incorrect_layer": "Incorrect1",
+      "frame": {
+       "x": 88,
+       "y": 92,
+       "w": 640,
+       "h": 486
+      }
      },
      "background": "#FBF6EE",
      "transition": {
@@ -27057,27 +27084,25 @@
      "objects": [
       {
        "id": "bank_side",
-       "name": "Corner picture",
+       "name": "Side picture",
        "kind": {
-        "type": "shape",
+        "type": "image",
+        "src": "connect.jpg",
+        "alt": "",
         "shape": "rounded_rectangle",
-        "fill": "#F4EBDD",
-        "adjust": [
-         0.06
-        ],
-        "fill_style": {
-         "type": "picture",
-         "src": "connect.jpg",
-         "mode": "stretch"
+        "crop": {
+         "x": 0.4857,
+         "y": 0.0,
+         "w": 0.4686,
+         "h": 1.0
         }
        },
        "frame": {
-        "x": 792,
-        "y": 430,
+        "x": 784,
+        "y": 92,
         "w": 408,
-        "h": 228
+        "h": 486
        },
-       "description": "",
        "decorative": true,
        "shadow": {
         "offset_x": 0,
@@ -27538,7 +27563,13 @@
       "attempts": 1,
       "shuffle": false,
       "correct_layer": "Correct1",
-      "incorrect_layer": "Incorrect1"
+      "incorrect_layer": "Incorrect1",
+      "frame": {
+       "x": 88,
+       "y": 92,
+       "w": 640,
+       "h": 486
+      }
      },
      "background": "#FBF6EE",
      "transition": {
@@ -27556,27 +27587,25 @@
      "objects": [
       {
        "id": "bank_side",
-       "name": "Corner picture",
+       "name": "Side picture",
        "kind": {
-        "type": "shape",
+        "type": "image",
+        "src": "connect.jpg",
+        "alt": "",
         "shape": "rounded_rectangle",
-        "fill": "#F4EBDD",
-        "adjust": [
-         0.06
-        ],
-        "fill_style": {
-         "type": "picture",
-         "src": "connect.jpg",
-         "mode": "stretch"
+        "crop": {
+         "x": 0.4857,
+         "y": 0.0,
+         "w": 0.4686,
+         "h": 1.0
         }
        },
        "frame": {
-        "x": 792,
-        "y": 430,
+        "x": 784,
+        "y": 92,
         "w": 408,
-        "h": 228
+        "h": 486
        },
-       "description": "",
        "decorative": true,
        "shadow": {
         "offset_x": 0,
@@ -28037,7 +28066,13 @@
       "attempts": 1,
       "shuffle": false,
       "correct_layer": "Correct1",
-      "incorrect_layer": "Incorrect1"
+      "incorrect_layer": "Incorrect1",
+      "frame": {
+       "x": 88,
+       "y": 92,
+       "w": 640,
+       "h": 486
+      }
      },
      "background": "#FBF6EE",
      "transition": {

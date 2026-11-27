@@ -1096,7 +1096,7 @@ QSPEC = {
     "r3": dict(prompt="Describe one change to your workday, and when you'll make it."),
 }
 QSIDE = {"q1": ("desk.jpg", 0.45), "q2": ("breathe.jpg", 0.72), "q3": ("connect.jpg", 0.72), "q4": ("eyes.jpg", 0.35),
-         "q5": ("breathe.jpg", 0.72), "q6": ("evening.jpg", 0.72), "q9": ("move.jpg", 0.72),
+         "q5": ("breathe.jpg", 0.72), "q6": ("evening.jpg", 0.72),
          "r1": ("hero.jpg", 0.62), "r2": ("plan.jpg", 0.5), "r3": ("evening.jpg", 0.72)}
 TRANS = [T("fade", 500), T("push", 600, **{"from": "right"}), T("reveal", 650, **{"from": "right"}), T("wipe", 650, **{"from": "right"})]
 for n, (sid, kind) in enumerate([(q[0], q[1]) for q in QUIZ] + REFLECT, 1):
@@ -1125,6 +1125,12 @@ for n, (sid, kind) in enumerate([(q[0], q[1]) for q in QUIZ] + REFLECT, 1):
         q["frame"] = {"x": 88, "y": 92, "w": 640, "h": 486}
         pfr = F(784, 92, 408, 486)
         side = add(sid, image(f"{sid}_side", src, "", pfr, crop=crop_for(pfr, focus), name="Side picture", mask="rounded_rectangle"), index=0)
+        side["decorative"] = True
+        side["shadow"] = CARD
+        ent(side, reveal_shape("box"), 800, 300, "ease_in_out")
+    if sid == "q9":
+        # The slider spans the slide width and does not follow a question frame, so its picture is a corner card.
+        side = add(sid, picture_card(f"{sid}_side", "move.jpg", "", F(792, 430, 408, 228), 0.06, "Corner picture"), index=0)
         side["decorative"] = True
         side["shadow"] = CARD
         ent(side, reveal_shape("box"), 800, 300, "ease_in_out")
@@ -1423,6 +1429,38 @@ def floor16(o):
             floor16(v)
 floor16(C)
 C["start_slide"] = "welcome"
+# Fit every emphasis into its object's time window (the validator warns when one is cut off):
+# fewer passes first, then a shorter pass.
+def fit_emphasis(objects, timeline):
+    for o in objects:
+        t = o.get("timing", {})
+        start = t.get("start_ms", 0)
+        end = min(t.get("end_ms", timeline), timeline)
+        keep = []
+        for e in o.get("emphasis", []):
+            e["start_ms"] = max(e.get("start_ms", 0), start)
+            avail = end - e["start_ms"]
+            dur = e.get("duration_ms", 1000)
+            if avail < 200:
+                continue
+            passes = min(e.get("repeat", 1), avail // dur)
+            if passes >= 1:
+                e["repeat"] = passes
+            else:
+                e["repeat"], e["duration_ms"] = 1, avail
+            if e["repeat"] == 1:
+                e.pop("repeat")
+            keep.append(e)
+        if "emphasis" in o:
+            o["emphasis"] = keep
+
+for sc in C["scenes"]:
+    for sl in sc["slides"]:
+        dur = sl.get("duration_ms", 5000)
+        fit_emphasis(sl.get("objects", []), dur)
+        for lay in sl.get("layers", []):
+            fit_emphasis(lay.get("objects", []), lay.get("duration_ms", dur))
+
 with open(os.path.join(ROOT, "course.json"), "w") as f:
     json.dump(C, f, indent=1, ensure_ascii=False)
     f.write("\n")
