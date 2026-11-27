@@ -435,7 +435,7 @@ Layer options beyond the basic flags are omitted from JSON when default, so exis
 - `allow_seek` is `auto` (default), `yes` or `no`, and decides whether the learner's seekbar moves this layer's clock.
 - `revisit` is `auto` (default), `reset` or `resume`, and decides what showing the layer again does to its clock and object states.
 
-`Slide.player` is an optional struct of per-slide player overrides, omitted when unset. Its `next_requires` (same shape as `player.next_requires`) replaces the course rule on that slide. Its `show_bar`, `show_nav`, `show_seekbar` and `show_menu` (each true, false or unset) replace the course flags of the same name on that slide. A `variable` rule must name a true/false variable. See "Player navigation modes" in `triggers.md`.
+`Slide.player` is an optional struct of per-slide player overrides, omitted when unset. Its `next_requires` (same shape as `player.next_requires`) replaces the course rule on that slide. Its `show_bar`, `show_nav`, `show_seekbar` and `show_menu` (each true, false or unset) replace the course flags of the same name on that slide. A `variable` rule must name a true/false variable. `PlayerSettings::for_slide` is the one resolver of these overrides; `course.clear_slide_player_overrides` removes one (or all) on every slide. See "Player navigation modes" in `triggers.md`.
 
 `Slide.revisit` uses the same `auto | reset | resume` values and applies when entering an already-visited slide. See `triggers.md` for the runtime rules.
 

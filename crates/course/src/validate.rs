@@ -4241,11 +4241,7 @@ fn check_bar_off_dead_ends(course: &Course, cx: &mut Ctx<'_>) {
             if seen == total_slides {
                 continue;
             }
-            let show_bar = slide
-                .player
-                .as_ref()
-                .and_then(|o| o.show_bar)
-                .unwrap_or(course.player.show_bar);
+            let show_bar = course.player_for(slide).show_bar;
             if show_bar || slide_has_forward_trigger(slide) {
                 continue;
             }

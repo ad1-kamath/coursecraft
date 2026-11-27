@@ -2873,9 +2873,14 @@ fn bar_off_uses_full_frame_without_strip_and_ignores_arrow_keys_and_menu() {
     );
     assert!(!harness.frame.drawer_open());
 
-    // A trigger with Next still advances.
+    // The runtime refuses the learner's Next too, so no host can bypass the bar.
     let first_id = player.current_slide().expect("slide").id.clone();
     player.handle(&Input::Next);
+    assert_eq!(player.current_slide().expect("slide").id, first_id);
+    // Author navigation still moves.
+    player.handle(&Input::Jump {
+        slide: "s-tabs".into(),
+    });
     assert_ne!(player.current_slide().expect("slide").id, first_id);
 }
 

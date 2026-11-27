@@ -121,7 +121,7 @@ Shown when the Course Map view tab is active.
 | | Reset | S | `slide.set_master` (reapply) | ⛔ | reset placeholders to the layout |
 | | Duplicate | S | `slide.duplicate` | ✅ | |
 | | Record Screen | LS | — | 🚫 | Not planned (patent watch list: Assima) |
-| Publish | Player | L | `ui:player.properties` | ✅ | Course settings › Player |
+| Publish | Player | L | `ui:player.properties` | ✅ | Course settings › Player; slides that set their own player value are named under the course setting, with Use on all slides (`course.clear_slide_player_overrides`) |
 | | Preview | LS | `ui:preview.*` | ✅ | ▾ This Slide, This Scene, Selected Slides, Entire Course, Publish… (`toolbar` preview popup) |
 | | Publish | L | `ui:publish` | ✅ | |
 

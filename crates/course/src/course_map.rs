@@ -188,11 +188,7 @@ pub fn course_map(course: &Course) -> CourseMap {
                 continue;
             };
             let covered = covered.contains(&(slide.id.clone(), next.clone()));
-            let nav = slide
-                .player
-                .as_ref()
-                .and_then(|overrides| overrides.show_nav)
-                .unwrap_or(course.player.show_nav);
+            let nav = course.player_for(slide).nav_available();
             if !covered && nav {
                 edges.push(MapEdge {
                     from: slide.id.clone(),

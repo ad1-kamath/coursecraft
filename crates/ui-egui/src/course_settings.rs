@@ -1,7 +1,9 @@
 //! Course settings window dialog: title, id, player chrome toggles, quiz passing percent.
 
 use crate::dialog::{Dialog, Form};
-use coursecraft_course::{Course, NavMode, NextRequirement, SeekbarBehaviour, ValueKind};
+use coursecraft_course::{
+    Course, NavMode, NextRequirement, PlayerOverrideField, SeekbarBehaviour, ValueKind,
+};
 use egui::{DragValue, TextEdit};
 
 /// Names of the true/false variables a "Next unlocks" rule can watch.
@@ -20,6 +22,65 @@ pub fn bool_variable_names(course: &Course) -> Vec<String> {
             .map(|v| v.name.clone()),
     );
     names
+}
+
+/// How many slide names an override note lists before it shortens the list.
+const OVERRIDE_NOTE_NAMES: usize = 3;
+
+/// The note under a course player setting when slides set their own value for it,
+/// so the dialog never shows a setting the player does not apply. Names the
+/// slides and offers to make the course setting apply on every slide. Returns
+/// `field` when the author asks for that.
+fn slide_override_note(
+    ui: &mut egui::Ui,
+    course: &Course,
+    field: PlayerOverrideField,
+) -> Option<PlayerOverrideField> {
+    let slides = course.slides_overriding(field);
+    if slides.is_empty() {
+        return None;
+    }
+    let mut names: Vec<&str> = slides
+        .iter()
+        .take(OVERRIDE_NOTE_NAMES)
+        .map(|slide| {
+            if slide.title.trim().is_empty() {
+                slide.id.as_str()
+            } else {
+                slide.title.as_str()
+            }
+        })
+        .collect();
+    if slides.len() > OVERRIDE_NOTE_NAMES {
+        names.push("…");
+    }
+    let names = names.join(", ");
+    let note = crate::i18n::translate_with(
+        "These slides use their own setting: {slides}",
+        &[("slides", names.as_str())],
+    );
+    let mut chosen = None;
+    ui.horizontal_wrapped(|ui| {
+        ui.label(
+            egui::RichText::new(note)
+                .color(coursecraft_render::palette(ui.ctx()).warning)
+                .size(coursecraft_render::SIZE_SMALL),
+        );
+        if crate::quiet_button(
+            ui,
+            crate::tl!("Use on all slides"),
+            crate::QuietTone::Secondary,
+            true,
+        )
+        .on_hover_text(crate::tl!(
+            "Remove the slides' own setting so this course setting applies everywhere"
+        ))
+        .clicked()
+        {
+            chosen = Some(field);
+        }
+    });
+    chosen
 }
 
 /// The "Next unlocks" combo and variable picker. `current` is the rule shown
@@ -258,6 +319,7 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
     let mut update_background_loop = false;
     let mut resource_actions = crate::resources_ui::ResourceActions::default();
     let mut logo_choice: Option<Option<String>> = None;
+    let mut clear_override: Option<PlayerOverrideField> = None;
 
     let needs_result = !editor.session.course.reports_result();
     let bool_names = bool_variable_names(&editor.session.course);
@@ -278,7 +340,7 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
                         "Language",
                         "Slide size",
                         "Logo",
-                        "Navigation",
+                        "Menu access",
                         "Seekbar",
                         "Next unlocks",
                         "Passing score",
@@ -380,6 +442,11 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
                 {
                     update_player = true;
                 }
+                clear_override = clear_override.or(slide_override_note(
+                    ui,
+                    &editor.session.course,
+                    PlayerOverrideField::ShowBar,
+                ));
                 const BAR_OFF_TOOLTIP: &str = "Turn the player bar on to use this";
                 ui.add_enabled_ui(editor.ui.course_settings.show_bar, |ui| {
                     if ui
@@ -392,6 +459,11 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
                     {
                         update_player = true;
                     }
+                    clear_override = clear_override.or(slide_override_note(
+                        ui,
+                        &editor.session.course,
+                        PlayerOverrideField::ShowNav,
+                    ));
                     if ui
                         .checkbox(
                             &mut editor.ui.course_settings.show_menu,
@@ -402,6 +474,11 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
                     {
                         update_player = true;
                     }
+                    clear_override = clear_override.or(slide_override_note(
+                        ui,
+                        &editor.session.course,
+                        PlayerOverrideField::ShowMenu,
+                    ));
                     if ui
                         .checkbox(&mut editor.ui.course_settings.show_seekbar, "Show seekbar")
                         .on_disabled_hover_text(BAR_OFF_TOOLTIP)
@@ -409,6 +486,11 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
                     {
                         update_player = true;
                     }
+                    clear_override = clear_override.or(slide_override_note(
+                        ui,
+                        &editor.session.course,
+                        PlayerOverrideField::ShowSeekbar,
+                    ));
                     if ui
                         .checkbox(
                             &mut editor.ui.course_settings.show_speed,
@@ -463,7 +545,7 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
                         logo_choice = Some(choice);
                     }
                 });
-                form.row(ui, "Navigation", |ui, _| {
+                form.row(ui, "Menu access", |ui, _| {
                     let mut mode = editor.ui.course_settings.navigation;
                     crate::widgets::styled_combo(
                         ui,
@@ -475,7 +557,11 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
                         for choice in [NavMode::Free, NavMode::Restricted, NavMode::Locked] {
                             ui.selectable_value(&mut mode, choice, nav_mode_label(choice));
                         }
-                    });
+                    })
+                    .response
+                    .on_hover_text(crate::tl!(
+                        "Which slides the learner can open from the slide menu. Next is set by \"Next unlocks\"."
+                    ));
                     if mode != editor.ui.course_settings.navigation {
                         editor.ui.course_settings.navigation = mode;
                         update_player = true;
@@ -530,6 +616,11 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
                         update_player = true;
                     }
                 });
+                clear_override = clear_override.or(slide_override_note(
+                    ui,
+                    &editor.session.course,
+                    PlayerOverrideField::NextRequires,
+                ));
 
                 ui.add_space(8.0);
                 ui.separator();
@@ -745,6 +836,12 @@ pub fn show_course_settings_window(editor: &mut crate::Editor, ctx: &egui::Conte
         );
     }
 
+    if let Some(field) = clear_override {
+        editor.run(
+            "course.clear_slide_player_overrides",
+            serde_json::json!({ "field": field.key() }),
+        );
+    }
     if let Some(logo) = logo_choice {
         editor.run("course.set_player", serde_json::json!({ "logo": logo }));
     }

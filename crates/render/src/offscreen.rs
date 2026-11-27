@@ -614,7 +614,8 @@ pub fn render_slide_rgba(
             )
         })?;
         player.handle(&Input::Start);
-        player.handle(&Input::GoTo {
+        // Author navigation: the learner's menu gates must not pick another slide.
+        player.handle(&Input::Jump {
             slide: slide_id.to_string(),
         });
 

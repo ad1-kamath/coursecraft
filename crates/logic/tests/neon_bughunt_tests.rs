@@ -864,7 +864,11 @@ fn effective_player_applies_slide_show_bar_false() {
                 "id": "s1",
                 "title": "Slide 1",
                 "duration_ms": 5000,
-                "player": { "show_bar": false }
+                "player": { "show_bar": false },
+                "triggers": [{
+                  "when": { "event": "key_pressed", "key": "j" },
+                  "action": { "action": "jump_to_slide", "target": "next" }
+                }]
               },
               {
                 "id": "s2",
@@ -884,9 +888,14 @@ fn effective_player_applies_slide_show_bar_false() {
         "effective_player() must reflect per-slide player.show_bar = false"
     );
 
-    // The renderer enforces the hidden bar (no strip, no arrow keys). The runtime leaves
-    // `Input::Next` to the host, and the override ends with the slide.
+    // With the bar hidden the runtime itself refuses the learner's `Next`.
     let _ = player.handle(&Input::Next);
+    assert_eq!(player.current_slide().map(|s| s.id.as_str()), Some("s1"));
+
+    // An author jump still works, and the override ends with the slide.
+    let _ = player.handle(&Input::KeyPressed {
+        key: "j".to_owned(),
+    });
     assert_eq!(player.current_slide().map(|s| s.id.as_str()), Some("s2"));
     assert!(player.effective_player().show_bar);
 }

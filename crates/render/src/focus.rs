@@ -420,7 +420,7 @@ fn push_strip_targets(
     if started && visibility.replay {
         list.push(FocusTarget::Chrome(ChromeButton::Replay));
     }
-    if started && visibility.seek && player.effective_player().show_seekbar {
+    if started && visibility.seek && player.effective_player().seekbar_available() {
         list.push(FocusTarget::Chrome(ChromeButton::Seek));
     }
     if started && visibility.volume {

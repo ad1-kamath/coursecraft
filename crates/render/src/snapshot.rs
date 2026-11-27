@@ -60,7 +60,8 @@ fn snapshot_player_state<'a>(
         .copied()
         .ok_or_else(|| RenderError::SlideNotFound("<start>".to_owned()))?;
     if player.state().slide != target_index {
-        player.handle(&Input::GoTo {
+        // Author navigation: the learner's menu gates must not pick another slide.
+        player.handle(&Input::Jump {
             slide: target.id.clone(),
         });
     }

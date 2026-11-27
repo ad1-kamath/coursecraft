@@ -423,8 +423,8 @@ impl<'c> Player<'c> {
                     self.process(&mut q, out);
                     return;
                 }
-                if !self.effective_player().show_nav {
-                    warn(out, "player navigation is turned off for this course");
+                if !self.effective_player().nav_available() {
+                    warn(out, "player navigation is turned off on this slide");
                     return;
                 }
                 if *input == Input::Next && !self.can_next() {
@@ -439,8 +439,8 @@ impl<'c> Player<'c> {
                 self.jump(&target, &mut q, out);
             }
             Input::GoTo { slide } => {
-                if !self.effective_player().show_menu {
-                    warn(out, "the slide menu is turned off for this course");
+                if !self.effective_player().menu_available() {
+                    warn(out, "the slide menu is turned off on this slide");
                     return;
                 }
                 if !self.can_go_to(slide) {

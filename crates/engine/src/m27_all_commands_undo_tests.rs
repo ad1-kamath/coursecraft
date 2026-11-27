@@ -215,6 +215,16 @@ fn fixture_session() -> Session {
     let c = &mut s.course;
 
     c.language = Some("en".into());
+    if let Some(slide) = c
+        .scenes
+        .first_mut()
+        .and_then(|scene| scene.slides.first_mut())
+    {
+        slide.player = Some(coursecraft_course::SlidePlayerOverrides {
+            show_menu: Some(false),
+            ..Default::default()
+        });
+    }
     c.background_audio = Some(BackgroundAudio {
         src: "audio/bg.mp3".into(),
         volume: 0.5,
@@ -914,6 +924,7 @@ fn command_cases() -> Vec<(&'static str, Json)> {
             "course.set_player",
             json!({ "show_nav": false, "navigation": "restricted" }),
         ),
+        ("course.clear_slide_player_overrides", json!({})),
         ("course.set_quiz", json!({ "passing_percent": 75 })),
         (
             "course.set_publish_settings",

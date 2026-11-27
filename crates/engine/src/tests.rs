@@ -9253,6 +9253,47 @@ fn text_style_range_applies_strikethrough_baseline_and_spacing_with_undo() {
 }
 
 #[test]
+fn course_clear_slide_player_overrides_clears_one_field_or_all_with_undo() {
+    use coursecraft_course::NextRequirement;
+    let mut s = Session::blank("Title");
+    let slide = s.course.slides().next().unwrap().id.clone();
+    ok(
+        &mut s,
+        "slide.set_player_overrides",
+        json!({ "slide": slide, "next_requires": { "kind": "timeline_ends" }, "show_menu": false }),
+    );
+    let out = ok(
+        &mut s,
+        "course.clear_slide_player_overrides",
+        json!({ "field": "next_requires" }),
+    );
+    assert_eq!(out["cleared"], 1);
+    let overrides = s.course.slide(&slide).unwrap().player.clone().unwrap();
+    assert_eq!(overrides.next_requires, None);
+    assert_eq!(overrides.show_menu, Some(false));
+    s.undo().unwrap();
+    assert_eq!(
+        s.course
+            .slide(&slide)
+            .unwrap()
+            .player
+            .as_ref()
+            .unwrap()
+            .next_requires,
+        Some(NextRequirement::TimelineEnds)
+    );
+    ok(&mut s, "course.clear_slide_player_overrides", json!({}));
+    assert!(s.course.slide(&slide).unwrap().player.is_none());
+    assert!(
+        s.execute(
+            "course.clear_slide_player_overrides",
+            &json!({ "field": "logo" })
+        )
+        .is_err()
+    );
+}
+
+#[test]
 fn course_set_player_sets_navigation_and_next_rule_with_undo() {
     use coursecraft_course::{NavMode, NextRequirement};
     let mut s = Session::blank("Title");
@@ -10871,7 +10912,7 @@ fn registry_labels_and_menu_leaves_use_sentence_case() {
     };
 
     let cmds = crate::registry();
-    assert_eq!(cmds.len(), 197, "unexpected registry command count");
+    assert_eq!(cmds.len(), 198, "unexpected registry command count");
 
     for cmd in cmds {
         check_phrase(cmd.label, &format!("label for {}", cmd.id));
@@ -12387,7 +12428,7 @@ fn r5_01_registry_golden_lock() {
     use crate::delta::UndoScope;
 
     let reg = registry();
-    assert_eq!(reg.len(), 197);
+    assert_eq!(reg.len(), 198);
 
     const EXPECTED: &[(&str, bool, UndoScope, bool)] = &[
         ("course.info", false, UndoScope::FullCourse, false),
@@ -12398,6 +12439,12 @@ fn r5_01_registry_golden_lock() {
         ("course.set_slide_size", true, UndoScope::FullCourse, false),
         ("course.set_title", true, UndoScope::CourseHeader, false),
         ("course.set_player", true, UndoScope::CourseHeader, false),
+        (
+            "course.clear_slide_player_overrides",
+            true,
+            UndoScope::FullCourse,
+            false,
+        ),
         ("course.set_quiz", true, UndoScope::CourseHeader, false),
         (
             "course.set_publish_settings",
@@ -12762,10 +12809,10 @@ fn r5_01_registry_golden_lock() {
             slide_val
         ));
     }
-    assert_eq!(table.len(), 25_664, "registry golden table byte length");
+    assert_eq!(table.len(), 25_847, "registry golden table byte length");
     assert_eq!(
         fnv1a_64(table.as_bytes()),
-        1_730_170_917_834_803_926,
+        498_912_864_581_733_648,
         "registry golden table FNV-1a hash"
     );
 }

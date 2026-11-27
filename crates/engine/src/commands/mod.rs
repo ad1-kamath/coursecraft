@@ -135,6 +135,17 @@ static REGISTRY: &[Command] = &[
         run: course::course_set_player,
     },
     Command {
+        id: "course.clear_slide_player_overrides",
+        label: "Use course player settings on every slide",
+        menu: "",
+        shortcut: None,
+        params: r#"{"field"?: "next_requires"|"show_bar"|"show_nav"|"show_seekbar"|"show_menu"}"#,
+        mutates: true,
+        scope: UndoScope::FullCourse,
+        slide_validation: false,
+        run: course::course_clear_slide_player_overrides,
+    },
+    Command {
         id: "course.set_quiz",
         label: "Quiz settings",
         menu: "Project/Quiz settings…",

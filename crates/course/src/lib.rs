@@ -24,6 +24,7 @@ mod media;
 mod model;
 mod named_styles;
 pub mod outline;
+mod player_settings;
 pub mod recolor;
 mod shapes;
 pub mod strings;
@@ -99,6 +100,7 @@ pub use outline::{
     CourseOutline, MAX_BODY_LINES, MAX_CHOICES, MAX_LINE_BYTES, MAX_OUTLINE_SLIDES, OutlineChoice,
     OutlineProblem, OutlineQuestion, OutlineScene, OutlineSlide, outline_from_markdown,
 };
+pub use player_settings::{PlayerOverrideField, PlayerOverrideUse};
 pub use shapes::{
     AdjustSpec, SHAPE_CATALOG, ShapeCategory, ShapeInfo, adjust_defaults, adjust_spec,
     clamp_adjust, shape_allows_text, shape_info, shape_is_adjustable, shape_kind_for_ooxml,

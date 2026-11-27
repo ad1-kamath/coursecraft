@@ -180,6 +180,49 @@ pub(super) fn course_set_player(s: &mut Session, p: &Json) -> Result<Json> {
     Ok(Json::Null)
 }
 
+/// Clear one per-slide player override (or all of them) on every slide, so the
+/// course setting applies everywhere. Returns `{cleared}`, the slides changed.
+pub(super) fn course_clear_slide_player_overrides(s: &mut Session, p: &Json) -> Result<Json> {
+    const C: &str = "course.clear_slide_player_overrides";
+    let was_valid = s.is_playable();
+    let field: Option<String> = opt(C, p, "field")?;
+    let fields: Vec<coursecraft_course::PlayerOverrideField> =
+        match field {
+            None => coursecraft_course::PlayerOverrideField::ALL.to_vec(),
+            Some(key) => vec![coursecraft_course::PlayerOverrideField::from_key(&key).ok_or_else(
+            || {
+                bad(
+                    C,
+                    "`field` must be next_requires, show_bar, show_nav, show_seekbar or show_menu",
+                )
+            },
+        )?],
+        };
+    let mut cleared = 0usize;
+    for slide in s
+        .course
+        .scenes
+        .iter_mut()
+        .flat_map(|scene| scene.slides.iter_mut())
+    {
+        let Some(overrides) = slide.player.as_mut() else {
+            continue;
+        };
+        let before = overrides.clone();
+        for field in &fields {
+            overrides.clear(*field);
+        }
+        if *overrides != before {
+            cleared = cleared.saturating_add(1);
+        }
+        if overrides.is_empty() {
+            slide.player = None;
+        }
+    }
+    keep_valid(s, was_valid)?;
+    Ok(json!({ "cleared": cleared }))
+}
+
 /// A variable rule must name an existing true/false variable.
 pub(super) fn check_next_requirement(
     s: &Session,

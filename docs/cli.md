@@ -243,6 +243,7 @@ course.audit         -                        -          {}
 course.update        Project/Course settings… -          {"title"?: string, "id"?: string, "start_slide"?: id|null, "language"?: string|null}
 course.set_title     -                        -          {"title": string}
 course.set_player    Project/Player settings… -          {"show_bar"?: bool, "show_nav"?: bool, "show_menu"?: bool, "show_seekbar"?: bool, "show_speed"?: bool, "show_fullscreen"?: bool, "show_transcript"?: bool, "show_title"?: bool, "show_volume"?: bool, "show_captions"?: bool, "logo"?: string|null, "navigation"?: "free"|"restricted"|"locked", "next_requires"?: {"kind": "nothing"|"timeline_ends"|"variable", "name"?: string}, "seekbar"?: "free"|"locked"|"until_timeline_ends"}
+course.clear_slide_player_overrides -               -          {"field"?: "next_requires"|"show_bar"|"show_nav"|"show_seekbar"|"show_menu"}  (clears that per-slide override, or all of them, on every slide; returns {cleared})
 course.set_quiz      Project/Quiz settings…   -          {"passing_percent": 0..=100|null}
 course.set_publish_settings -                 -          {"standard"?: string, "lms_status"?: "auto"|"auto_keep_completed"|"passed_incomplete"|"passed_failed"|"completed_incomplete"|"completed_failed"}
 course.set_tracking  -                        -          {"slides_viewed"?: {"mode": "all"} | {"mode": "at_least", "count": 1..} | null, "quiz"?: {"slide"?: id | null} | null}

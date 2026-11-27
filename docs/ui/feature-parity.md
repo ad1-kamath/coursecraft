@@ -21,7 +21,7 @@
 | Interactivity | 12 | 3 | 2 | 0 |
 | Animation, transitions, timeline | 19 | 1 | 5 | 0 |
 | Questions and quizzes | 8 | 4 | 3 | 0 |
-| Player, preview, publish | 10 | 4 | 7 | 2 |
+| Player, preview, publish | 11 | 4 | 7 | 2 |
 | Editor shell and panels | 12 | 9 | 2 | 0 |
 | AI | 3 | 1 | 6 | 0 |
 | Assets and services | 0 | 0 | 1 | 7 |
@@ -235,7 +235,8 @@ Counted from the tables below; recount when a row changes.
 | Player: menu, resources, glossary, notes tabs | Course settings | ✅ | — |
 | Player: title, logo, sidebar, seekbar modes, controls | Course settings | ✅ | — |
 | Player colours light/dark, accent from theme | Course settings | ✅ | — |
-| Navigation modes (free, restricted, locked) | `course.set_player` | ✅ | — |
+| Navigation modes (free, restricted, locked) | `course.set_player` (Course settings › Menu access) | ✅ | — |
+| Slides that override a course player setting, named under it, with Use on all slides | Course settings; `course.clear_slide_player_overrides` | ✅ | — |
 | Preview slide, scene, selected slides, course | preview popup | ✅ | — |
 | Publish web | `publish.rs` | ✅ | — |
 | Publish LMS: SCORM 1.2, SCORM 2004, cmi5, xAPI, LTI | `publish.rs` | ✅ | — |

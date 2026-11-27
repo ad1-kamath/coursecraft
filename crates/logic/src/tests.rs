@@ -9255,6 +9255,83 @@ fn a_slide_override_replaces_the_course_default() {
     assert!(!p.can_next());
 }
 
+/// Every per-slide override must reach `effective_player()`, the one view of
+/// the settings that the runtime and every host read.
+#[test]
+fn effective_player_applies_every_slide_override() {
+    use coursecraft_course::{NextRequirement, PlayerOverrideField, SlidePlayerOverrides};
+    let mut course = nav_course(serde_json::json!({}));
+    course.slide_mut("s1").unwrap().player = Some(SlidePlayerOverrides {
+        show_bar: Some(false),
+        next_requires: Some(NextRequirement::TimelineEnds),
+        show_nav: Some(false),
+        show_seekbar: Some(false),
+        show_menu: Some(false),
+    });
+    let mut p = Player::new(&course).unwrap();
+    p.handle(&Input::Start);
+    let settings = p.effective_player();
+    assert!(!settings.show_bar);
+    assert!(!settings.show_nav);
+    assert!(!settings.show_seekbar);
+    assert!(!settings.show_menu);
+    assert_eq!(settings.next_requires, NextRequirement::TimelineEnds);
+    let differing = course.slides_overriding(PlayerOverrideField::NextRequires);
+    assert_eq!(differing.len(), 1);
+    for field in PlayerOverrideField::ALL {
+        assert_eq!(course.slides_overriding(field).len(), 1, "{field:?}");
+    }
+}
+
+#[test]
+fn bar_off_refuses_learner_next_previous_and_menu_but_not_author_jumps() {
+    let mut course = nav_course(serde_json::json!({}));
+    for id in ["s1", "s2", "s3"] {
+        course.slide_mut(id).unwrap().player = Some(coursecraft_course::SlidePlayerOverrides {
+            show_bar: Some(false),
+            ..Default::default()
+        });
+    }
+    let mut p = Player::new(&course).unwrap();
+    p.handle(&Input::Start);
+    assert!(!has(&p.handle(&Input::Next), &slide_entered("s2")));
+    assert!(!has(
+        &p.handle(&Input::GoTo { slide: "s3".into() }),
+        &slide_entered("s3")
+    ));
+    assert!(has(
+        &p.handle(&Input::Jump { slide: "s2".into() }),
+        &slide_entered("s2")
+    ));
+    assert!(!has(&p.handle(&Input::Previous), &slide_entered("s1")));
+}
+
+/// `player.navigation` governs the slide menu only. With the course on Free
+/// and no Next rule, Next works at once; a slide's own Next rule still wins
+/// and the course reports that slide as overriding it.
+#[test]
+fn free_navigation_leaves_next_to_the_next_rule() {
+    let mut course = nav_course(serde_json::json!({ "navigation": "free" }));
+    let mut p = Player::new(&course).unwrap();
+    p.handle(&Input::Start);
+    assert!(p.can_next());
+    assert!(has(&p.handle(&Input::Next), &slide_entered("s2")));
+
+    course.slide_mut("s1").unwrap().player = Some(coursecraft_course::SlidePlayerOverrides {
+        next_requires: Some(coursecraft_course::NextRequirement::TimelineEnds),
+        ..Default::default()
+    });
+    let mut p = Player::new(&course).unwrap();
+    p.handle(&Input::Start);
+    assert!(!p.can_next());
+    let overriding =
+        course.slides_overriding(coursecraft_course::PlayerOverrideField::NextRequires);
+    assert_eq!(
+        overriding.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(),
+        ["s1"]
+    );
+}
+
 #[test]
 fn resume_treats_earlier_visited_slides_as_completed() {
     let course = nav_course(serde_json::json!({ "next_requires": { "kind": "timeline_ends" } }));
