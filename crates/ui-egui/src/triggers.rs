@@ -935,6 +935,9 @@ impl EventKindTag {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TriggerFormState {
     pub editing_index: Option<usize>,
+    /// The trigger as it was when the editor opened. Save looks it up again,
+    /// so an Undo or Redo that moved the list never saves over another trigger.
+    pub original: Option<Trigger>,
     /// Kept when an existing trigger is edited.
     pub disabled: bool,
     pub owner_slide: String,
@@ -1048,6 +1051,7 @@ impl TriggerFormState {
 
         Self {
             editing_index: None,
+            original: None,
             disabled: false,
             owner_slide: slide.id.clone(),
             owner_layer: layer_id.map(str::to_owned),
@@ -1128,6 +1132,7 @@ impl TriggerFormState {
     ) -> Self {
         let mut s = Self::new_for_owner(slide, layer_id, course);
         s.editing_index = Some(index);
+        s.original = Some(trigger.clone());
         s.disabled = trigger.disabled;
 
         match &trigger.action {
@@ -1598,6 +1603,28 @@ impl TriggerFormState {
         })
     }
 
+    /// Where the trigger being edited is now. The stored index when the trigger
+    /// there is still the one the editor opened, else the only other place it
+    /// is found. `None` when it is gone, changed, or found more than once.
+    fn resolve_index(&self, course: &Course, stored: usize) -> Option<usize> {
+        let original = self.original.as_ref()?;
+        let slide = course.slide(&self.owner_slide)?;
+        let list = match &self.owner_layer {
+            Some(lid) => &slide.layer(lid)?.triggers,
+            None => &slide.triggers,
+        };
+        if list.get(stored) == Some(original) {
+            return Some(stored);
+        }
+        let mut matches = list
+            .iter()
+            .enumerate()
+            .filter(|(_, trigger)| *trigger == original)
+            .map(|(index, _)| index);
+        let first = matches.next()?;
+        matches.next().is_none().then_some(first)
+    }
+
     /// Commit the trigger via Editor::run, returning true on success.
     pub fn commit_ok(&mut self, editor: &mut crate::Editor) -> bool {
         let trigger = match self.build_trigger(&editor.session.course) {
@@ -1625,7 +1652,12 @@ impl TriggerFormState {
                 };
                 editor.run("trigger.add", params)
             }
-            Some(index) => {
+            Some(stored) => {
+                let Some(index) = self.resolve_index(&editor.session.course, stored) else {
+                    self.error_message = Some(report_trigger_gone(editor));
+                    return false;
+                };
+                self.editing_index = Some(index);
                 let params = match &self.owner_layer {
                     Some(lid) => serde_json::json!({
                         "slide": self.owner_slide,
@@ -2462,6 +2494,18 @@ fn event_object_id(event: &Event) -> Option<&str> {
     }
 }
 
+/// Report that the trigger in the editor changed or was removed while it was
+/// open, and return the message.
+fn report_trigger_gone(editor: &mut crate::Editor) -> String {
+    let e = tl!(
+        "The trigger changed or was removed while the editor was open, so it was not saved. Open it again to edit it."
+    )
+    .to_string();
+    editor.ui.last_error = Some((e.clone(), editor.ui.current_time));
+    editor.ui.error_history.push(e.clone());
+    e
+}
+
 /// Height of one row in the Triggers tab list.
 const TRIGGER_ROW_HEIGHT: f32 = coursecraft_render::CONTROL_COMPACT + coursecraft_render::SPACE_SM;
 
@@ -2481,21 +2525,21 @@ pub fn show_trigger_editor_window(editor: &mut crate::Editor, ctx: &egui::Contex
         "New trigger"
     };
 
+    // The trigger being edited was undone, removed or changed elsewhere: close,
+    // and say why, since the unsaved edits are dropped.
+    if let Some(idx) = form.editing_index
+        && form.resolve_index(&editor.session.course, idx).is_none()
+    {
+        report_trigger_gone(editor);
+        return;
+    }
+
     let course = &editor.session.course;
     let Some(slide) = course.slide(&form.owner_slide) else {
         return;
     };
-    let owner_triggers = match &form.owner_layer {
-        Some(lid) => {
-            let Some(layer) = slide.layer(lid) else {
-                return;
-            };
-            &layer.triggers
-        }
-        None => &slide.triggers,
-    };
-    if let Some(idx) = form.editing_index
-        && idx >= owner_triggers.len()
+    if let Some(lid) = &form.owner_layer
+        && slide.layer(lid).is_none()
     {
         return;
     }
