@@ -523,7 +523,7 @@ fn d9_5_forbidden_content_on_master_slides() {
 }
 
 #[test]
-fn d9_6_refuse_slide_set_master_on_question_bank_slide() {
+fn d9_6_slide_set_master_sets_and_clears_on_question_bank_slide() {
     let mut h = setup_harness(multi_scene_course());
     let mid = h
         .editor
@@ -550,16 +550,27 @@ fn d9_6_refuse_slide_set_master_on_question_bank_slide() {
         .expect("bank slide id")
         .to_owned();
 
-    let err = h
-        .editor
-        .session
-        .execute(
+    h.editor
+        .run(
             "slide.set_master",
-            &serde_json::json!({ "slides": [bslide], "master": mid }),
+            serde_json::json!({ "slides": [bslide.clone()], "master": mid }),
         )
-        .expect_err("bank slide cannot take a master");
-    let msg = err.to_string();
-    assert!(msg.contains("question-bank") || msg.contains("bank"));
+        .expect("bank slide takes a master");
+    let master_of = |h: &crate::test_harness::TestHarness| {
+        h.editor
+            .session
+            .course
+            .bank_slide(&bslide)
+            .and_then(|slide| slide.master.clone())
+    };
+    assert_eq!(master_of(&h), Some(mid));
+    h.editor
+        .run(
+            "slide.set_master",
+            serde_json::json!({ "slides": [bslide.clone()], "master": null }),
+        )
+        .expect("clear the bank slide's master");
+    assert_eq!(master_of(&h), None);
 }
 
 #[test]

@@ -309,6 +309,8 @@ mod toolbar_menu_tests;
 #[cfg(test)]
 mod translate_tests;
 #[cfg(test)]
+mod trigger_editor_stale_tests;
+#[cfg(test)]
 mod trigger_problems_tests;
 #[cfg(test)]
 mod trigger_speed_tests;

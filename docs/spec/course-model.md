@@ -490,6 +490,7 @@ Validation rules for `Group` records and interactive groups:
 - A master is never reachable in play. `Course::play_slide` looks at scenes then bank slides, and `Course::slide_index` looks only at scenes; `Course::slide` and `Course::slide_mut` also find masters so object commands and canvas tools work on them unchanged. They never find templates.
 - Slide ids are unique across scenes, masters, templates and banks.
 - A warning is reported when `slide.master` names a master that does not exist; the slide then draws with no master.
+- Scene slides and question-bank slides take a master. `slide.set_master` sets it on either, and clears it when `master` is omitted or null; `bank.move_slide` keeps the moved slide's master; `master.delete` clears the master on scene slides, bank slides and templates (undo restores it). A bank slide naming a master that does not exist gets the same warning as a scene slide.
 - Templates are authoring-only deep clones of a slide, including its objects, layers, triggers and question. They are never played or exported. Adding one to the course clones it with fresh ids using the same id remapping as `slide.duplicate`, keeping `slide.master`.
 
 **Publishing.** Publish collects media from slides and masters. Templates are stripped from the published `course.json`, and their media is not collected. A course with no templates publishes byte-identically.

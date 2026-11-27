@@ -347,16 +347,36 @@ pub fn output_excerpt(output: &str) -> String {
     out
 }
 
+/// Prefixes of the API keys hidden from quoted output (`sk-ant-…` starts with `sk-`).
+const KEY_PREFIXES: [&str; 2] = ["sk-", "pk-"];
+
+/// A character that can be part of a key.
+fn is_key_char(character: char) -> bool {
+    character.is_ascii_alphanumeric() || character == '-' || character == '_'
+}
+
+/// Replace every key with `[hidden]`. A key starts with one of
+/// [`KEY_PREFIXES`] where no key character comes before it, and runs as long as
+/// key characters follow, so quotes, commas and full stops around it stay.
 fn redact_keys(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
-    for token in text.split_inclusive(char::is_whitespace) {
-        let word = token.trim_end_matches(char::is_whitespace);
-        if word.starts_with("sk-") || word.starts_with("pk-") {
+    let mut rest = text;
+    let mut previous: Option<char> = None;
+    while let Some(character) = rest.chars().next() {
+        let at_boundary = !previous.is_some_and(|p| is_key_char(p) || p.is_alphanumeric());
+        if at_boundary && KEY_PREFIXES.iter().any(|prefix| rest.starts_with(prefix)) {
+            let end = rest
+                .char_indices()
+                .find(|&(_, c)| !is_key_char(c))
+                .map_or(rest.len(), |(index, _)| index);
             out.push_str("[hidden]");
-            out.push_str(token.get(word.len()..).unwrap_or(""));
-        } else {
-            out.push_str(token);
+            previous = rest.get(..end).and_then(|key| key.chars().last());
+            rest = rest.get(end..).unwrap_or("");
+            continue;
         }
+        out.push(character);
+        previous = Some(character);
+        rest = rest.get(character.len_utf8()..).unwrap_or("");
     }
     out
 }
@@ -584,6 +604,29 @@ mod tests {
         );
         assert!(!sentence.contains("sk-very-secret-value"), "{sentence}");
         assert!(sentence.contains("[hidden]"), "{sentence}");
+    }
+
+    #[test]
+    fn keys_next_to_punctuation_are_hidden() {
+        let cases = [
+            ("key \"sk-abc123\". done", "key \"[hidden]\". done"),
+            ("key sk-abc123, then", "key [hidden], then"),
+            ("key sk-abc123.", "key [hidden]."),
+            ("(sk-ant-api03-XyZ_9)", "([hidden])"),
+            ("key='pk-live_42';", "key='[hidden]';"),
+            ("a:sk-one,b:sk-two", "a:[hidden],b:[hidden]"),
+            ("sk-abc\npk-def", "[hidden]\n[hidden]"),
+        ];
+        for (input, expected) in cases {
+            assert_eq!(redact_keys(input), expected, "{input}");
+        }
+    }
+
+    #[test]
+    fn words_that_only_contain_a_prefix_are_kept() {
+        for text in ["disk-image full", "task-pk-list", "risk-free", "naïve sk"] {
+            assert_eq!(redact_keys(text), text);
+        }
     }
 
     #[test]
