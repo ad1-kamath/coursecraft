@@ -1341,18 +1341,27 @@ fn paint_shape_outline_effect(
     dimmed: bool,
     opacity: f32,
 ) {
-    if !scale.is_finite() || scale <= 0.0 {
+    if !scale.is_finite() || scale <= 0.0 || !outline.width.is_finite() || outline.width <= 0.0 {
         return;
     }
     let base = apply_dim(color, dimmed, opacity);
+    if base.a() == 0 {
+        return;
+    }
     let max_layers = active_max_effect_layers(painter.ctx());
     for (dx, dy, expansion, alpha) in effect_copies(offset, radius, glow, max_layers) {
         if alpha <= 0.0 {
             continue;
         }
         let layer_color = base.gamma_multiply(alpha.clamp(0.0, 1.0));
+        if layer_color.a() == 0 {
+            continue;
+        }
         let layer_rect = rect.translate(vec2(dx, dy));
         let layer_width = (outline.width + (expansion * 2.0) / scale).max(0.5 / scale);
+        if !layer_width.is_finite() {
+            continue;
+        }
         let layer_outline = ResolvedOutline {
             color: layer_color,
             width: layer_width,
@@ -2414,7 +2423,7 @@ fn paint_path_silhouette(
     extra_width: f32,
     fill_interior: bool,
 ) {
-    if !screen_rect.is_positive() || scale <= 0.0 {
+    if !screen_rect.is_positive() || !scale.is_finite() || scale <= 0.0 || color.a() == 0 {
         return;
     }
     let points: Vec<crate::shape_geometry::Pt> = path
@@ -2430,6 +2439,19 @@ fn paint_path_silhouette(
     let base_width = path.outline.as_ref().map_or(2.0, |outline| outline.width);
     let width = (base_width * scale + extra_width * 2.0).max(0.5);
     let fill = fill_interior.then_some(color);
+    let (dash, dash_pattern, join) = if !fill_interior && let Some(outline) = &path.outline {
+        (
+            outline.dash,
+            outline.dash_pattern.clone(),
+            StrokeJoin::from_outline(outline.join, outline.miter_limit),
+        )
+    } else {
+        (
+            coursecraft_course::DashStyle::Solid,
+            None,
+            StrokeJoin::default(),
+        )
+    };
     let mesh = path_mesh(
         &points,
         path.style,
@@ -2440,9 +2462,9 @@ fn paint_path_silhouette(
         &PathMeshSpec {
             color,
             width,
-            dash: coursecraft_course::DashStyle::Solid,
-            dash_pattern: None,
-            join: StrokeJoin::default(),
+            dash,
+            dash_pattern,
+            join,
             fill,
             pixels_per_point: painter.pixels_per_point(),
         },
@@ -2950,7 +2972,7 @@ pub fn paint_items(
                 let has_fill = (!solid_override && fill_style.is_some()) || effective_fill.a() > 0;
                 let visible_outline = outline
                     .as_ref()
-                    .filter(|o| o.color.a() > 0 && o.width > 0.0);
+                    .filter(|o| o.color.a() > 0 && o.width.is_finite() && o.width > 0.0);
                 if let Some(shadow) = &item.shadow {
                     if has_fill {
                         paint_shape_effect(
@@ -3122,7 +3144,7 @@ pub fn paint_items(
                 let has_outline = path
                     .outline
                     .as_ref()
-                    .is_some_and(|o| o.color.a() > 0 && o.width > 0.0);
+                    .is_some_and(|o| o.color.a() > 0 && o.width.is_finite() && o.width > 0.0);
                 if has_fill || has_outline {
                     let max_layers = active_max_effect_layers(item_painter.ctx());
                     if let Some(shadow) = &item.shadow {

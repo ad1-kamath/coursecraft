@@ -122,11 +122,17 @@ fn red_glow() -> serde_json::Value {
 fn m48_s4_01_rect_shadow_fill_on_fills_silhouette() {
     let course = make_rect_course("#2F6FEB", None, Some(red_shadow()), None);
     let img = render(&course);
-    // Shadow appears outside bottom-right edge (rect is 200..400 x 200..320, offset +16,+16).
+    // Shadow appears outside bottom-right edge (rect is 200..400 x 200..320, offset +16,+16),
+    // including the filled silhouette region between the rect edge (400) and offset edge (416).
     let shadow_count = count_red_pixels_in(&img, 402, 220, 420, 340);
     assert!(
         shadow_count > 0,
         "expected red shadow pixels outside right edge"
+    );
+    assert!(
+        has_red_tint(pixel(&img, 406, 260)),
+        "expected filled shadow silhouette at (406, 260), got {:?}",
+        pixel(&img, 406, 260)
     );
     // Interior centre is filled with #2F6FEB.
     let center = pixel(&img, 300, 260);
@@ -145,11 +151,22 @@ fn m48_s4_02_rect_shadow_fill_off_outline_on_follows_outline_only() {
         None,
     );
     let img = render(&course);
-    // Shadow pixels appear near the offset outline edges (e.g. around x=416, y=220..336).
-    let shadow_count = count_red_pixels_in(&img, 405, 220, 422, 338);
+    // Shadow pixels appear near the offset outline edges (e.g. around x=416, y=220..336
+    // and along the offset left/top strokes inside the transparent rect at x=216 / y=216).
+    let shadow_count = count_red_pixels_in(&img, 412, 220, 422, 338);
     assert!(
         shadow_count > 0,
         "expected red outline shadow pixels near offset right edge"
+    );
+    assert!(
+        count_red_pixels_in(&img, 212, 240, 220, 300) > 0,
+        "expected red outline shadow pixels along offset left edge"
+    );
+    // Gap between rect right edge (400) and offset right outline (416) stays pure white.
+    assert!(
+        is_pure_white(pixel(&img, 406, 260)),
+        "expected pure white gap at (406, 260) for outline-only shadow, got {:?}",
+        pixel(&img, 406, 260)
     );
     // Interior centre remains pure white (slide background).
     assert!(
@@ -300,12 +317,19 @@ fn m48_s4_08_non_rect_shape_button_and_path_nofill_effects() {
     .to_string();
     let btn_img = render(&Course::from_json(&btn_json).expect("button course"));
     assert!(
-        count_red_pixels_in(&btn_img, 180, 180, 430, 310) == 0,
+        all_white(&btn_img),
         "expected no red shadow/glow for transparent button"
     );
+    // A filled button still casts its shadow/glow.
+    let btn_filled_json = btn_json.replace("\"#00000000\"", "\"#2F6FEB\"");
+    let btn_filled_img = render(&Course::from_json(&btn_filled_json).expect("filled button"));
+    assert!(
+        count_red_pixels_in(&btn_filled_img, 402, 210, 420, 295) > 0,
+        "expected filled button to keep its shadow/glow"
+    );
 
-    // (c) Closed path with no fill + outline casts outline-only shadow with white centre,
-    //     and with no fill + no outline casts no shadow.
+    // (c) Closed path with no fill + outline casts outline-only shadow and glow with white centre,
+    //     and with no fill + no outline casts neither shadow nor glow.
     let path_outline_json = serde_json::json!({
         "schema_version": 1,
         "id": "m48-s4-path1",
@@ -343,12 +367,60 @@ fn m48_s4_08_non_rect_shape_button_and_path_nofill_effects() {
     let path_outline_img =
         render(&Course::from_json(&path_outline_json).expect("path outline course"));
     assert!(
-        count_red_pixels_in(&path_outline_img, 405, 220, 422, 338) > 0,
+        count_red_pixels_in(&path_outline_img, 412, 220, 422, 338) > 0,
         "expected red shadow pixels near offset path outline"
     );
     assert!(
         is_pure_white(pixel(&path_outline_img, 300, 260)),
         "expected pure white path interior"
+    );
+
+    let path_glow_json = serde_json::json!({
+        "schema_version": 1,
+        "id": "m48-s4-path-glow",
+        "title": "PathGlow",
+        "slide_size": { "w": 1280, "h": 720 },
+        "scenes": [{
+            "id": "sc1",
+            "title": "S",
+            "slides": [{
+                "id": "slide-1",
+                "title": "S1",
+                "background": "#FFFFFF",
+                "duration_ms": 5000,
+                "objects": [{
+                    "id": "path-1",
+                    "frame": { "x": 200, "y": 200, "w": 200, "h": 120 },
+                    "glow": red_glow(),
+                    "kind": {
+                        "type": "path",
+                        "points": [
+                            { "x": 0.0, "y": 0.0 },
+                            { "x": 1.0, "y": 0.0 },
+                            { "x": 1.0, "y": 1.0 },
+                            { "x": 0.0, "y": 1.0 }
+                        ],
+                        "closed": true,
+                        "fill": "#00000000",
+                        "outline": { "color": "#111111", "width": 4.0 }
+                    }
+                }]
+            }]
+        }]
+    })
+    .to_string();
+    let path_glow_img = render(&Course::from_json(&path_glow_json).expect("path glow course"));
+    assert!(
+        count_red_pixels_in(&path_glow_img, 403, 210, 415, 310) > 0,
+        "expected red glow pixels outside path outline"
+    );
+    assert!(
+        count_red_pixels_in(&path_glow_img, 385, 210, 397, 310) > 0,
+        "expected red glow pixels inside path outline"
+    );
+    assert!(
+        is_pure_white(pixel(&path_glow_img, 300, 260)),
+        "expected pure white path interior under outline-only glow"
     );
 
     let path_empty_json = serde_json::json!({
@@ -368,6 +440,7 @@ fn m48_s4_08_non_rect_shape_button_and_path_nofill_effects() {
                     "id": "path-1",
                     "frame": { "x": 200, "y": 200, "w": 200, "h": 120 },
                     "shadow": red_shadow(),
+                    "glow": red_glow(),
                     "kind": {
                         "type": "path",
                         "points": [
@@ -388,7 +461,7 @@ fn m48_s4_08_non_rect_shape_button_and_path_nofill_effects() {
     let path_empty_img = render(&Course::from_json(&path_empty_json).expect("path empty course"));
     assert!(
         all_white(&path_empty_img),
-        "expected no shadow when path has neither fill nor outline"
+        "expected no shadow or glow when path has neither fill nor outline"
     );
 
     // (d) Image with shadow is unaffected (still draws its shadow).
