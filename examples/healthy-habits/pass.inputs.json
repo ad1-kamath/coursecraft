@@ -12,6 +12,10 @@
  },
  {
   "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
   "ms": 1200
  },
  {
@@ -29,7 +33,15 @@
  },
  {
   "input": "tick",
-  "ms": 7000
+  "ms": 9000
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "tick",
+  "ms": 12000
  },
  {
   "input": "click",
@@ -37,7 +49,7 @@
  },
  {
   "input": "tick",
-  "ms": 4500
+  "ms": 11000
  },
  {
   "input": "click",
@@ -53,7 +65,7 @@
  },
  {
   "input": "tick",
-  "ms": 4500
+  "ms": 7500
  },
  {
   "input": "click",
@@ -81,7 +93,31 @@
  },
  {
   "input": "tick",
-  "ms": 2500
+  "ms": 9000
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "tick",
+  "ms": 6000
+ },
+ {
+  "input": "click",
+  "object": "move_intro_next"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "tick",
+  "ms": 4000
  },
  {
   "input": "marker_toggled",
@@ -92,19 +128,48 @@
  },
  {
   "input": "tick",
-  "ms": 1200
+  "ms": 800
  },
  {
   "input": "marker_toggled",
   "object": "d_m2"
  },
  {
+  "input": "markers_closed"
+ },
+ {
   "input": "tick",
-  "ms": 1200
+  "ms": 800
+ },
+ {
+  "input": "marker_toggled",
+  "object": "d_m3"
+ },
+ {
+  "input": "markers_closed"
+ },
+ {
+  "input": "tick",
+  "ms": 800
+ },
+ {
+  "input": "marker_toggled",
+  "object": "d_m4"
+ },
+ {
+  "input": "markers_closed"
+ },
+ {
+  "input": "tick",
+  "ms": 800
  },
  {
   "input": "click",
   "object": "desk_next"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
  },
  {
   "input": "tick",
@@ -113,6 +178,10 @@
  {
   "input": "click",
   "object": "v_play"
+ },
+ {
+  "input": "tick",
+  "ms": 1200
  },
  {
   "input": "media_time",
@@ -133,11 +202,23 @@
  },
  {
   "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
   "ms": 1200
+ },
+ {
+  "input": "tick",
+  "ms": 13000
  },
  {
   "input": "click",
   "object": "e_start"
+ },
+ {
+  "input": "tick",
+  "ms": 1200
  },
  {
   "input": "tick",
@@ -150,6 +231,10 @@
  {
   "input": "click",
   "object": "eyes_next"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
  },
  {
   "input": "tick",
@@ -169,13 +254,17 @@
  },
  {
   "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
   "ms": 1200
  },
  {
   "input": "object_dropped",
   "object": "so_water",
-  "x": 665,
-  "y": 230
+  "x": 700,
+  "y": 300
  },
  {
   "input": "tick",
@@ -184,8 +273,8 @@
  {
   "input": "object_dropped",
   "object": "so_lunch",
-  "x": 955,
-  "y": 230
+  "x": 990,
+  "y": 300
  },
  {
   "input": "tick",
@@ -194,8 +283,8 @@
  {
   "input": "object_dropped",
   "object": "so_stairs",
-  "x": 665,
-  "y": 330
+  "x": 700,
+  "y": 420
  },
  {
   "input": "tick",
@@ -204,8 +293,8 @@
  {
   "input": "object_dropped",
   "object": "so_scroll",
-  "x": 955,
-  "y": 330
+  "x": 990,
+  "y": 420
  },
  {
   "input": "tick",
@@ -217,178 +306,7 @@
  },
  {
   "input": "tick",
-  "ms": 20000
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "breathe_next"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "step_next1"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "steps_next"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "set_input_value",
-  "object": "ci_slider",
-  "value": 8
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "set_input_value",
-  "object": "ci_dial",
-  "value": 6
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "checkin_next"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "tab_button2"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "resets_next"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "scenario_choice2"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "scenario_next"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "timeline_point1"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "day_next"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "accordion_header1"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "faq_next_l1"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "grid_tile_shape1"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "tips_next"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "hotspot_marker1"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "office_next"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "set_input_value",
-  "object": "pl_radio",
-  "value": "breathe"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "plan_next"
- },
- {
-  "input": "tick",
-  "ms": 1200
- },
- {
-  "input": "click",
-  "object": "more_next"
+  "ms": 9000
  },
  {
   "input": "tick",
@@ -416,6 +334,92 @@
  },
  {
   "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "tick",
+  "ms": 8000
+ },
+ {
+  "input": "click",
+  "object": "breathe_intro_next"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "tick",
+  "ms": 26000
+ },
+ {
+  "input": "click",
+  "object": "breathe_next"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "click",
+  "object": "step_next1"
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "click",
+  "object": "steps_next"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "set_input_value",
+  "object": "ci_slider",
+  "value": 8
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "set_input_value",
+  "object": "ci_slider2",
+  "value": 2
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "click",
+  "object": "checkin_next"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
   "ms": 1200
  },
  {
@@ -424,15 +428,15 @@
  },
  {
   "input": "tick",
-  "ms": 1200
+  "ms": 400
  },
  {
   "input": "select_choice",
-  "choice": "b"
+  "choice": "c"
  },
  {
   "input": "tick",
-  "ms": 1200
+  "ms": 400
  },
  {
   "input": "select_choice",
@@ -440,7 +444,7 @@
  },
  {
   "input": "tick",
-  "ms": 1200
+  "ms": 400
  },
  {
   "input": "click",
@@ -456,11 +460,121 @@
  },
  {
   "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "click",
+  "object": "connect_intro_next"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "click",
+  "object": "scenario_choice2"
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "click",
+  "object": "scenario_next"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "click",
+  "object": "timeline_point1"
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "click",
+  "object": "day_next"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "click",
+  "object": "grid_tile_shape1"
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "click",
+  "object": "tips_next"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "set_input_value",
+  "object": "pl_radio",
+  "value": "breathe"
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "set_input_value",
+  "object": "pl_minutes",
+  "value": 15
+ },
+ {
+  "input": "tick",
+  "ms": 1200
+ },
+ {
+  "input": "click",
+  "object": "plan_next"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
   "ms": 1200
  },
  {
   "input": "select_choice",
-  "choice": "false"
+  "choice": "true"
  },
  {
   "input": "tick",
@@ -477,6 +591,10 @@
  {
   "input": "click",
   "object": "q3_Correct1_go"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
  },
  {
   "input": "tick",
@@ -501,6 +619,14 @@
  {
   "input": "click",
   "object": "q4_Correct1_go"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
+  "ms": 1200
  },
  {
   "input": "sequence_moved",
@@ -544,6 +670,10 @@
  },
  {
   "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
   "ms": 1200
  },
  {
@@ -553,7 +683,7 @@
  },
  {
   "input": "tick",
-  "ms": 1200
+  "ms": 400
  },
  {
   "input": "match_selected",
@@ -562,7 +692,7 @@
  },
  {
   "input": "tick",
-  "ms": 1200
+  "ms": 400
  },
  {
   "input": "match_selected",
@@ -571,7 +701,7 @@
  },
  {
   "input": "tick",
-  "ms": 1200
+  "ms": 400
  },
  {
   "input": "click",
@@ -587,12 +717,16 @@
  },
  {
   "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
   "ms": 1200
  },
  {
   "input": "hotspot_clicked",
-  "x": 230,
-  "y": 205
+  "x": 580,
+  "y": 225
  },
  {
   "input": "tick",
@@ -612,51 +746,55 @@
  },
  {
   "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
   "ms": 1200
  },
  {
   "input": "drag_dropped",
   "item": "dd_water",
   "target": "dd_move",
-  "x": 225,
+  "x": 228,
   "y": 440
  },
  {
   "input": "tick",
-  "ms": 1200
+  "ms": 400
  },
  {
   "input": "drag_dropped",
   "item": "dd_stairs",
   "target": "dd_move",
-  "x": 225,
+  "x": 228,
   "y": 440
  },
  {
   "input": "tick",
-  "ms": 1200
+  "ms": 400
  },
  {
   "input": "drag_dropped",
   "item": "dd_count",
   "target": "dd_breathe",
-  "x": 535,
+  "x": 528,
   "y": 440
  },
  {
   "input": "tick",
-  "ms": 1200
+  "ms": 400
  },
  {
   "input": "drag_dropped",
   "item": "dd_walk",
   "target": "dd_connect",
-  "x": 845,
+  "x": 828,
   "y": 440
  },
  {
   "input": "tick",
-  "ms": 1200
+  "ms": 400
  },
  {
   "input": "click",
@@ -669,6 +807,10 @@
  {
   "input": "click",
   "object": "q8_Correct1_go"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
  },
  {
   "input": "tick",
@@ -697,6 +839,10 @@
  },
  {
   "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
   "ms": 1200
  },
  {
@@ -721,15 +867,23 @@
  },
  {
   "input": "tick",
-  "ms": 500
+  "ms": 9000
  },
  {
   "input": "tick",
   "ms": 1200
  },
  {
+  "input": "tick",
+  "ms": 6000
+ },
+ {
   "input": "click",
   "object": "passed_finish1"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
  },
  {
   "input": "tick",
@@ -757,6 +911,10 @@
  },
  {
   "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
   "ms": 1200
  },
  {
@@ -778,6 +936,10 @@
  {
   "input": "click",
   "object": "r2_Correct1_go"
+ },
+ {
+  "input": "tick",
+  "ms": 9000
  },
  {
   "input": "tick",
@@ -805,6 +967,10 @@
  },
  {
   "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
   "ms": 1200
  },
  {
@@ -813,7 +979,15 @@
  },
  {
   "input": "tick",
+  "ms": 9000
+ },
+ {
+  "input": "tick",
   "ms": 1200
+ },
+ {
+  "input": "tick",
+  "ms": 11000
  },
  {
   "input": "click",

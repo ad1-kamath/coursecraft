@@ -1,0 +1,537 @@
+{
+ "welcome": {
+  "duration_ms": 15109,
+  "cues": [
+   [
+    0,
+    3002,
+    "Hi, and welcome to Healthy Habits at Work."
+   ],
+   [
+    3707,
+    12635,
+    "In about fifteen minutes, you'll pick up small changes to how you move, breathe and connect, that add up to calmer, more focused days."
+   ],
+   [
+    13336,
+    15109,
+    "Press Start whenever you're ready."
+   ]
+  ]
+ },
+ "name": {
+  "duration_ms": 5781,
+  "cues": [
+   [
+    0,
+    1162,
+    "First things first."
+   ],
+   [
+    1413,
+    2342,
+    "What should I call you?"
+   ],
+   [
+    2833,
+    5781,
+    "Type your name below, and I'll use it as we go."
+   ]
+  ]
+ },
+ "habits": {
+  "duration_ms": 12560,
+  "cues": [
+   [
+    0,
+    843,
+    "Here's the plan."
+   ],
+   [
+    1110,
+    4916,
+    "Three small habits: move, breathe and connect."
+   ],
+   [
+    5155,
+    8714,
+    "Open each card to see what's inside."
+   ],
+   [
+    9543,
+    12560,
+    "When you've explored all three, the ring fills up."
+   ]
+  ]
+ },
+ "h_move": {
+  "duration_ms": 10265,
+  "cues": [
+   [
+    0,
+    724,
+    "Move."
+   ],
+   [
+    1303,
+    5880,
+    "Your body is built for motion, not eight hours in one chair."
+   ],
+   [
+    6422,
+    10265,
+    "Small, frequent movement beats one long workout."
+   ]
+  ]
+ },
+ "h_breathe": {
+  "duration_ms": 6603,
+  "cues": [
+   [
+    0,
+    926,
+    "Breathe."
+   ],
+   [
+    1448,
+    6603,
+    "One minute of slow breathing can calm a racing mind between tasks."
+   ]
+  ]
+ },
+ "h_connect": {
+  "duration_ms": 6950,
+  "cues": [
+   [
+    0,
+    725,
+    "Connect."
+   ],
+   [
+    984,
+    6950,
+    "A short walk and a real conversation lift your mood more than another message thread."
+   ]
+  ]
+ },
+ "move_intro": {
+  "duration_ms": 6569,
+  "cues": [
+   [
+    0,
+    1005,
+    "Lesson one."
+   ],
+   [
+    1315,
+    2196,
+    "Move."
+   ],
+   [
+    2973,
+    6569,
+    "Let's start where you spend most of your day: your desk."
+   ]
+  ]
+ },
+ "desk": {
+  "duration_ms": 8390,
+  "cues": [
+   [
+    0,
+    3100,
+    "Your desk should fit you, not the other way round."
+   ],
+   [
+    3620,
+    8390,
+    "Tap each marker to check your screen, your chair and your feet."
+   ]
+  ]
+ },
+ "eyes": {
+  "duration_ms": 12920,
+  "cues": [
+   [
+    0,
+    2424,
+    "Screens make our eyes work hard."
+   ],
+   [
+    2878,
+    4870,
+    "Try the twenty, twenty, twenty rule."
+   ],
+   [
+    5111,
+    10420,
+    "Every twenty minutes, look at something twenty feet away, for twenty seconds."
+   ],
+   [
+    10983,
+    12920,
+    "Start the timer and give it a go."
+   ]
+  ]
+ },
+ "eyes_done": {
+  "duration_ms": 3035,
+  "cues": [
+   [
+    0,
+    823,
+    "Lovely."
+   ],
+   [
+    1238,
+    3035,
+    "Your eyes thank you."
+   ]
+  ]
+ },
+ "myth": {
+  "duration_ms": 3920,
+  "cues": [
+   [
+    0,
+    1400,
+    "Myth or fact?"
+   ],
+   [
+    1885,
+    3920,
+    "Flip each card to find out."
+   ]
+  ]
+ },
+ "sort": {
+  "duration_ms": 5660,
+  "cues": [
+   [
+    0,
+    1650,
+    "Now sort these habits."
+   ],
+   [
+    1983,
+    5660,
+    "Drag each one to helps, or hurts."
+   ]
+  ]
+ },
+ "check": {
+  "duration_ms": 4050,
+  "cues": [
+   [
+    0,
+    972,
+    "Quick check."
+   ],
+   [
+    1363,
+    4050,
+    "Pick the best answer, then press Submit."
+   ]
+  ]
+ },
+ "breathe_intro": {
+  "duration_ms": 7490,
+  "cues": [
+   [
+    0,
+    1211,
+    "Lesson two."
+   ],
+   [
+    1822,
+    2258,
+    "Breathe."
+   ],
+   [
+    3006,
+    7490,
+    "When the day speeds up, your breath is the quickest way to slow it down."
+   ]
+  ]
+ },
+ "breathe": {
+  "duration_ms": 10003,
+  "cues": [
+   [
+    0,
+    1197,
+    "Follow the circle."
+   ],
+   [
+    1953,
+    4199,
+    "Breathe in as it grows."
+   ],
+   [
+    4824,
+    6069,
+    "Hold for a moment."
+   ],
+   [
+    6793,
+    10003,
+    "And breathe out slowly, as it shrinks."
+   ]
+  ]
+ },
+ "steps": {
+  "duration_ms": 6560,
+  "cues": [
+   [
+    0,
+    4282,
+    "Here's a reset you can do anywhere, in four simple steps."
+   ],
+   [
+    4803,
+    6560,
+    "Open each step in turn."
+   ]
+  ]
+ },
+ "checkin": {
+  "duration_ms": 6822,
+  "cues": [
+   [
+    0,
+    1129,
+    "How are you feeling today?"
+   ],
+   [
+    1870,
+    2922,
+    "Move the sliders."
+   ],
+   [
+    3276,
+    6822,
+    "There are no wrong answers, and nothing here is scored."
+   ]
+  ]
+ },
+ "connect_intro": {
+  "duration_ms": 8502,
+  "cues": [
+   [
+    0,
+    1114,
+    "Lesson three."
+   ],
+   [
+    1491,
+    2268,
+    "Connect."
+   ],
+   [
+    3017,
+    8502,
+    "People who feel connected at work are happier, and they do better work too."
+   ]
+  ]
+ },
+ "scenario": {
+  "duration_ms": 9510,
+  "cues": [
+   [
+    0,
+    2200,
+    "Let's try a real moment."
+   ],
+   [
+    2897,
+    7813,
+    "Your afternoon is packed, and a colleague asks if you'd like a quick walk."
+   ],
+   [
+    8573,
+    9510,
+    "What would you do?"
+   ]
+  ]
+ },
+ "day": {
+  "duration_ms": 5766,
+  "cues": [
+   [
+    0,
+    3106,
+    "Here's what a healthy day can look like, hour by hour."
+   ],
+   [
+    3744,
+    5766,
+    "Tap each point on the timeline."
+   ]
+  ]
+ },
+ "tips": {
+  "duration_ms": 5250,
+  "cues": [
+   [
+    0,
+    2571,
+    "Six quick wins you can try this week."
+   ],
+   [
+    3187,
+    5250,
+    "Tap each tile to reveal it."
+   ]
+  ]
+ },
+ "plan": {
+  "duration_ms": 6388,
+  "cues": [
+   [
+    0,
+    1365,
+    "Now make it yours."
+   ],
+   [
+    1864,
+    6388,
+    "Choose the habits you'll try this week, and how many minutes you'll give them."
+   ]
+  ]
+ },
+ "quiz": {
+  "duration_ms": 6869,
+  "cues": [
+   [
+    0,
+    1555,
+    "Time for the final quiz."
+   ],
+   [
+    2141,
+    5332,
+    "Six questions, and you'll need eighty percent to pass."
+   ],
+   [
+    5904,
+    6869,
+    "Take your time."
+   ]
+  ]
+ },
+ "passed": {
+  "duration_ms": 4421,
+  "cues": [
+   [
+    0,
+    974,
+    "Great work."
+   ],
+   [
+    1221,
+    1970,
+    "You passed!"
+   ],
+   [
+    2434,
+    4421,
+    "Your certificate is ready for you."
+   ]
+  ]
+ },
+ "failed": {
+  "duration_ms": 6330,
+  "cues": [
+   [
+    0,
+    1320,
+    "Not quite this time."
+   ],
+   [
+    1897,
+    4700,
+    "Have another look at the lessons, and try again."
+   ],
+   [
+    5264,
+    6330,
+    "You're nearly there."
+   ]
+  ]
+ },
+ "reflect": {
+  "duration_ms": 5372,
+  "cues": [
+   [
+    0,
+    2483,
+    "Before you go, a few reflections."
+   ],
+   [
+    2948,
+    3848,
+    "These aren't scored."
+   ],
+   [
+    3848,
+    5372,
+    "They're just for you."
+   ]
+  ]
+ },
+ "certificate": {
+  "duration_ms": 3110,
+  "cues": [
+   [
+    0,
+    1405,
+    "Here's your certificate."
+   ],
+   [
+    1815,
+    3110,
+    "You've earned it."
+   ]
+  ]
+ },
+ "finish": {
+  "duration_ms": 10120,
+  "cues": [
+   [
+    0,
+    697,
+    "Well done."
+   ],
+   [
+    1501,
+    6627,
+    "Remember: small habits, repeated often, make the biggest difference."
+   ],
+   [
+    7454,
+    10120,
+    "See you tomorrow, a little healthier."
+   ]
+  ]
+ },
+ "bonus": {
+  "duration_ms": 11024,
+  "cues": [
+   [
+    0,
+    2402,
+    "A bonus tip: blink more."
+   ],
+   [
+    2932,
+    7029,
+    "When we stare at screens, we blink about half as often."
+   ],
+   [
+    7515,
+    11024,
+    "A few slow blinks keep your eyes comfortable."
+   ]
+  ]
+ }
+}
