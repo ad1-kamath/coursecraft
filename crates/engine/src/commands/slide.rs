@@ -637,6 +637,13 @@ pub(super) fn master_delete(s: &mut Session, p: &Json) -> Result<Json> {
             template.master = None;
         }
     }
+    for bank in &mut s.course.banks {
+        for slide in &mut bank.slides {
+            if slide.master.as_deref() == Some(id.as_str()) {
+                slide.master = None;
+            }
+        }
+    }
     keep_valid(s, was_valid)?;
     Ok(Json::Null)
 }
@@ -656,25 +663,28 @@ pub(super) fn slide_set_master(s: &mut Session, p: &Json) -> Result<Json> {
             "master {master:?} does not exist"
         )));
     }
-    // Only play slides in scenes can take a master; masters and bank slides cannot.
+    // Scene slides and question-bank slides take a master; masters and templates do not.
     for id in &slides {
-        if s.course.bank_slide(id).is_some() {
-            return Err(bad(
-                C,
-                format!("question-bank slide {id:?} cannot take a master"),
-            ));
-        }
         if s.course.play_slide(id).is_none() {
             return Err(EngineError::NotFound(format!(
                 "slide {id:?} does not exist"
             )));
         }
     }
-    for scene in &mut s.course.scenes {
-        for slide in &mut scene.slides {
-            if slides.iter().any(|id| id == &slide.id) {
-                slide.master = master.clone();
-            }
+    let banks = s
+        .course
+        .banks
+        .iter_mut()
+        .flat_map(|bank| bank.slides.iter_mut());
+    for slide in s
+        .course
+        .scenes
+        .iter_mut()
+        .flat_map(|scene| scene.slides.iter_mut())
+        .chain(banks)
+    {
+        if slides.iter().any(|id| id == &slide.id) {
+            slide.master = master.clone();
         }
     }
     keep_valid(s, was_valid)?;

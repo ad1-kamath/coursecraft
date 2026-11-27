@@ -10440,7 +10440,7 @@ fn execute_batch_refuses_undo_and_redo() {
 }
 
 #[test]
-fn slide_set_master_rejects_bank_slide() {
+fn slide_set_master_applies_to_bank_slide() {
     let mut s = Session::blank("BankMaster");
     let bank = bank_id(&mut s);
     let qid = ok(
@@ -10456,13 +10456,15 @@ fn slide_set_master_rejects_bank_slide() {
         .unwrap()
         .to_owned();
 
-    let err = s
-        .execute(
-            "slide.set_master",
-            &json!({ "slides": [qid], "master": master }),
-        )
-        .unwrap_err();
-    assert!(err.to_string().contains(&qid), "{err}");
+    ok(
+        &mut s,
+        "slide.set_master",
+        json!({ "slides": [qid], "master": master }),
+    );
+    assert_eq!(
+        s.course.bank_slide(&qid).unwrap().master.as_deref(),
+        Some(master.as_str())
+    );
 }
 
 #[test]

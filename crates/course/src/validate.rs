@@ -841,6 +841,25 @@ fn check_masters_and_templates(course: &Course, cx: &mut Ctx<'_>, slide_ids: &BT
             }
         }
     }
+    for (bi, bank) in course.banks.iter().enumerate() {
+        for (li, slide) in bank.slides.iter().enumerate() {
+            if let Some(ref master) = slide.master
+                && !master_ids.contains(master.as_str())
+            {
+                cx.with_field_index("banks", bi, |cx| {
+                    cx.with_field_index("slides", li, |cx| {
+                        cx.warn_at(
+                            "master",
+                            format!(
+                                "question-bank slide {:?} names master {master:?}, which does not exist; it draws with no master",
+                                slide.id
+                            ),
+                        );
+                    });
+                });
+            }
+        }
+    }
 }
 
 fn check_banks<'a>(course: &'a Course, cx: &mut Ctx<'a>, slide_ids: &mut BTreeSet<&'a str>) {

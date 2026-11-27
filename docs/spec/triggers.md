@@ -16,7 +16,7 @@ A slide may name a **master** (`slide.master`). At play time the master is drawn
 - ignore timing and animation: they are always shown, except an object whose `initial_state` is `hidden`;
 - add no events and no states. A master has no triggers, no layers and no question, and validation rejects one that does.
 
-A master's background applies when the slide has none of its own. Masters are authoring and drawing only: `coursecraft-logic` never reaches one, jump targets naming a master are invalid, and a saved suspend state never resumes on one.
+Question-bank slides take a master like scene slides, and a drawn bank slide draws under it. A master's background applies when the slide has none of its own. Masters are authoring and drawing only: `coursecraft-logic` never reaches one, jump targets naming a master are invalid, and a saved suspend state never resumes on one.
 
 ## Inputs → events
 
