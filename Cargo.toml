@@ -46,6 +46,8 @@ clap = { version = "4", features = ["derive"] }
 # interface translations. Same craft-libs commit as DeckCraft.
 craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "63196e66f3033a6623eb629af95a104d26986725", version = "=0.1.0" }
 craft-i18n = { git = "https://github.com/storytold/craft-libs", rev = "63196e66f3033a6623eb629af95a104d26986725", version = "=0.1.0" }
+# Windows metafiles (EMF, WMF, EMF+): clip-art pictures, converted to SVG.
+craft-metafile = { git = "https://github.com/storytold/craft-libs", rev = "63196e66f3033a6623eb629af95a104d26986725", version = "=0.1.0" }
 # The Craft suite's update check, prompt and self-update, as DeckCraft uses it.
 craft-update = { git = "https://github.com/storytold/craft-libs", rev = "63196e66f3033a6623eb629af95a104d26986725", version = "=0.1.0", features = ["egui"] }
 egui = "0.37"
@@ -66,7 +68,8 @@ skrifa = "0.44"
 velato = { version = "0.12", default-features = false }
 kurbo = "0.13"
 peniko = "0.6"
-resvg = { version = "0.49", default-features = false }
+# Raster images embedded in SVGs (data URLs only; sizes checked in coursecraft-media).
+resvg = { version = "0.49", default-features = false, features = ["raster-images"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
 semver = "1"
 

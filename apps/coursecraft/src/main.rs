@@ -598,10 +598,10 @@ impl EditorApp {
         }
         rfd::FileDialog::new()
             .add_filter(
-                "Media (*.png, *.jpg, *.jpeg, *.webp, *.gif, *.svg, *.mp3, *.wav, *.ogg, *.m4a, *.mp4, *.webm, *.json, *.lottie, *.vtt, *.ttf, *.otf)",
+                "Media (*.png, *.jpg, *.jpeg, *.webp, *.gif, *.svg, *.emf, *.wmf, *.mp3, *.wav, *.ogg, *.m4a, *.mp4, *.webm, *.json, *.lottie, *.vtt, *.ttf, *.otf)",
                 &[
-                    "png", "jpg", "jpeg", "webp", "gif", "svg", "mp3", "wav", "ogg", "m4a", "mp4",
-                    "webm", "json", "lottie", "vtt", "ttf", "otf",
+                    "png", "jpg", "jpeg", "webp", "gif", "svg", "emf", "wmf", "mp3", "wav", "ogg",
+                    "m4a", "mp4", "webm", "json", "lottie", "vtt", "ttf", "otf",
                 ],
             )
             .pick_files()
@@ -616,10 +616,10 @@ impl EditorApp {
         }
         rfd::FileDialog::new()
             .add_filter(
-                "Media (*.png, *.jpg, *.jpeg, *.webp, *.gif, *.svg, *.mp3, *.wav, *.ogg, *.m4a, *.mp4, *.webm, *.json, *.lottie, *.vtt, *.ttf, *.otf)",
+                "Media (*.png, *.jpg, *.jpeg, *.webp, *.gif, *.svg, *.emf, *.wmf, *.mp3, *.wav, *.ogg, *.m4a, *.mp4, *.webm, *.json, *.lottie, *.vtt, *.ttf, *.otf)",
                 &[
-                    "png", "jpg", "jpeg", "webp", "gif", "svg", "mp3", "wav", "ogg", "m4a", "mp4",
-                    "webm", "json", "lottie", "vtt", "ttf", "otf",
+                    "png", "jpg", "jpeg", "webp", "gif", "svg", "emf", "wmf", "mp3", "wav", "ogg",
+                    "m4a", "mp4", "webm", "json", "lottie", "vtt", "ttf", "otf",
                 ],
             )
             .pick_file()
@@ -1764,6 +1764,8 @@ impl EditorApp {
                 || lower.ends_with(".gif")
                 || lower.ends_with(".svg")
                 || lower.ends_with(".svgz")
+                || lower.ends_with(".emf")
+                || lower.ends_with(".wmf")
                 || lower.ends_with(".bmp")
                 || lower.ends_with(".ico")
                 || lower.ends_with(".tif")
@@ -3416,8 +3418,8 @@ impl EditorApp {
                         wasm_bindgen_futures::spawn_local(async move {
                             let file = rfd::AsyncFileDialog::new()
                                 .add_filter(
-                                    "Images (*.png, *.jpg, *.jpeg, *.webp, *.gif, *.svg)",
-                                    &["png", "jpg", "jpeg", "webp", "gif", "svg"],
+                                    "Images (*.png, *.jpg, *.jpeg, *.webp, *.gif, *.svg, *.emf, *.wmf)",
+                                    &["png", "jpg", "jpeg", "webp", "gif", "svg", "emf", "wmf"],
                                 )
                                 .pick_file()
                                 .await;

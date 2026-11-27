@@ -132,6 +132,9 @@ pub enum SkipKind {
     HiddenSlide,
     /// Image parts that could not be decoded.
     UndecodablePicture,
+    /// EMF or WMF clip art imported as SVG with part of it left out
+    /// (records the reader does not play, or characters no font draws).
+    MetafilePart,
     /// Package-escaping or external relationship targets.
     ExternalTarget,
     /// Invalid, huge, or non-numeric EMU values, or a negative size.
@@ -162,6 +165,7 @@ impl std::fmt::Display for SkipKind {
             Self::EmptyPlaceholder => write!(f, "Empty placeholder"),
             Self::HiddenSlide => write!(f, "Hidden slide"),
             Self::UndecodablePicture => write!(f, "Undecodable picture"),
+            Self::MetafilePart => write!(f, "Partly read clip art"),
             Self::ExternalTarget => write!(f, "External target"),
             Self::InvalidGeometry => write!(f, "Invalid geometry"),
             Self::RotationOrFlip => write!(f, "Rotation/flip"),
@@ -290,6 +294,7 @@ impl ImportReport {
                         "undecodable pictures"
                     }
                 }
+                SkipKind::MetafilePart => "partly read clip art",
                 SkipKind::ExternalTarget => {
                     if count == 1 {
                         "external target"
@@ -5825,18 +5830,15 @@ fn src_rect_crop(blip_fill: &XmlNode) -> Option<coursecraft_course::CropRect> {
     Some(crop)
 }
 
-/// Resolve a picture relationship to its archive bytes.
-fn relationship_picture<'a>(
-    embed_id: &str,
-    cx: &'a SlideContext<'_, '_>,
-) -> Option<(&'a str, Arc<[u8]>)> {
+/// Resolve a picture relationship to its archive path and bytes.
+fn relationship_picture(embed_id: &str, cx: &SlideContext<'_, '_>) -> Option<(String, Arc<[u8]>)> {
     let rel = cx.slide_rels.get(embed_id)?;
     if rel.is_external {
         return None;
     }
     let target = rel.target.as_deref()?;
     let bytes = cx.entries.get(target)?;
-    Some((target, bytes))
+    Some((target.to_owned(), bytes))
 }
 
 fn is_svg_path(path: &str) -> bool {
@@ -5853,21 +5855,68 @@ fn picture_bytes_are_valid(path: &str, bytes: &[u8]) -> bool {
     }
 }
 
+/// A picture part ready to store: EMF and WMF clip art becomes SVG (vectors
+/// kept, renamed `.svg`); other formats are kept as they are when they decode.
+fn usable_picture(
+    path: String,
+    bytes: &[u8],
+    tracker: &mut SlideTracker,
+) -> Option<(String, Vec<u8>)> {
+    let metafile = coursecraft_media::is_metafile_name(&path)
+        || (!is_svg_path(&path) && coursecraft_media::is_metafile(bytes));
+    if !metafile {
+        return picture_bytes_are_valid(&path, bytes).then(|| (path, bytes.to_vec()));
+    }
+    let converted =
+        coursecraft_media::metafile_to_svg(bytes, &coursecraft_media::BundledFonts).ok()?;
+    if !picture_bytes_are_valid("picture.svg", &converted.svg) {
+        return None;
+    }
+    let name = std::path::Path::new(&path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("picture.emf");
+    let mut lost = Vec::new();
+    if converted.skipped_records > 0 {
+        lost.push(format!("{} unread records", converted.skipped_records));
+    }
+    if converted.missing_glyphs > 0 {
+        lost.push(format!(
+            "{} characters no font draws",
+            converted.missing_glyphs
+        ));
+    }
+    if !lost.is_empty() {
+        tracker.report_skip(
+            SkipKind::MetafilePart,
+            format!("{name} imported as SVG without {}", lost.join(" and ")),
+        );
+    }
+    let folder = path.rsplit_once('/').map_or("", |(folder, _)| folder);
+    let svg_name = coursecraft_media::metafile_svg_name(name);
+    let svg_path = if folder.is_empty() {
+        svg_name
+    } else {
+        format!("{folder}/{svg_name}")
+    };
+    Some((svg_path, converted.svg))
+}
+
 /// Pick the picture part for a `a:blip`: an `asvg:svgBlip` vector part wins
 /// over the PNG fallback that older PowerPoint versions need.
-fn preferred_picture(blip: &XmlNode, cx: &SlideContext<'_, '_>) -> Option<(String, Vec<u8>)> {
+fn preferred_picture(blip: &XmlNode, cx: &mut SlideContext<'_, '_>) -> Option<(String, Vec<u8>)> {
     if let Some(svg) = blip.find_descendant("svgBlip")
         && let Some(embed_id) = svg.attr("r:embed").or_else(|| svg.attr("embed"))
         && let Some((path, bytes)) = relationship_picture(embed_id, cx)
-        && is_svg_path(path)
-        && picture_bytes_are_valid(path, &bytes)
+        && is_svg_path(&path)
+        && picture_bytes_are_valid(&path, &bytes)
     {
-        return Some((path.to_owned(), bytes.to_vec()));
+        return Some((path, bytes.to_vec()));
     }
 
     let embed_id = blip.attr("r:embed").or_else(|| blip.attr("embed"))?;
     let (path, bytes) = relationship_picture(embed_id, cx)?;
-    picture_bytes_are_valid(path, &bytes).then(|| (path.to_owned(), bytes.to_vec()))
+    usable_picture(path, &bytes, cx.tracker)
 }
 
 /// Process a `<p:pic>` picture element (or video/audio media picture).

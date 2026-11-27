@@ -16,7 +16,7 @@
 | Project and file | 7 | 2 | 1 | 2 |
 | Structure: scenes, slides, masters | 10 | 1 | 6 | 0 |
 | Text | 21 | 3 | 0 | 0 |
-| Shapes, pictures and buttons | 16 | 4 | 9 | 0 |
+| Shapes, pictures and buttons | 17 | 4 | 9 | 0 |
 | Media | 10 | 3 | 5 | 1 |
 | Interactivity | 12 | 3 | 2 | 0 |
 | Animation, transitions, timeline | 19 | 1 | 5 | 0 |
@@ -25,7 +25,7 @@
 | Editor shell and panels | 12 | 9 | 2 | 0 |
 | AI | 3 | 1 | 6 | 0 |
 | Assets and services | 0 | 0 | 1 | 7 |
-| **Total** | **128** | **35** | **47** | **12** |
+| **Total** | **129** | **35** | **47** | **12** |
 
 Counted from the tables below; recount when a row changes.
 
@@ -112,6 +112,7 @@ Counted from the tables below; recount when a row changes.
 | Smart guides, grid, guides, rulers | `snap.rs`, `rulers.rs`; the Grid and Guides panel (`grid_panel.rs`) sets the grid spacing and lists the guides | ✅ | — |
 | Lock and hide in editor | `object.lock`, `object.hide_in_editor` | ✅ | — |
 | Pictures: insert, replace, crop | `object.set_crop`, `crop.rs` | ✅ | — |
+| EMF and WMF clip art, kept as vectors | `coursecraft_media::metafile` converts to SVG on insert, media library import and PowerPoint import | ✅ | — |
 | Picture border | `object.update` | ✅ | — |
 | States (built-in and custom, items inside states) | M29 | ✅ | — |
 | Recolor | `course.recolor` | 🟡 SVG only | M40 |

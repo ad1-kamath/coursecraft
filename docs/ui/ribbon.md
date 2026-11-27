@@ -197,7 +197,7 @@ Shown when the Course Map view tab is active.
 | | Illustrations | L | — | 🚫 | |
 | | Icons | L | `ui:insert.icon` | ⛔ | CourseCraft ships no icon set yet; a bundled open icon set would make this ✅ |
 | | Videos | L | — | 🚫 | |
-| Media | Picture | LS | `object.add` `{image}` | ✅ | ▾ Picture from File… ✅, Media Library… ✅ (`media_library.rs`), Screenshot ⛔ |
+| Media | Picture | LS | `object.add` `{image}` | ✅ | ▾ Picture from File… ✅ (PNG, JPEG, WebP, GIF, SVG; EMF and WMF converted to SVG, `coursecraft_media::metafile`), Media Library… ✅ (`media_library.rs`), Screenshot ⛔ |
 | | 360° Image | LS | — | 🚫 | Not planned: 360° images |
 | | Shape | LS | `object.add` `{shape}` | ✅ | `shape_gallery.rs` |
 | | Caption | LS | `object.add` `{shape: callout}` | ✅ | opens the shape gallery filtered to Callouts (`shape_gallery.rs`) |

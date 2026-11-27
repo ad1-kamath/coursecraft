@@ -1045,7 +1045,10 @@ dependencies = [
 name = "coursecraft-media"
 version = "0.6.3"
 dependencies = [
+ "base64",
+ "craft-metafile",
  "image",
+ "kurbo",
  "resvg",
  "skrifa",
  "thiserror 2.0.21",
@@ -1092,6 +1095,8 @@ dependencies = [
  "coursecraft-course",
  "coursecraft-logic",
  "coursecraft-media",
+ "craft-metafile",
+ "kurbo",
  "quick-xml 0.41.0",
  "serde_json",
  "thiserror 2.0.21",
@@ -1177,8 +1182,10 @@ dependencies = [
  "coursecraft-render",
  "coursecraft-spell",
  "craft-i18n",
+ "craft-metafile",
  "craft-ui",
  "egui",
+ "kurbo",
  "log",
  "serde",
  "serde_json",
@@ -1270,6 +1277,17 @@ dependencies = [
  "unicode-bidi",
  "windows-registry",
  "writeable",
+]
+
+[[package]]
+name = "craft-metafile"
+version = "0.1.0"
+source = "git+https://github.com/storytold/craft-libs?rev=63196e66f3033a6623eb629af95a104d26986725#63196e66f3033a6623eb629af95a104d26986725"
+dependencies = [
+ "encoding_rs",
+ "image",
+ "kurbo",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -3712,12 +3730,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1572844b6727a1bf842190e9947641a68ac44bed83f50afb4bd1407a2564bee8"
 dependencies = [
  "bytemuck",
+ "gif",
+ "image-webp",
  "log",
  "pico-args",
  "rgb",
  "svgtypes",
  "tiny-skia",
  "usvg",
+ "zune-jpeg",
 ]
 
 [[package]]
@@ -3892,7 +3913,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

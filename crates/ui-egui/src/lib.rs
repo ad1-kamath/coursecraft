@@ -251,6 +251,8 @@ mod m39_p_paste_focus_tests;
 #[cfg(test)]
 mod m39_t_text_tests;
 #[cfg(test)]
+mod metafile_import_tests;
+#[cfg(test)]
 mod neon_editor_fix_tests;
 #[cfg(test)]
 mod outline_tests;
@@ -2390,7 +2392,11 @@ impl Editor {
         // object). The library wants the bytes only, so keep both untouched.
         let previous_tool = self.ui.placement_tool.take();
         let previous_pick = self.pending_image_pick.take();
-        let src = if is_image || lower.ends_with(".svg") || lower.ends_with(".svgz") {
+        let src = if is_image
+            || lower.ends_with(".svg")
+            || lower.ends_with(".svgz")
+            || coursecraft_media::is_metafile_name(&lower)
+        {
             self.import_image(file_name, bytes)
         } else if is_lottie {
             self.import_lottie(file_name, bytes)
@@ -2449,6 +2455,26 @@ impl Editor {
             self.ui.error_history.push(msg);
             return false;
         }
+        // Clip art replacing an SVG entry is stored as the SVG it converts to.
+        let lower = src.to_ascii_lowercase();
+        let converted = if lower.ends_with(".svg") && coursecraft_media::is_metafile(bytes) {
+            let fonts = CourseFonts {
+                faces: &self.session.course.fonts,
+                media: &self.media,
+            };
+            match coursecraft_media::metafile_to_svg(bytes, &fonts) {
+                Ok(converted) => Some(converted.svg),
+                Err(e) => {
+                    let msg = format!("Failed to replace '{src}': {e}");
+                    self.ui.last_error = Some((msg.clone(), self.ui.current_time));
+                    self.ui.error_history.push(msg);
+                    return false;
+                }
+            }
+        } else {
+            None
+        };
+        let bytes = converted.as_deref().unwrap_or(bytes);
         if !self.media.replace(src, bytes.into()) {
             return false;
         }
@@ -3038,6 +3064,49 @@ impl Editor {
             .is_some()
     }
 
+    /// Import EMF or WMF clip art: converted to an SVG that keeps its
+    /// vectors (text as outlines, in the course's fonts or Inter), then
+    /// imported as that SVG under the same name with `.svg`.
+    fn import_metafile(&mut self, file_name: &str, bytes: &[u8]) -> Option<String> {
+        let fonts = CourseFonts {
+            faces: &self.session.course.fonts,
+            media: &self.media,
+        };
+        let converted = match coursecraft_media::metafile_to_svg(bytes, &fonts) {
+            Ok(converted) => converted,
+            Err(e) => {
+                let msg = format!("Failed to import image '{file_name}': {e}");
+                self.ui.last_error = Some((msg.clone(), self.ui.current_time));
+                self.ui.error_history.push(msg);
+                return None;
+            }
+        };
+        let svg_name = coursecraft_media::metafile_svg_name(file_name);
+        let src = self.import_image(&svg_name, &converted.svg)?;
+        let mut lost = Vec::new();
+        if converted.skipped_records > 0 {
+            lost.push(format!(
+                "{} drawing records CourseCraft can't read",
+                converted.skipped_records
+            ));
+        }
+        if converted.missing_glyphs > 0 {
+            lost.push(format!(
+                "{} characters no font draws",
+                converted.missing_glyphs
+            ));
+        }
+        if !lost.is_empty() {
+            let msg = format!(
+                "Imported “{file_name}” as “{src}” without {}.",
+                lost.join(" and ")
+            );
+            self.ui.error_history.push(msg.clone());
+            self.set_status(msg);
+        }
+        Some(src)
+    }
+
     /// Import an image from raw bytes, validating with the decoder and learning natural dimensions.
     ///
     /// Stores the bytes under a sanitized, unique `src` key. If an image object is queued for replacement,
@@ -3045,6 +3114,9 @@ impl Editor {
     pub fn import_image(&mut self, file_name: &str, bytes: &[u8]) -> Option<String> {
         let lower = file_name.to_ascii_lowercase();
         let is_svg = lower.ends_with(".svg") || lower.ends_with(".svgz");
+        if is_metafile_import(file_name, bytes) {
+            return self.import_metafile(file_name, bytes);
+        }
         let (natural_width, natural_height) = if is_svg {
             let Some((width, height)) = coursecraft_media::svg_natural_size(bytes) else {
                 let msg = format!("Failed to import image '{file_name}': invalid SVG");
@@ -6141,6 +6213,46 @@ pub fn sanitize_font_src(file_name: &str, existing: &[(String, std::sync::Arc<[u
             return name;
         }
         counter = counter.saturating_add(1);
+    }
+}
+
+/// Whether picked bytes are EMF or WMF clip art: by extension, or by content
+/// for a file whose extension names no format CourseCraft reads as a picture.
+fn is_metafile_import(file_name: &str, bytes: &[u8]) -> bool {
+    if coursecraft_media::is_metafile_name(file_name) {
+        return true;
+    }
+    let lower = file_name.to_ascii_lowercase();
+    let known = [
+        ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".svgz", ".bmp", ".ico", ".tif", ".tiff",
+    ];
+    !known.iter().any(|ext| lower.ends_with(ext)) && coursecraft_media::is_metafile(bytes)
+}
+
+/// Text faces for metafile import: the course's own fonts, matched by family
+/// (any case) and style, else the family's regular face.
+struct CourseFonts<'a> {
+    faces: &'a [coursecraft_course::FontFace],
+    media: &'a media_store::MediaStore,
+}
+
+impl coursecraft_media::MetafileFonts for CourseFonts<'_> {
+    fn face(&self, family: &str, bold: bool, italic: bool) -> Option<(std::sync::Arc<[u8]>, u32)> {
+        let style = match (bold, italic) {
+            (false, false) => FontStyle::Regular,
+            (true, false) => FontStyle::Bold,
+            (false, true) => FontStyle::Italic,
+            (true, true) => FontStyle::BoldItalic,
+        };
+        let family_faces = || {
+            self.faces
+                .iter()
+                .filter(|f| f.family.eq_ignore_ascii_case(family.trim()))
+        };
+        let face = family_faces()
+            .find(|f| f.style == style)
+            .or_else(|| family_faces().find(|f| f.style == FontStyle::Regular))?;
+        self.media.get(&face.src).map(|bytes| (bytes.clone(), 0))
     }
 }
 

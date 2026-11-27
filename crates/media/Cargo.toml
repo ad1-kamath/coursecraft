@@ -7,10 +7,16 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+base64.workspace = true
+craft-metafile.workspace = true
 image.workspace = true
 skrifa.workspace = true
 resvg.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+craft-metafile = { workspace = true, features = ["write"] }
+kurbo.workspace = true
 
 [lints]
 workspace = true

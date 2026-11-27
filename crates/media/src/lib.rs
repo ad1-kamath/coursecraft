@@ -23,6 +23,7 @@ mod tests;
 
 pub mod animation;
 pub mod font;
+pub mod metafile;
 pub mod svg;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod system_fonts;
@@ -34,6 +35,10 @@ pub use animation::{
 };
 pub use font::{
     FontFileStyle, FontInfo, MAX_FONT_BYTES, font_collection_info, font_info, font_info_at,
+};
+pub use metafile::{
+    BundledFonts, MAX_METAFILE_BYTES, MetafileFonts, MetafileSvg, is_metafile, is_metafile_name,
+    metafile_svg_name, metafile_to_svg,
 };
 pub use svg::{MAX_SVG_BYTES, MAX_SVG_ELEMENTS, decode_svg, svg_natural_size};
 pub use webvtt::{CaptionError, Cue, cue_text_at, parse_webvtt};

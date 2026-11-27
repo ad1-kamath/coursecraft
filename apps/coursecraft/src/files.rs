@@ -716,8 +716,8 @@ fn collect_web_folder(
 pub fn pick_image_file() -> Option<PathBuf> {
     rfd::FileDialog::new()
         .add_filter(
-            "Images (*.png, *.jpg, *.jpeg, *.webp, *.gif, *.svg)",
-            &["png", "jpg", "jpeg", "webp", "gif", "svg"],
+            "Images (*.png, *.jpg, *.jpeg, *.webp, *.gif, *.svg, *.emf, *.wmf)",
+            &["png", "jpg", "jpeg", "webp", "gif", "svg", "emf", "wmf"],
         )
         .pick_file()
 }

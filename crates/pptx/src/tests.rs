@@ -641,6 +641,85 @@ fn test_picture_copied_with_alt_text() {
     assert!(res.course.is_playable(), "{:?}", res.course.validate());
 }
 
+/// A 100 × 50 pt clip-art picture: a red square, written as EMF or WMF.
+fn clip_art(wmf: bool) -> Vec<u8> {
+    use craft_metafile::write::{self, Op};
+    use kurbo::Shape as _;
+    let square = kurbo::Rect::new(10.0, 10.0, 30.0, 30.0).to_path(0.1);
+    let ops = [Op::Fill {
+        path: square,
+        even_odd: false,
+        rgb: [255, 0, 0],
+    }];
+    let region = kurbo::Rect::new(0.0, 0.0, 100.0, 50.0);
+    if wmf {
+        write::wmf(&ops, region).expect("WMF written").bytes
+    } else {
+        write::emf(&ops, region, "test", "clip art").expect("EMF written")
+    }
+}
+
+#[test]
+fn emf_and_wmf_pictures_import_as_svg() {
+    let pic = |id: u32, rid: &str| {
+        format!(
+            r#"<p:pic>
+                <p:nvPicPr><p:cNvPr id="{id}" name="Clip {id}" descr="Clip art"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr>
+                <p:blipFill><a:blip r:embed="{rid}"/></p:blipFill>
+                <p:spPr><a:xfrm><a:off x="100000" y="100000"/><a:ext cx="1000000" cy="500000"/></a:xfrm></p:spPr>
+            </p:pic>"#
+        )
+    };
+    let slide = format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    <p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+           xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+           xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+        <p:cSld><p:spTree>{}{}</p:spTree></p:cSld>
+    </p:sld>"#,
+        pic(4, "rIdEmf"),
+        pic(5, "rIdWmf")
+    );
+    let slide_rels = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+        <Relationship Id="rIdEmf" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.emf"/>
+        <Relationship Id="rIdWmf" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image2.wmf"/>
+    </Relationships>"#;
+    let (emf, wmf) = (clip_art(false), clip_art(true));
+    let extra: &[(&str, &[u8])] = &[
+        ("ppt/slides/_rels/slide1.xml.rels", slide_rels.as_bytes()),
+        ("ppt/media/image1.emf", &emf),
+        ("ppt/media/image2.wmf", &wmf),
+    ];
+    let res = import_pptx(&fixture_pptx(&[&slide], extra), "Clip art").expect("import success");
+
+    let names: Vec<&str> = res.media.iter().map(|(name, _)| name.as_str()).collect();
+    assert_eq!(names, ["image1.svg", "image2.svg"]);
+    for (_, bytes) in &res.media {
+        assert!(bytes.starts_with(b"<svg"), "stored as SVG");
+        assert!(coursecraft_media::svg_natural_size(bytes).is_some());
+    }
+    let slide = &res.course.scenes[0].slides[0];
+    let srcs: Vec<&str> = slide
+        .objects
+        .iter()
+        .filter_map(|o| match &o.kind {
+            coursecraft_course::ObjectKind::Image { src, .. } => Some(src.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(srcs, ["image1.svg", "image2.svg"]);
+    assert!(
+        !res.report
+            .items
+            .iter()
+            .any(|i| i.kind == SkipKind::UndecodablePicture),
+        "{:?}",
+        res.report.items
+    );
+    assert!(res.course.is_playable(), "{:?}", res.course.validate());
+}
+
 #[test]
 fn test_picture_prefers_svg_blip_over_png_fallback() {
     let slide = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
