@@ -65,3 +65,9 @@ Read `docs/contributing.md` › Clean-room rules first. For the editor UI it mea
    [feature-parity.md](feature-parity.md).
 6. If the control changes play-time behaviour, update `docs/spec/triggers.md` in the same commit.
 7. Run `cargo xtask ci`.
+
+## Split buttons
+
+- **Large split buttons** use a two-part top/bottom layout: the top half (icon) runs the main action, and the bottom half (label and ▾) opens the menu. Hovering either half highlights only that half and draws a thin divider line between them.
+- **Small and toggle split buttons** use a ▾ menu strip of at least 18 px on the right with separate hover highlight and a thin vertical divider line between the main part and the ▾ strip.
+- Pressing `Alt+Down` while a split button is focused opens its menu.

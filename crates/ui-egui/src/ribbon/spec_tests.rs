@@ -187,7 +187,8 @@ fn new_slide_adds_a_slide() {
     let mut h = harness_with_ribbon();
     let before = h.editor.session.course.slides().count();
     let pos = h.find_text("New\nSlide").expect("New Slide");
-    h.click_at(pos);
+    // Click the top (icon) half of the split button to run the main action.
+    h.click_at(egui::pos2(pos.x, pos.y - 26.0));
     h.idle_frame();
     assert_eq!(h.editor.session.course.slides().count(), before + 1);
 }

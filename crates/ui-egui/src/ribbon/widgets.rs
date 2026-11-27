@@ -18,8 +18,8 @@ pub const CAPTION_H: f32 = 16.0;
 /// Height of a small control; three fit in [`CONTROLS_H`].
 pub const SMALL_H: f32 = 22.0;
 
-/// Width of the ▾ strip at the right of a split control.
-const SPLIT_ARROW_W: f32 = 14.0;
+/// Width of the ▾ strip at the right of a small/toggle split control.
+const SMALL_SPLIT_ARROW_W: f32 = 18.0;
 const LABEL_SIZE: f32 = 11.5;
 const SMALL_LABEL_SIZE: f32 = 12.0;
 const LARGE_ICON: f32 = 26.0;
@@ -115,9 +115,9 @@ pub fn wrap_label(label: &str) -> Vec<&str> {
     vec![label]
 }
 
-/// A large button: icon over a one- or two-line label. With `split`, a ▾ strip at
-/// the right of the label rows opens the menu (its response is returned); the icon
-/// and the label run the main action.
+/// A large button: icon over a one- or two-line label. With `split`, the top
+/// (icon) half runs the main action and the bottom (label + ▾) half opens the
+/// menu.
 pub fn large(
     ui: &mut Ui,
     icon: Icon,
@@ -132,46 +132,7 @@ pub fn large(
         .iter()
         .map(|l| text_width(ui, l, LABEL_SIZE))
         .fold(0.0_f32, f32::max);
-    let w = (text_w + 10.0 + if split { SPLIT_ARROW_W } else { 0.0 }).max(44.0);
-    let (rect, resp) = ui.allocate_exact_size(vec2(w, CONTROLS_H - 2.0), sense(enabled));
-    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, label));
-    let arrow_rect = split.then(|| {
-        Rect::from_min_max(
-            pos2(rect.max.x - SPLIT_ARROW_W, rect.min.y + 36.0),
-            rect.max,
-        )
-    });
-    let arrow = arrow_rect.map(|r| ui.interact(r, resp.id.with("arrow"), sense(enabled)));
-    if let Some(a) = &arrow {
-        a.widget_info(|| {
-            egui::WidgetInfo::labeled(egui::Role::Button, enabled, format!("{label} options"))
-        });
-    }
-    let painter = ui.painter_at(rect.expand(1.0));
-    let radius = CornerRadius::same(coursecraft_render::RADIUS_MD as u8);
-    if let Some(c) = fill(ui, &resp, selected, &p) {
-        painter.rect_filled(rect, radius, c);
-    }
-    if let (Some(ar), Some(a)) = (arrow_rect, &arrow)
-        && let Some(c) = fill(ui, a, false, &p)
-    {
-        painter.rect_filled(ar, radius, c);
-    }
     let col = if enabled { p.text } else { p.text_disabled };
-    paint_icon(
-        &painter,
-        pos2(rect.center().x, rect.min.y + 18.0),
-        icon,
-        LARGE_ICON,
-        col,
-    );
-    let text_right = if split {
-        rect.max.x - SPLIT_ARROW_W
-    } else {
-        rect.max.x
-    };
-    let text_center = (rect.min.x + text_right) / 2.0;
-    // One galley, centred line by line, so the label stays one text.
     let mut job = egui::text::LayoutJob::simple(
         lines.join("\n"),
         FontId::proportional(LABEL_SIZE),
@@ -180,12 +141,94 @@ pub fn large(
     );
     job.halign = egui::Align::Center;
     let galley = ui.painter().layout_job(job);
-    painter.galley(pos2(text_center, rect.min.y + 37.0), galley, col);
-    if split {
-        let chevron_y = rect.min.y + 37.0 + 13.0 * lines.len().saturating_sub(1) as f32 + 7.0;
-        chevron(&painter, pos2(rect.max.x - 7.0, chevron_y), 3.0, col);
+
+    if !split {
+        let w = (text_w + 10.0).max(44.0);
+        let (rect, resp) = ui.allocate_exact_size(vec2(w, CONTROLS_H - 2.0), sense(enabled));
+        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, label));
+        let painter = ui.painter_at(rect.expand(1.0));
+        let radius = CornerRadius::same(coursecraft_render::RADIUS_MD as u8);
+        if let Some(c) = fill(ui, &resp, selected, &p) {
+            painter.rect_filled(rect, radius, c);
+        }
+        paint_icon(
+            &painter,
+            pos2(rect.center().x, rect.min.y + 18.0),
+            icon,
+            LARGE_ICON,
+            col,
+        );
+        painter.galley(pos2(rect.center().x, rect.min.y + 37.0), galley, col);
+        return (resp, None);
     }
-    (resp, arrow)
+
+    let line2_w = if lines.len() >= 2 {
+        text_width(ui, lines[1], LABEL_SIZE)
+    } else {
+        0.0
+    };
+    let w = (text_w + 10.0)
+        .max(if lines.len() >= 2 {
+            line2_w + 22.0
+        } else {
+            0.0
+        })
+        .max(44.0);
+    let (rect, outer) = ui.allocate_exact_size(vec2(w, CONTROLS_H - 2.0), Sense::hover());
+    let split_y = rect.min.y + 34.0;
+    let main_rect = Rect::from_min_max(rect.min, pos2(rect.max.x, split_y));
+    let arrow_rect = Rect::from_min_max(pos2(rect.min.x, split_y), rect.max);
+    let main = ui.interact(main_rect, outer.id.with("main"), sense(enabled));
+    main.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, label));
+    let arrow = ui.interact(arrow_rect, outer.id.with("arrow"), sense(enabled));
+    arrow.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::Role::Button, enabled, format!("{label} options"))
+    });
+
+    let painter = ui.painter_at(rect.expand(1.0));
+    let r = coursecraft_render::RADIUS_MD as u8;
+    let top_radius = CornerRadius {
+        nw: r,
+        ne: r,
+        sw: 0,
+        se: 0,
+    };
+    let bot_radius = CornerRadius {
+        nw: 0,
+        ne: 0,
+        sw: r,
+        se: r,
+    };
+    if let Some(c) = fill(ui, &main, selected, &p) {
+        painter.rect_filled(main_rect, top_radius, c);
+    }
+    if let Some(c) = fill(ui, &arrow, false, &p) {
+        painter.rect_filled(arrow_rect, bot_radius, c);
+    }
+    if enabled && ui.is_enabled() && (main.hovered() || arrow.hovered()) {
+        painter.line_segment(
+            [pos2(rect.min.x, split_y), pos2(rect.max.x, split_y)],
+            Stroke::new(1.0, p.border),
+        );
+    }
+    paint_icon(
+        &painter,
+        pos2(rect.center().x, rect.min.y + 17.5),
+        icon,
+        LARGE_ICON,
+        col,
+    );
+    let text_center = rect.center().x;
+    let text_y = rect.min.y + 36.0;
+    painter.galley(pos2(text_center, text_y), galley, col);
+    if lines.len() >= 2 {
+        let chevron_x = text_center + line2_w * 0.5 + 5.0;
+        let chevron_y = rect.min.y + 56.0;
+        chevron(&painter, pos2(chevron_x, chevron_y), 3.0, col);
+    } else {
+        chevron(&painter, pos2(text_center, rect.min.y + 56.0), 3.0, col);
+    }
+    (main, Some(arrow))
 }
 
 /// A small button: icon and label in one row, optionally with a ▾.
@@ -198,7 +241,7 @@ pub fn small(
     split: bool,
 ) -> (Response, Option<Response>) {
     let p = palette(ui.ctx());
-    let arrow_w = if split { 12.0 } else { 0.0 };
+    let arrow_w = if split { SMALL_SPLIT_ARROW_W } else { 0.0 };
     let w = 24.0 + text_width(ui, label, SMALL_LABEL_SIZE) + 6.0 + arrow_w;
     let (rect, outer) = ui.allocate_exact_size(vec2(w, SMALL_H), Sense::hover());
     let main_rect = Rect::from_min_max(rect.min, pos2(rect.max.x - arrow_w, rect.max.y));
@@ -213,14 +256,41 @@ pub fn small(
         a
     });
     let painter = ui.painter_at(rect);
-    let radius = CornerRadius::same(coursecraft_render::RADIUS_SM as u8);
+    let r = coursecraft_render::RADIUS_SM as u8;
+    let main_radius = if split {
+        CornerRadius {
+            nw: r,
+            ne: 0,
+            sw: r,
+            se: 0,
+        }
+    } else {
+        CornerRadius::same(r)
+    };
+    let arrow_radius = CornerRadius {
+        nw: 0,
+        ne: r,
+        sw: 0,
+        se: r,
+    };
     if let Some(c) = fill(ui, &main, selected, &p) {
-        painter.rect_filled(main_rect, radius, c);
+        painter.rect_filled(main_rect, main_radius, c);
     }
     if let Some(a) = &arrow
         && let Some(c) = fill(ui, a, false, &p)
     {
-        painter.rect_filled(a.rect, radius, c);
+        painter.rect_filled(a.rect, arrow_radius, c);
+    }
+    if let Some(a) = &arrow
+        && enabled
+        && ui.is_enabled()
+        && (main.hovered() || a.hovered())
+    {
+        let x = main_rect.max.x;
+        painter.line_segment(
+            [pos2(x, rect.min.y + 2.0), pos2(x, rect.max.y - 2.0)],
+            Stroke::new(1.0, p.border),
+        );
     }
     let col = if enabled { p.text } else { p.text_disabled };
     paint_icon(
@@ -240,7 +310,7 @@ pub fn small(
     if split {
         chevron(
             &painter,
-            pos2(rect.max.x - 6.0, rect.center().y),
+            pos2(rect.max.x - arrow_w * 0.5, rect.center().y),
             2.8,
             p.text_secondary,
         );
@@ -287,7 +357,7 @@ pub fn toggle_split_bar(
     bar: Option<Color32>,
 ) -> (Response, Response) {
     let p = palette(ui.ctx());
-    let arrow_w = 12.0;
+    let arrow_w = SMALL_SPLIT_ARROW_W;
     let (rect, outer) = ui.allocate_exact_size(vec2(24.0 + arrow_w, SMALL_H), Sense::hover());
     let main_rect = Rect::from_min_max(rect.min, pos2(rect.max.x - arrow_w, rect.max.y));
     let arrow_rect = Rect::from_min_max(pos2(rect.max.x - arrow_w, rect.min.y), rect.max);
@@ -298,12 +368,31 @@ pub fn toggle_split_bar(
         egui::WidgetInfo::labeled(egui::Role::Button, enabled, format!("{name} options"))
     });
     let painter = ui.painter_at(rect);
-    let radius = CornerRadius::same(coursecraft_render::RADIUS_SM as u8);
+    let r = coursecraft_render::RADIUS_SM as u8;
+    let main_radius = CornerRadius {
+        nw: r,
+        ne: 0,
+        sw: r,
+        se: 0,
+    };
+    let arrow_radius = CornerRadius {
+        nw: 0,
+        ne: r,
+        sw: 0,
+        se: r,
+    };
     if let Some(c) = fill(ui, &main, on, &p) {
-        painter.rect_filled(main_rect, radius, c);
+        painter.rect_filled(main_rect, main_radius, c);
     }
     if let Some(c) = fill(ui, &arrow, false, &p) {
-        painter.rect_filled(arrow_rect, radius, c);
+        painter.rect_filled(arrow_rect, arrow_radius, c);
+    }
+    if enabled && ui.is_enabled() && (main.hovered() || arrow.hovered()) {
+        let x = main_rect.max.x;
+        painter.line_segment(
+            [pos2(x, rect.min.y + 2.0), pos2(x, rect.max.y - 2.0)],
+            Stroke::new(1.0, p.border),
+        );
     }
     let col = if enabled { p.text } else { p.text_disabled };
     let icon_at = if bar.is_some() {
@@ -406,7 +495,12 @@ pub fn split_popup<'a>(
     main_opens: bool,
 ) -> egui::Popup<'a> {
     let clicked = arrow.clicked() || (main_opens && main.clicked());
-    let toggle = clicked.then_some(egui::SetOpenCommand::Toggle);
+    let alt_down = (main.has_focus() || arrow.has_focus())
+        && main.sense.senses_click()
+        && main
+            .ctx
+            .input_mut(|i| i.consume_key(egui::Modifiers::ALT, egui::Key::ArrowDown));
+    let toggle = (clicked || alt_down).then_some(egui::SetOpenCommand::Toggle);
     egui::Popup::menu(main)
         .id(main.id.with("split-menu"))
         .anchor(main.rect.union(arrow.rect))
