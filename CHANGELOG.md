@@ -2,13 +2,21 @@
 
 What changed in each release, newest first. Versions follow [semantic versioning](https://semver.org): until 1.0, a minor version (0.x) may change things, but a project saved by an older CourseCraft always opens in a newer one.
 
-## Unreleased
+## 0.6.6
 
-**Authoring**
-- Ribbon split buttons are now easier to hit: large split buttons use a two-part layout (icon for the main action, label and arrow for the menu) with separate hover highlights, and small/toggle split buttons have a wider arrow strip (#17).
-- Selecting slides now uses a single italic preview tab instead of piling up permanent tabs; double-click a slide or tab, or edit the slide, to pin it, and overflowed tabs scroll horizontally with `‹` / `›` buttons.
-- The layer bar above the slide is now always fully visible and never covered by the slide.
-- Turning off a shape's fill now makes its shadow and glow follow the outline only (or hide when the outline is also off), without losing the saved effect settings.
+Fixes from using 0.6.5: easier split buttons, no more pile of slide tabs, a layer bar you can always see, and shadows that follow what a shape draws.
+
+**Ribbon**
+- Split buttons such as Preview are easier to use: on large buttons the icon runs the action and the label with its arrow opens the menu, and each part lights up on its own when you point at it. Small split buttons have a wider arrow (#17).
+
+**Slide tabs**
+- Clicking slides or moving through them with the arrow keys shows them in one temporary tab, in italics, instead of opening a new tab each time. Double-click a slide or its tab, or edit the slide, to keep the tab. When the tabs don't fit, the row scrolls.
+
+**Layers**
+- The layer bar above the slide (Base, the layers, + and Base slide: Show, Dim, Hide) is always fully visible and is no longer hidden behind the slide.
+
+**Shapes**
+- With Fill turned off, a shape's shadow and glow follow its outline; with no outline either, they are hidden. The settings are kept, so turning Fill back on brings them back. The format panel says why the effect can't be seen.
 
 ## 0.6.5
 
