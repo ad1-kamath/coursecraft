@@ -2,7 +2,7 @@
 //!
 //! Displayed on launch when no course is open and via `File ▸ Welcome screen`.
 //! Features quick actions (New, Open, Import PPTX, Explore examples), recent files list,
-//! and embedded example courses (Healthy Habits at Work, hello-course and feature showcase).
+//! and embedded example courses (Healthy Habits at Work, Workplace Safety Basics and the Feature Tour).
 
 use std::sync::Arc;
 
@@ -337,8 +337,74 @@ const HEALTHY_HABITS_MEDIA: &[(&str, &[u8])] = &[
         include_bytes!("../../../examples/healthy-habits/media/welcome.vtt"),
     ),
 ];
-const HELLO_COURSE_JSON: &str = include_str!("../../../examples/hello-course/course.json");
-const SHOWCASE_COURSE_JSON: &str = include_str!("../../../examples/showcase/course.json");
+const SAFETY_BASICS_JSON: &str = include_str!("../../../examples/safety-basics/course.json");
+/// Media files of the Workplace Safety Basics course, by their path under `media/`.
+const SAFETY_BASICS_MEDIA: &[(&str, &[u8])] = &[
+    (
+        "hero.jpg",
+        include_bytes!("../../../examples/safety-basics/media/hero.jpg"),
+    ),
+    (
+        "lifting.jpg",
+        include_bytes!("../../../examples/safety-basics/media/lifting.jpg"),
+    ),
+    (
+        "spills.jpg",
+        include_bytes!("../../../examples/safety-basics/media/spills.jpg"),
+    ),
+    (
+        "trips.jpg",
+        include_bytes!("../../../examples/safety-basics/media/trips.jpg"),
+    ),
+    (
+        "workshop.jpg",
+        include_bytes!("../../../examples/safety-basics/media/workshop.jpg"),
+    ),
+];
+const FEATURE_TOUR_JSON: &str = include_str!("../../../examples/feature-tour/course.json");
+/// Media files of the Feature Tour course, by their path under `media/`.
+const FEATURE_TOUR_MEDIA: &[(&str, &[u8])] = &[
+    (
+        "campus-map.jpg",
+        include_bytes!("../../../examples/feature-tour/media/campus-map.jpg"),
+    ),
+    (
+        "chime.vtt",
+        include_bytes!("../../../examples/feature-tour/media/chime.vtt"),
+    ),
+    (
+        "chime.wav",
+        include_bytes!("../../../examples/feature-tour/media/chime.wav"),
+    ),
+    (
+        "done.jpg",
+        include_bytes!("../../../examples/feature-tour/media/done.jpg"),
+    ),
+    (
+        "hero.jpg",
+        include_bytes!("../../../examples/feature-tour/media/hero.jpg"),
+    ),
+    (
+        "intro.mp4",
+        include_bytes!("../../../examples/feature-tour/media/intro.mp4"),
+    ),
+    (
+        "intro.vtt",
+        include_bytes!("../../../examples/feature-tour/media/intro.vtt"),
+    ),
+    (
+        "layers.jpg",
+        include_bytes!("../../../examples/feature-tour/media/layers.jpg"),
+    ),
+    (
+        "media.jpg",
+        include_bytes!("../../../examples/feature-tour/media/media.jpg"),
+    ),
+    (
+        "quiz.jpg",
+        include_bytes!("../../../examples/feature-tour/media/quiz.jpg"),
+    ),
+];
 
 const TEMPLATE_BLANK_JSON: &str = include_str!("../../../examples/templates/blank.json");
 const TEMPLATE_QUICK_CHECK_JSON: &str =
@@ -411,20 +477,14 @@ pub fn template_course(id: TemplateId) -> Result<Course, String> {
     Course::from_json(json).map_err(|e| format!("Failed to parse {} template: {e}", id.name()))
 }
 
-const SHOWCASE_BANNER_BYTES: &[u8] = include_bytes!("../../../examples/showcase/media/banner.png");
-const SHOWCASE_CHIME_BYTES: &[u8] = include_bytes!("../../../examples/showcase/media/chime.wav");
-const SHOWCASE_FLOORPLAN_BYTES: &[u8] =
-    include_bytes!("../../../examples/showcase/media/floorplan.png");
-const SHOWCASE_INTRO_BYTES: &[u8] = include_bytes!("../../../examples/showcase/media/intro.mp4");
-
 /// Identifier of an embedded example course.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExampleId {
     /// The sample course a fresh launch opens: every feature in a wellbeing module.
     HealthyHabits,
-    /// Minimal introduction course.
+    /// Workplace Safety Basics: a short six-slide course with tabs, a hotspot and a quiz.
     HelloCourse,
-    /// Full feature showcase course with media assets.
+    /// The CourseCraft Feature Tour: one stop per area of the app, with media and six question types.
     FeatureShowcase,
 }
 
@@ -433,8 +493,8 @@ impl ExampleId {
     pub const fn name(self) -> &'static str {
         match self {
             Self::HealthyHabits => "Healthy Habits at Work",
-            Self::HelloCourse => "Hello course",
-            Self::FeatureShowcase => "Feature showcase",
+            Self::HelloCourse => "Workplace Safety Basics",
+            Self::FeatureShowcase => "Feature tour",
         }
     }
 
@@ -442,14 +502,21 @@ impl ExampleId {
     pub const fn description(self) -> &'static str {
         match self {
             Self::HealthyHabits => "The sample course: every feature in one short module",
-            Self::HelloCourse => "A quick 4-slide tour with quiz and tabs",
-            Self::FeatureShowcase => "Full showcase with animations, media and questions",
+            Self::HelloCourse => "A short course with tabs, a hotspot and a quiz",
+            Self::FeatureShowcase => "A tour of media, layers, motion and six question types",
         }
     }
 }
 
 /// Result of loading an embedded example course with its media assets.
 pub type LoadedExample = (Course, Vec<(String, Arc<[u8]>)>);
+
+fn embedded_media(files: &[(&str, &'static [u8])]) -> Vec<(String, Arc<[u8]>)> {
+    files
+        .iter()
+        .map(|(name, bytes)| ((*name).to_string(), Arc::from(*bytes)))
+        .collect()
+}
 
 /// Load an embedded example course and its media assets into memory.
 ///
@@ -460,30 +527,17 @@ pub fn example_course_and_media(id: ExampleId) -> Result<LoadedExample, String> 
         ExampleId::HealthyHabits => {
             let course = Course::from_json(HEALTHY_HABITS_JSON)
                 .map_err(|e| format!("Failed to parse Healthy Habits at Work: {e}"))?;
-            let media = HEALTHY_HABITS_MEDIA
-                .iter()
-                .map(|(name, bytes)| ((*name).to_string(), Arc::from(*bytes)))
-                .collect();
-            Ok((course, media))
+            Ok((course, embedded_media(HEALTHY_HABITS_MEDIA)))
         }
         ExampleId::HelloCourse => {
-            let course = Course::from_json(HELLO_COURSE_JSON)
-                .map_err(|e| format!("Failed to parse hello course: {e}"))?;
-            Ok((course, Vec::new()))
+            let course = Course::from_json(SAFETY_BASICS_JSON)
+                .map_err(|e| format!("Failed to parse Workplace Safety Basics: {e}"))?;
+            Ok((course, embedded_media(SAFETY_BASICS_MEDIA)))
         }
         ExampleId::FeatureShowcase => {
-            let course = Course::from_json(SHOWCASE_COURSE_JSON)
-                .map_err(|e| format!("Failed to parse feature showcase: {e}"))?;
-            let media = vec![
-                ("banner.png".to_string(), Arc::from(SHOWCASE_BANNER_BYTES)),
-                ("chime.wav".to_string(), Arc::from(SHOWCASE_CHIME_BYTES)),
-                (
-                    "floorplan.png".to_string(),
-                    Arc::from(SHOWCASE_FLOORPLAN_BYTES),
-                ),
-                ("intro.mp4".to_string(), Arc::from(SHOWCASE_INTRO_BYTES)),
-            ];
-            Ok((course, media))
+            let course = Course::from_json(FEATURE_TOUR_JSON)
+                .map_err(|e| format!("Failed to parse the Feature Tour: {e}"))?;
+            Ok((course, embedded_media(FEATURE_TOUR_MEDIA)))
         }
     }
 }
@@ -654,7 +708,7 @@ pub fn start_content(
             tile_size,
             Icon::BookOpen,
             tl!("Explore an example"),
-            tl!("Healthy Habits, Hello course or feature showcase"),
+            tl!("Three sample courses to explore"),
             true,
             tl!("Explore built-in sample courses"),
         );
@@ -664,11 +718,11 @@ pub fn start_content(
                 clicked_example = Some(ExampleId::HealthyHabits);
                 ui.close();
             }
-            if ui.button(tl!("Hello course")).clicked() {
+            if ui.button(tl!(ExampleId::HelloCourse.name())).clicked() {
                 clicked_example = Some(ExampleId::HelloCourse);
                 ui.close();
             }
-            if ui.button(tl!("Feature showcase")).clicked() {
+            if ui.button(tl!(ExampleId::FeatureShowcase.name())).clicked() {
                 clicked_example = Some(ExampleId::FeatureShowcase);
                 ui.close();
             }

@@ -1,4 +1,6 @@
-# CourseCraft Showcase Course
+# CourseCraft Showcase Course (test fixture)
+
+> Tests, parity checks, input scripts, `xtask` and the native video tests use this course and its media. Keep it unchanged unless a test needs it changed. The app's Explore an example › Feature tour opens the designed course in `examples/feature-tour` instead.
 
 A feature-complete, polished demonstration course illustrating CourseCraft's native authoring capabilities.
 

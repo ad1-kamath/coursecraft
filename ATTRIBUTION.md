@@ -9,7 +9,7 @@ Third-party assets shipped with CourseCraft. Every asset added must get a row he
 | `crates/media/fonts/SymbolsFallback.ttf` | CourseCraft Symbols, a 39-glyph subset of DejaVu Sans (renamed, as its licence requires) | Bitstream, Inc., Tavmjong Bah and the DejaVu contributors | https://dejavu-fonts.github.io | Bitstream Vera licence, in `crates/media/fonts/LICENSE-DejaVu.txt` |
 | `crates/spell/dictionaries/en_US.*` | English (US) Hunspell dictionary, version 2020.12.07 | Kevin Atkinson and the SCOWL contributors | https://github.com/wooorm/dictionaries (from http://wordlist.sourceforge.net) | SCOWL licence (MIT/BSD-style), in `crates/spell/dictionaries/LICENSE-en_US.txt` |
 
-The images, sound and video under `examples/showcase/media/` were made for this project and carry the project's license.
+The images, sound and video under `examples/showcase/media/` were made for this project and carry the project's license. So do the pictures under `examples/safety-basics/media/` and `examples/feature-tour/media/` (made with Gemini through the Antigravity CLI for this project) and `examples/feature-tour/media/intro.mp4` (cut from those pictures with ffmpeg).
 
 ## ArtCraft Crafting Apps libraries and forks
 

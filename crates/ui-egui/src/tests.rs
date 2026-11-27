@@ -7460,7 +7460,7 @@ fn test_welcome_mode_shows_card_and_actions() {
 }
 
 #[test]
-fn test_welcome_explore_example_showcase_loads_showcase_with_media() {
+fn test_welcome_explore_example_feature_tour_loads_with_media() {
     let course = Course::from_json(COURSE_JSON).expect("valid course");
     let mut editor = Editor::new(course);
     editor.ui.show_welcome = true;
@@ -7469,10 +7469,20 @@ fn test_welcome_explore_example_showcase_loads_showcase_with_media() {
 
     assert!(!editor.ui.show_welcome);
     assert!(editor.ui.has_loaded_course);
-    assert_eq!(editor.session.course.id, "showcase");
-    assert_eq!(editor.media.len(), 4);
-    assert!(editor.media.iter().any(|(src, _)| src == "banner.png"));
+    assert_eq!(editor.session.course.id, "coursecraft-feature-tour");
+    assert_eq!(editor.media.len(), 10);
+    assert!(editor.media.iter().any(|(src, _)| src == "done.jpg"));
     assert!(editor.media.iter().any(|(src, _)| src == "intro.mp4"));
+}
+
+#[test]
+fn test_welcome_explore_example_safety_basics_loads_with_media() {
+    let course = Course::from_json(COURSE_JSON).expect("valid course");
+    let mut editor = Editor::new(course);
+    editor.open_example(crate::welcome::ExampleId::HelloCourse);
+    assert_eq!(editor.session.course.id, "workplace-safety-basics");
+    assert_eq!(editor.media.len(), 5);
+    assert!(editor.media.iter().any(|(src, _)| src == "workshop.jpg"));
 }
 
 #[test]
@@ -7700,9 +7710,9 @@ fn question_prompt_overlap_warning_tracks_visible_text() {
     );
 }
 
-fn showcase_media_library_harness() -> TestHarness {
-    let course = Course::from_json(include_str!("../../../examples/showcase/course.json"))
-        .expect("valid showcase course");
+fn example_media_library_harness() -> TestHarness {
+    let course = Course::from_json(include_str!("../../../examples/feature-tour/course.json"))
+        .expect("valid feature tour course");
     let mut harness = TestHarness::new(course);
     harness
         .editor
@@ -7714,49 +7724,49 @@ fn showcase_media_library_harness() -> TestHarness {
 }
 
 #[test]
-fn media_library_lists_showcase_files_and_usage_counts() {
-    let mut harness = showcase_media_library_harness();
+fn media_library_lists_example_files_and_usage_counts() {
+    let mut harness = example_media_library_harness();
     assert!(harness.find_text("Media library").is_some());
-    for name in ["banner.png", "chime.wav", "floorplan.png", "intro.mp4"] {
+    for name in ["campus-map.jpg", "chime.vtt", "chime.wav", "done.jpg"] {
         assert!(
             harness.find_text(name).is_some(),
             "the library must list {name}"
         );
     }
     assert!(harness.find_text("Used by 1").is_some());
-    assert!(harness.find_text("4 files").is_some());
+    assert!(harness.find_text("10 files").is_some());
 }
 
 #[test]
 fn media_library_filter_narrows_the_list() {
-    let mut harness = showcase_media_library_harness();
+    let mut harness = example_media_library_harness();
     harness.editor.ui.media_library.filter = "chime".to_owned();
     harness.idle_frame();
     assert!(harness.find_text("chime.wav").is_some());
-    assert!(harness.find_text("banner.png").is_none());
+    assert!(harness.find_text("done.jpg").is_none());
 }
 
 #[test]
 fn media_library_selecting_a_used_file_lists_places_and_opens_one() {
-    let mut harness = showcase_media_library_harness();
-    let banner = harness.find_text("banner.png").expect("banner row");
+    let mut harness = example_media_library_harness();
+    let banner = harness.find_text("done.jpg").expect("done.jpg row");
     harness.click_at(banner);
     harness.idle_frame();
     assert_eq!(
         harness.editor.ui.media_library.selected.as_deref(),
-        Some("banner.png")
+        Some("done.jpg")
     );
     let place = harness
-        .find_text_containing("Banner Graphic")
-        .expect("a place that uses the banner");
+        .find_text_containing("Trophy picture")
+        .expect("a place that uses the trophy picture");
     harness.click_at(place);
-    assert_eq!(harness.editor.selection.slide, "s-welcome");
+    assert_eq!(harness.editor.selection.slide, "results");
 }
 
 #[test]
 fn media_library_delete_is_disabled_for_a_used_file() {
-    let mut harness = showcase_media_library_harness();
-    let banner = harness.find_text("banner.png").expect("banner row");
+    let mut harness = example_media_library_harness();
+    let banner = harness.find_text("done.jpg").expect("done.jpg row");
     harness.click_at(banner);
     harness.idle_frame();
     let delete = harness.find_text("Delete").expect("Delete button");
@@ -7768,15 +7778,15 @@ fn media_library_delete_is_disabled_for_a_used_file() {
             .editor
             .media()
             .iter()
-            .any(|(src, _)| src == "banner.png")
+            .any(|(src, _)| src == "done.jpg")
     );
 }
 
 #[test]
 fn media_library_delete_unused_removes_only_the_unused_file_after_confirm() {
-    let mut harness = showcase_media_library_harness();
+    let mut harness = example_media_library_harness();
     let before = harness.editor.session.course.clone();
-    let bytes = include_bytes!("../../../examples/showcase/media/banner.png");
+    let bytes = include_bytes!("../../../examples/feature-tour/media/hero.jpg");
     assert!(
         harness
             .editor
@@ -7817,7 +7827,7 @@ fn media_library_delete_unused_removes_only_the_unused_file_after_confirm() {
             .editor
             .media()
             .iter()
-            .any(|(src, _)| src == "banner.png"),
+            .any(|(src, _)| src == "done.jpg"),
         "used files stay"
     );
     assert_eq!(harness.editor.session.course, before);
@@ -7825,8 +7835,8 @@ fn media_library_delete_unused_removes_only_the_unused_file_after_confirm() {
 
 #[test]
 fn media_library_insert_on_slide_adds_the_picked_image() {
-    let mut harness = showcase_media_library_harness();
-    let floorplan = harness.find_text("floorplan.png").expect("floorplan row");
+    let mut harness = example_media_library_harness();
+    let floorplan = harness.find_text("campus-map.jpg").expect("campus map row");
     harness.click_at(floorplan);
     harness.idle_frame();
     let insert = harness
@@ -7844,14 +7854,14 @@ fn media_library_insert_on_slide_adds_the_picked_image() {
         .expect("selected slide");
     assert!(slide.objects.iter().any(|object| matches!(
         &object.kind,
-        ObjectKind::Image { src, .. } if src == "floorplan.png"
+        ObjectKind::Image { src, .. } if src == "campus-map.jpg"
     )));
 }
 
 #[test]
 fn media_library_replace_swaps_bytes_and_keeps_the_name() {
-    let mut harness = showcase_media_library_harness();
-    let bytes = include_bytes!("../../../examples/showcase/media/banner.png");
+    let mut harness = example_media_library_harness();
+    let bytes = include_bytes!("../../../examples/feature-tour/media/hero.jpg");
     let src = harness
         .editor
         .add_media_bytes("replace-me.png", bytes)

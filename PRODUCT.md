@@ -46,7 +46,7 @@ Open-source, native and fast (no Electron, no subscription), with one determinis
 
 ## Evidence on Hand
 
-- Example courses: `examples/hello-course`, `examples/showcase` (with media).
+- Example courses in the app: `examples/healthy-habits`, `examples/safety-basics`, `examples/feature-tour` (with media). Test fixtures: `examples/hello-course`, `examples/showcase`.
 - No screenshots, testimonials, users or metrics exist; none may be invented.
 
 ## Product Principles

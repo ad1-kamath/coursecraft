@@ -1,0 +1,176 @@
+[
+ {
+  "input": "start"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "click",
+  "object": "w-about"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "ab-close"
+ },
+ {
+  "input": "tick",
+  "ms": 500
+ },
+ {
+  "input": "click",
+  "object": "w-start"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "click",
+  "object": "tab-lifting"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "tab-spills"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "hz-next"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "hotspot_clicked",
+  "x": 251,
+  "y": 348
+ },
+ {
+  "input": "hotspot_clicked",
+  "x": 483,
+  "y": 496
+ },
+ {
+  "input": "hotspot_clicked",
+  "x": 681,
+  "y": 494
+ },
+ {
+  "input": "click",
+  "object": "sp-submit"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "sp-ok-next"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "select_choice",
+  "choice": "b"
+ },
+ {
+  "input": "click",
+  "object": "q1-submit"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "q1-ok-next"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "select_choice",
+  "choice": "a"
+ },
+ {
+  "input": "select_choice",
+  "choice": "c"
+ },
+ {
+  "input": "select_choice",
+  "choice": "d"
+ },
+ {
+  "input": "click",
+  "object": "q2-submit"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "q2-ok-next"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "sequence_moved",
+  "choice": "a",
+  "to": 0
+ },
+ {
+  "input": "sequence_moved",
+  "choice": "b",
+  "to": 1
+ },
+ {
+  "input": "sequence_moved",
+  "choice": "c",
+  "to": 2
+ },
+ {
+  "input": "sequence_moved",
+  "choice": "d",
+  "to": 3
+ },
+ {
+  "input": "click",
+  "object": "q3-submit"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "q3-ok-next"
+ },
+ {
+  "input": "tick",
+  "ms": 3500
+ },
+ {
+  "input": "click",
+  "object": "r-finish"
+ }
+]

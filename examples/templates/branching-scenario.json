@@ -1,162 +1,2342 @@
 {
-  "schema_version": 1,
-  "id": "branching-scenario",
-  "title": "Branching Scenario",
-  "slide_size": { "w": 1280, "h": 720 },
-  "scenes": [
-    {
-      "id": "sc-scenario",
-      "title": "Scenario",
-      "slides": [
-        {
-          "id": "s-setup",
-          "title": "The Situation",
-          "duration_ms": 5000,
-          "objects": [
-            {
-              "id": "setup-title",
-              "name": "Title",
-              "kind": { "type": "text", "text": "Branching Scenario", "style": { "size": 44, "bold": true } },
-              "frame": { "x": 80, "y": 140, "w": 1120, "h": 72 }
-            },
-            {
-              "id": "setup-body",
-              "name": "Context",
-              "kind": { "type": "text", "text": "Set the scene for your learner here. Describe the situation, the stakes, and the role they are playing.", "style": { "size": 22 } },
-              "frame": { "x": 80, "y": 240, "w": 960, "h": 140 }
-            },
-            {
-              "id": "btn-enter",
-              "name": "Continue button",
-              "kind": { "type": "button", "label": "Enter Scenario" },
-              "frame": { "x": 80, "y": 440, "w": 240, "h": 56 }
-            }
-          ],
-          "triggers": [
-            { "action": { "action": "jump_to_slide", "target": "next" }, "when": { "event": "click", "object": "btn-enter" } }
-          ]
-        },
-        {
-          "id": "s-decision",
-          "title": "Decision Point",
-          "duration_ms": 5000,
-          "objects": [
-            {
-              "id": "dec-heading",
-              "name": "Prompt",
-              "kind": { "type": "text", "text": "What do you do next?", "style": { "size": 36, "bold": true } },
-              "frame": { "x": 80, "y": 100, "w": 1120, "h": 60 }
-            },
-            {
-              "id": "dec-body",
-              "name": "Scenario detail",
-              "kind": { "type": "text", "text": "A colleague asks to bypass the standard review step to hit a tight deadline. Choose how you respond:", "style": { "size": 22 } },
-              "frame": { "x": 80, "y": 184, "w": 1000, "h": 100 }
-            },
-            {
-              "id": "btn-branch-a",
-              "name": "Choice A",
-              "kind": { "type": "button", "label": "Option A: Agree to skip the review" },
-              "frame": { "x": 80, "y": 340, "w": 480, "h": 64 }
-            },
-            {
-              "id": "btn-branch-b",
-              "name": "Choice B",
-              "kind": { "type": "button", "label": "Option B: Offer a focused 15-minute review" },
-              "frame": { "x": 80, "y": 430, "w": 480, "h": 64 }
-            }
-          ],
-          "triggers": [
-            { "action": { "action": "jump_to_slide", "target": { "id": "s-outcome-a" } }, "when": { "event": "click", "object": "btn-branch-a" } },
-            { "action": { "action": "jump_to_slide", "target": { "id": "s-outcome-b" } }, "when": { "event": "click", "object": "btn-branch-b" } }
-          ]
-        },
-        {
-          "id": "s-outcome-a",
-          "title": "Outcome A",
-          "duration_ms": 5000,
-          "objects": [
-            {
-              "id": "out-a-title",
-              "name": "Heading",
-              "kind": { "type": "text", "text": "Outcome A: Review Skipped", "style": { "size": 36, "bold": true } },
-              "frame": { "x": 80, "y": 120, "w": 1120, "h": 60 }
-            },
-            {
-              "id": "out-a-body",
-              "name": "Consequence",
-              "kind": { "type": "text", "text": "The release goes out on time, but a preventable issue reaches customers and requires an urgent rollback.", "style": { "size": 22 } },
-              "frame": { "x": 80, "y": 210, "w": 960, "h": 140 }
-            },
-            {
-              "id": "btn-a-retry",
-              "name": "Reconsider button",
-              "kind": { "type": "button", "label": "Try Another Choice", "fill": "#5A5A5A" },
-              "frame": { "x": 80, "y": 420, "w": 260, "h": 56 }
-            },
-            {
-              "id": "btn-a-debrief",
-              "name": "Debrief button",
-              "kind": { "type": "button", "label": "Go to Debrief" },
-              "frame": { "x": 364, "y": 420, "w": 240, "h": 56 }
-            }
-          ],
-          "triggers": [
-            { "action": { "action": "jump_to_slide", "target": { "id": "s-decision" } }, "when": { "event": "click", "object": "btn-a-retry" } },
-            { "action": { "action": "jump_to_slide", "target": { "id": "s-debrief" } }, "when": { "event": "click", "object": "btn-a-debrief" } }
-          ]
-        },
-        {
-          "id": "s-outcome-b",
-          "title": "Outcome B",
-          "duration_ms": 5000,
-          "objects": [
-            {
-              "id": "out-b-title",
-              "name": "Heading",
-              "kind": { "type": "text", "text": "Outcome B: Focused Review", "style": { "size": 36, "bold": true } },
-              "frame": { "x": 80, "y": 120, "w": 1120, "h": 60 }
-            },
-            {
-              "id": "out-b-body",
-              "name": "Consequence",
-              "kind": { "type": "text", "text": "Together you catch a subtle mistake in ten minutes and still meet the deadline with confidence.", "style": { "size": 22 } },
-              "frame": { "x": 80, "y": 210, "w": 960, "h": 140 }
-            },
-            {
-              "id": "btn-b-debrief",
-              "name": "Debrief button",
-              "kind": { "type": "button", "label": "Continue to Debrief" },
-              "frame": { "x": 80, "y": 420, "w": 260, "h": 56 }
-            }
-          ],
-          "triggers": [
-            { "action": { "action": "jump_to_slide", "target": { "id": "s-debrief" } }, "when": { "event": "click", "object": "btn-b-debrief" } }
-          ]
-        },
-        {
-          "id": "s-debrief",
-          "title": "Debrief",
-          "duration_ms": 3000,
-          "objects": [
-            {
-              "id": "deb-title",
-              "name": "Heading",
-              "kind": { "type": "text", "text": "Scenario Debrief", "style": { "size": 40, "bold": true } },
-              "frame": { "x": 80, "y": 140, "w": 1120, "h": 64 }
-            },
-            {
-              "id": "deb-body",
-              "name": "Reflection",
-              "kind": { "type": "text", "text": "Highlight why the stronger choice worked and connect it back to your team's guidelines.", "style": { "size": 22 } },
-              "frame": { "x": 80, "y": 236, "w": 960, "h": 140 }
-            }
-          ],
-          "triggers": [
-            { "action": { "action": "complete_course", "status": "completed" }, "when": { "event": "timeline_starts" } }
-          ]
-        }
-      ]
-    }
+ "schema_version": 1,
+ "id": "branching-scenario",
+ "title": "Branching Scenario",
+ "slide_size": {
+  "w": 1280,
+  "h": 720
+ },
+ "theme": {
+  "accent": "#7A2E6E",
+  "background": "#FFFBF7",
+  "text": "#2B1B33",
+  "font": "Inter",
+  "player": {
+   "bar": "#3E1738",
+   "bar_text": "#FFFFFF"
+  },
+  "palette": [
+   {
+    "id": "ink",
+    "name": "Ink",
+    "color": "#2B1B33"
+   },
+   {
+    "id": "primary",
+    "name": "Primary",
+    "color": "#7A2E6E"
+   },
+   {
+    "id": "primary_dk",
+    "name": "Primary dark",
+    "color": "#62235A"
+   },
+   {
+    "id": "deep",
+    "name": "Deep",
+    "color": "#3E1738"
+   },
+   {
+    "id": "tint",
+    "name": "Tint",
+    "color": "#F6E9F3"
+   },
+   {
+    "id": "tint2",
+    "name": "Tint 2",
+    "color": "#ECD3E6"
+   },
+   {
+    "id": "accent",
+    "name": "Accent",
+    "color": "#F2A541"
+   },
+   {
+    "id": "accent_text",
+    "name": "Accent text",
+    "color": "#97570C"
+   },
+   {
+    "id": "bg",
+    "name": "Background",
+    "color": "#FFFBF7"
+   }
   ]
+ },
+ "text_styles": [
+  {
+   "id": "ts_title",
+   "name": "Title",
+   "style": {
+    "font": "Inter",
+    "size": 52,
+    "color": "#2B1B33",
+    "bold": true
+   },
+   "paragraphs": {
+    "line_spacing": 1.05
+   }
+  },
+  {
+   "id": "ts_heading",
+   "name": "Heading",
+   "style": {
+    "font": "Inter",
+    "size": 36,
+    "color": "#2B1B33",
+    "bold": true
+   },
+   "paragraphs": {
+    "line_spacing": 1.1
+   }
+  },
+  {
+   "id": "ts_eyebrow",
+   "name": "Eyebrow",
+   "style": {
+    "font": "Inter",
+    "size": 16,
+    "color": "#7A2E6E",
+    "bold": true,
+    "letter_spacing": 2.5
+   }
+  },
+  {
+   "id": "ts_body",
+   "name": "Body",
+   "style": {
+    "font": "Inter",
+    "size": 20,
+    "color": "#4A3652",
+    "bold": false
+   },
+   "paragraphs": {
+    "line_spacing": 1.45
+   }
+  }
+ ],
+ "masters": [
+  {
+   "id": "m_content",
+   "title": "Content",
+   "background": "#FFFBF7",
+   "duration_ms": 5000,
+   "objects": [
+    {
+     "id": "m_corner",
+     "name": "Corner shape",
+     "kind": {
+      "type": "shape",
+      "shape": "ellipse",
+      "fill": "#F6E9F3B3"
+     },
+     "frame": {
+      "x": 1090,
+      "y": -150,
+      "w": 360,
+      "h": 300
+     },
+     "decorative": true
+    },
+    {
+     "id": "m_dot",
+     "name": "Brand dot",
+     "kind": {
+      "type": "shape",
+      "shape": "ellipse",
+      "fill": "#F2A541"
+     },
+     "frame": {
+      "x": 88,
+      "y": 684,
+      "w": 8,
+      "h": 8
+     },
+     "decorative": true
+    },
+    {
+     "id": "m_brand",
+     "name": "Footer",
+     "kind": {
+      "type": "text",
+      "text": "Branching Scenario",
+      "style": {
+       "font": "Inter",
+       "size": 12,
+       "color": "#76657D",
+       "bold": true,
+       "letter_spacing": 1
+      }
+     },
+     "frame": {
+      "x": 104,
+      "y": 677,
+      "w": 400,
+      "h": 20
+     },
+     "decorative": true
+    }
+   ]
+  }
+ ],
+ "scenes": [
+  {
+   "id": "sc-scenario",
+   "title": "Scenario",
+   "slides": [
+    {
+     "id": "s-setup",
+     "title": "The Situation",
+     "duration_ms": 5000,
+     "background": "#FFFBF7",
+     "objects": [
+      {
+       "id": "setup-panel",
+       "name": "Art panel",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F6E9F3"
+       },
+       "frame": {
+        "x": 700,
+        "y": 0,
+        "w": 580,
+        "h": 720
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "right"
+        },
+        "duration_ms": 700,
+        "easing": "ease_in_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "setup-sun",
+       "name": "Decoration",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#F2A541AA"
+       },
+       "frame": {
+        "x": 1060,
+        "y": 80,
+        "w": 140,
+        "h": 140
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "zoom"
+        },
+        "duration_ms": 900,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 300
+       }
+      },
+      {
+       "id": "setup-person",
+       "name": "Character",
+       "kind": {
+        "type": "shape",
+        "shape": "person",
+        "fill": "#7A2E6E55"
+       },
+       "frame": {
+        "x": 860,
+        "y": 260,
+        "w": 276,
+        "h": 345
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 700,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 400
+       }
+      },
+      {
+       "id": "setup-bubble",
+       "name": "Speech bubble",
+       "kind": {
+        "type": "shape",
+        "shape": "callout_rounded",
+        "fill": "#FFFFFF",
+        "text": {
+         "text": "“We need this out by Friday.”",
+         "style": {
+          "font": "Inter",
+          "size": 18,
+          "color": "#2B1B33",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 760,
+        "y": 120,
+        "w": 300,
+        "h": 110
+       },
+       "decorative": true,
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 10,
+        "blur": 28,
+        "color": "#2B1B3322"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 500,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1000
+       }
+      },
+      {
+       "id": "setup-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F2A541"
+       },
+       "frame": {
+        "x": 88,
+        "y": 179,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "setup-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "SCENARIO",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#7A2E6E",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 168,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "setup-title",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "The situation",
+        "style": {
+         "font": "Inter",
+         "size": 56,
+         "color": "#2B1B33",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_title"
+       },
+       "frame": {
+        "x": 84,
+        "y": 206,
+        "w": 560,
+        "h": 70
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "setup-body",
+       "name": "Body",
+       "kind": {
+        "type": "text",
+        "text": "Set the scene for your learner here. Describe the situation, the stakes and the role they play.",
+        "style": {
+         "font": "Inter",
+         "size": 20,
+         "color": "#4A3652",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.45
+         }
+        ],
+        "text_style": "ts_body"
+       },
+       "frame": {
+        "x": 88,
+        "y": 300,
+        "w": 540,
+        "h": 100
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "setup-chip1",
+       "name": "Your role: team lead",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#F6E9F3",
+        "text": {
+         "text": "Your role: team lead",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#62235A",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 420,
+        "w": 200,
+        "h": 36
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      },
+      {
+       "id": "setup-chip2",
+       "name": "2 choices",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#F6E9F3",
+        "text": {
+         "text": "2 choices",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#62235A",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 300,
+        "y": 420,
+        "w": 120,
+        "h": 36
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1020
+       }
+      },
+      {
+       "id": "btn-enter",
+       "name": "Enter the scenario button",
+       "kind": {
+        "type": "button",
+        "label": "Enter the scenario  →",
+        "fill": "#7A2E6E"
+       },
+       "frame": {
+        "x": 88,
+        "y": 500,
+        "w": 260,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#62235A"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#2B1B3333"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1300
+       }
+      }
+     ],
+     "transition": {
+      "type": "fade",
+      "duration_ms": 600
+     },
+     "notes": "Set the scene: who the learner is, where they are and what is at stake. Replace the drawn character with a picture if you have one.",
+     "triggers": [
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": "next"
+       },
+       "when": {
+        "event": "click",
+        "object": "btn-enter"
+       }
+      }
+     ]
+    },
+    {
+     "id": "s-decision",
+     "title": "Decision Point",
+     "duration_ms": 5000,
+     "background": "#FFFBF7",
+     "objects": [
+      {
+       "id": "dec-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F2A541"
+       },
+       "frame": {
+        "x": 88,
+        "y": 105,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "dec-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "DECISION POINT",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#7A2E6E",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 94,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "dec-heading",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "What do you do next?",
+        "style": {
+         "font": "Inter",
+         "size": 44,
+         "color": "#2B1B33",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_heading"
+       },
+       "frame": {
+        "x": 84,
+        "y": 128,
+        "w": 900,
+        "h": 60
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "dec-body",
+       "name": "Body",
+       "kind": {
+        "type": "text",
+        "text": "A colleague asks to skip the usual review to hit a tight deadline. Choose how you respond.",
+        "style": {
+         "font": "Inter",
+         "size": 20,
+         "color": "#4A3652",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.45
+         }
+        ],
+        "text_style": "ts_body"
+       },
+       "frame": {
+        "x": 88,
+        "y": 196,
+        "w": 900,
+        "h": 60
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "btn-branch-a",
+       "name": "Option A",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF",
+        "adjust": [
+         0.08
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 300,
+        "w": 540,
+        "h": 260
+       },
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 10,
+        "blur": 28,
+        "color": "#2B1B3322"
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#F6E9F3"
+        }
+       ],
+       "description": "Option A: Agree to skip the review",
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      },
+      {
+       "id": "dec-badge-a",
+       "name": "Letter A",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#7A2E6E",
+        "text": {
+         "text": "A",
+         "style": {
+          "font": "Inter",
+          "size": 24,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 120,
+        "y": 332,
+        "w": 56,
+        "h": 56
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 800
+       }
+      },
+      {
+       "id": "dec-head-a",
+       "name": "Option title",
+       "kind": {
+        "type": "text",
+        "text": "Agree to skip the review",
+        "style": {
+         "font": "Inter",
+         "size": 24,
+         "color": "#2B1B33",
+         "bold": true
+        }
+       },
+       "frame": {
+        "x": 120,
+        "y": 412,
+        "w": 470,
+        "h": 44
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 850
+       }
+      },
+      {
+       "id": "dec-text-a",
+       "name": "Option text",
+       "kind": {
+        "type": "text",
+        "text": "Keep the deadline and trust that it's fine this time.",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#4A3652",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.4
+         }
+        ]
+       },
+       "frame": {
+        "x": 120,
+        "y": 460,
+        "w": 470,
+        "h": 70
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      },
+      {
+       "id": "dec-go-a",
+       "name": "Choose hint",
+       "kind": {
+        "type": "text",
+        "text": "Choose  →",
+        "style": {
+         "font": "Inter",
+         "size": 15,
+         "color": "#7A2E6E",
+         "bold": true,
+         "align": "right"
+        }
+       },
+       "frame": {
+        "x": 488,
+        "y": 332,
+        "w": 110,
+        "h": 30
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1000
+       }
+      },
+      {
+       "id": "btn-branch-b",
+       "name": "Option B",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF",
+        "adjust": [
+         0.08
+        ]
+       },
+       "frame": {
+        "x": 652,
+        "y": 300,
+        "w": 540,
+        "h": 260
+       },
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 10,
+        "blur": 28,
+        "color": "#2B1B3322"
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#F6E9F3"
+        }
+       ],
+       "description": "Option B: Offer a focused 15-minute review",
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 800
+       }
+      },
+      {
+       "id": "dec-badge-b",
+       "name": "Letter B",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#7A2E6E",
+        "text": {
+         "text": "B",
+         "style": {
+          "font": "Inter",
+          "size": 24,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 684,
+        "y": 332,
+        "w": 56,
+        "h": 56
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1000
+       }
+      },
+      {
+       "id": "dec-head-b",
+       "name": "Option title",
+       "kind": {
+        "type": "text",
+        "text": "Offer a focused 15-minute review",
+        "style": {
+         "font": "Inter",
+         "size": 24,
+         "color": "#2B1B33",
+         "bold": true
+        }
+       },
+       "frame": {
+        "x": 684,
+        "y": 412,
+        "w": 470,
+        "h": 44
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1050
+       }
+      },
+      {
+       "id": "dec-text-b",
+       "name": "Option text",
+       "kind": {
+        "type": "text",
+        "text": "Check only the risky parts together, then ship.",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#4A3652",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.4
+         }
+        ]
+       },
+       "frame": {
+        "x": 684,
+        "y": 460,
+        "w": 470,
+        "h": 70
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1100
+       }
+      },
+      {
+       "id": "dec-go-b",
+       "name": "Choose hint",
+       "kind": {
+        "type": "text",
+        "text": "Choose  →",
+        "style": {
+         "font": "Inter",
+         "size": 15,
+         "color": "#7A2E6E",
+         "bold": true,
+         "align": "right"
+        }
+       },
+       "frame": {
+        "x": 1052,
+        "y": 332,
+        "w": 110,
+        "h": 30
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1200
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": {
+         "id": "s-outcome-a"
+        }
+       },
+       "when": {
+        "event": "click",
+        "object": "btn-branch-a"
+       }
+      },
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": {
+         "id": "s-outcome-b"
+        }
+       },
+       "when": {
+        "event": "click",
+        "object": "btn-branch-b"
+       }
+      }
+     ]
+    },
+    {
+     "id": "s-outcome-a",
+     "title": "Outcome A",
+     "duration_ms": 5000,
+     "background": "#FFFBF7",
+     "objects": [
+      {
+       "id": "out-a-band",
+       "name": "Result band",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#B42318"
+       },
+       "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 8
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "out-a-tag",
+       "name": "Result",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#B42318",
+        "text": {
+         "text": "⚠  Costly outcome",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 110,
+        "w": 210,
+        "h": 40
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "out-a-title",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "The review was skipped",
+        "style": {
+         "font": "Inter",
+         "size": 48,
+         "color": "#2B1B33",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_title"
+       },
+       "frame": {
+        "x": 84,
+        "y": 170,
+        "w": 620,
+        "h": 70
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "out-a-body",
+       "name": "Body",
+       "kind": {
+        "type": "text",
+        "text": "The release goes out on time, but a preventable problem reaches customers and needs an urgent fix.",
+        "style": {
+         "font": "Inter",
+         "size": 20,
+         "color": "#4A3652",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.45
+         }
+        ],
+        "text_style": "ts_body"
+       },
+       "frame": {
+        "x": 88,
+        "y": 256,
+        "w": 560,
+        "h": 110
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "btn-a-retry",
+       "name": "Try another choice button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#F6E9F3",
+        "text": {
+         "text": "Try another choice",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#62235A",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.2
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 420,
+        "w": 230,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#ECD3E6"
+        }
+       ],
+       "description": "Try another choice",
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      },
+      {
+       "id": "btn-a-debrief",
+       "name": "Go to the debrief button",
+       "kind": {
+        "type": "button",
+        "label": "Go to the debrief  →",
+        "fill": "#7A2E6E"
+       },
+       "frame": {
+        "x": 338,
+        "y": 420,
+        "w": 270,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#62235A"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#2B1B3333"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      },
+      {
+       "id": "out-a-art",
+       "name": "Art panel",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#F6E9F3",
+        "adjust": [
+         0.08
+        ]
+       },
+       "frame": {
+        "x": 760,
+        "y": 110,
+        "w": 420,
+        "h": 460
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "right"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 100
+       }
+      },
+      {
+       "id": "out-a-person",
+       "name": "Character",
+       "kind": {
+        "type": "shape",
+        "shape": "person",
+        "fill": "#7A2E6E55"
+       },
+       "frame": {
+        "x": 860,
+        "y": 230,
+        "w": 240,
+        "h": 300
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 700,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 300
+       }
+      },
+      {
+       "id": "out-a-mark",
+       "name": "Outcome mark",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#B42318",
+        "text": {
+         "text": "!",
+         "style": {
+          "font": "Inter",
+          "size": 44,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 1040,
+        "y": 160,
+        "w": 96,
+        "h": 96
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "spin_grow"
+        },
+        "duration_ms": 700,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 700
+       },
+       "emphasis": [
+        {
+         "effect": {
+          "type": "shake"
+         },
+         "start_ms": 1600,
+         "duration_ms": 800
+        }
+       ]
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "fade",
+      "duration_ms": 500
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": {
+         "id": "s-decision"
+        }
+       },
+       "when": {
+        "event": "click",
+        "object": "btn-a-retry"
+       }
+      },
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": {
+         "id": "s-debrief"
+        }
+       },
+       "when": {
+        "event": "click",
+        "object": "btn-a-debrief"
+       }
+      }
+     ]
+    },
+    {
+     "id": "s-outcome-b",
+     "title": "Outcome B",
+     "duration_ms": 5000,
+     "background": "#FFFBF7",
+     "objects": [
+      {
+       "id": "out-b-band",
+       "name": "Result band",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#0F7B5F"
+       },
+       "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 8
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "out-b-tag",
+       "name": "Result",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#0F7B5F",
+        "text": {
+         "text": "✓  Good outcome",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 110,
+        "w": 210,
+        "h": 40
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "out-b-title",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "A focused review",
+        "style": {
+         "font": "Inter",
+         "size": 48,
+         "color": "#2B1B33",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_title"
+       },
+       "frame": {
+        "x": 84,
+        "y": 170,
+        "w": 620,
+        "h": 70
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "out-b-body",
+       "name": "Body",
+       "kind": {
+        "type": "text",
+        "text": "Together you catch a small mistake in ten minutes and still meet the deadline with confidence.",
+        "style": {
+         "font": "Inter",
+         "size": 20,
+         "color": "#4A3652",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.45
+         }
+        ],
+        "text_style": "ts_body"
+       },
+       "frame": {
+        "x": 88,
+        "y": 256,
+        "w": 560,
+        "h": 110
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "btn-b-debrief",
+       "name": "Continue to the debrief button",
+       "kind": {
+        "type": "button",
+        "label": "Continue to the debrief  →",
+        "fill": "#7A2E6E"
+       },
+       "frame": {
+        "x": 88,
+        "y": 420,
+        "w": 300,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#62235A"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#2B1B3333"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      },
+      {
+       "id": "out-b-art",
+       "name": "Art panel",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#F6E9F3",
+        "adjust": [
+         0.08
+        ]
+       },
+       "frame": {
+        "x": 760,
+        "y": 110,
+        "w": 420,
+        "h": 460
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "right"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 100
+       }
+      },
+      {
+       "id": "out-b-person",
+       "name": "Character",
+       "kind": {
+        "type": "shape",
+        "shape": "person",
+        "fill": "#7A2E6E55"
+       },
+       "frame": {
+        "x": 860,
+        "y": 230,
+        "w": 240,
+        "h": 300
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 700,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 300
+       }
+      },
+      {
+       "id": "out-b-mark",
+       "name": "Outcome mark",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#0F7B5F",
+        "text": {
+         "text": "✓",
+         "style": {
+          "font": "Inter",
+          "size": 44,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 1040,
+        "y": 160,
+        "w": 96,
+        "h": 96
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "spin_grow"
+        },
+        "duration_ms": 700,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 700
+       },
+       "emphasis": [
+        {
+         "effect": {
+          "type": "jump"
+         },
+         "start_ms": 1600,
+         "duration_ms": 800
+        }
+       ]
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "fade",
+      "duration_ms": 500
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": {
+         "id": "s-debrief"
+        }
+       },
+       "when": {
+        "event": "click",
+        "object": "btn-b-debrief"
+       }
+      }
+     ]
+    },
+    {
+     "id": "s-debrief",
+     "title": "Debrief",
+     "duration_ms": 5000,
+     "background": "#3E1738",
+     "objects": [
+      {
+       "id": "deb-glow",
+       "name": "Decoration",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#7A2E6E66"
+       },
+       "frame": {
+        "x": 900,
+        "y": -120,
+        "w": 520,
+        "h": 520
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "zoom"
+        },
+        "duration_ms": 900,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "deb-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F2A541"
+       },
+       "frame": {
+        "x": 88,
+        "y": 119,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "deb-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "DEBRIEF",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#ECD3E6",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 108,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "deb-title",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "What made the difference",
+        "style": {
+         "font": "Inter",
+         "size": 48,
+         "color": "#FFFFFF",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_title"
+       },
+       "frame": {
+        "x": 84,
+        "y": 142,
+        "w": 900,
+        "h": 70
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "deb-body",
+       "name": "Body",
+       "kind": {
+        "type": "text",
+        "text": "Explain why the stronger choice worked and link it to your team's guidelines.",
+        "style": {
+         "font": "Inter",
+         "size": 20,
+         "color": "#ECD3E6",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.45
+         }
+        ],
+        "text_style": "ts_body"
+       },
+       "frame": {
+        "x": 88,
+        "y": 220,
+        "w": 760,
+        "h": 60
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "deb-card1",
+       "name": "Lesson 1",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF14",
+        "adjust": [
+         0.08
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 320,
+        "w": 348,
+        "h": 220
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      },
+      {
+       "id": "deb-num1",
+       "name": "Number",
+       "kind": {
+        "type": "text",
+        "text": "01",
+        "style": {
+         "font": "Inter",
+         "size": 34,
+         "color": "#F2A541",
+         "bold": true
+        }
+       },
+       "frame": {
+        "x": 116,
+        "y": 344,
+        "w": 100,
+        "h": 50
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 800
+       }
+      },
+      {
+       "id": "deb-head1",
+       "name": "Lesson 1 title",
+       "kind": {
+        "type": "text",
+        "text": "Pause",
+        "style": {
+         "font": "Inter",
+         "size": 24,
+         "color": "#FFFFFF",
+         "bold": true
+        }
+       },
+       "frame": {
+        "x": 116,
+        "y": 404,
+        "w": 290,
+        "h": 40
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 850
+       }
+      },
+      {
+       "id": "deb-text1",
+       "name": "Lesson 1 text",
+       "kind": {
+        "type": "text",
+        "text": "Name the risk before you decide.",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#ECD3E6",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.4
+         }
+        ]
+       },
+       "frame": {
+        "x": 116,
+        "y": 448,
+        "w": 290,
+        "h": 70
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      },
+      {
+       "id": "deb-card2",
+       "name": "Lesson 2",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF14",
+        "adjust": [
+         0.08
+        ]
+       },
+       "frame": {
+        "x": 460,
+        "y": 320,
+        "w": 348,
+        "h": 220
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 800
+       }
+      },
+      {
+       "id": "deb-num2",
+       "name": "Number",
+       "kind": {
+        "type": "text",
+        "text": "02",
+        "style": {
+         "font": "Inter",
+         "size": 34,
+         "color": "#F2A541",
+         "bold": true
+        }
+       },
+       "frame": {
+        "x": 488,
+        "y": 344,
+        "w": 100,
+        "h": 50
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1000
+       }
+      },
+      {
+       "id": "deb-head2",
+       "name": "Lesson 2 title",
+       "kind": {
+        "type": "text",
+        "text": "Size it",
+        "style": {
+         "font": "Inter",
+         "size": 24,
+         "color": "#FFFFFF",
+         "bold": true
+        }
+       },
+       "frame": {
+        "x": 488,
+        "y": 404,
+        "w": 290,
+        "h": 40
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1050
+       }
+      },
+      {
+       "id": "deb-text2",
+       "name": "Lesson 2 text",
+       "kind": {
+        "type": "text",
+        "text": "A small, focused check costs little.",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#ECD3E6",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.4
+         }
+        ]
+       },
+       "frame": {
+        "x": 488,
+        "y": 448,
+        "w": 290,
+        "h": 70
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1100
+       }
+      },
+      {
+       "id": "deb-card3",
+       "name": "Lesson 3",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF14",
+        "adjust": [
+         0.08
+        ]
+       },
+       "frame": {
+        "x": 832,
+        "y": 320,
+        "w": 348,
+        "h": 220
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1000
+       }
+      },
+      {
+       "id": "deb-num3",
+       "name": "Number",
+       "kind": {
+        "type": "text",
+        "text": "03",
+        "style": {
+         "font": "Inter",
+         "size": 34,
+         "color": "#F2A541",
+         "bold": true
+        }
+       },
+       "frame": {
+        "x": 860,
+        "y": 344,
+        "w": 100,
+        "h": 50
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1200
+       }
+      },
+      {
+       "id": "deb-head3",
+       "name": "Lesson 3 title",
+       "kind": {
+        "type": "text",
+        "text": "Share it",
+        "style": {
+         "font": "Inter",
+         "size": 24,
+         "color": "#FFFFFF",
+         "bold": true
+        }
+       },
+       "frame": {
+        "x": 860,
+        "y": 404,
+        "w": 290,
+        "h": 40
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1250
+       }
+      },
+      {
+       "id": "deb-text3",
+       "name": "Lesson 3 text",
+       "kind": {
+        "type": "text",
+        "text": "Tell the team what you found.",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#ECD3E6",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.4
+         }
+        ]
+       },
+       "frame": {
+        "x": 860,
+        "y": 448,
+        "w": 290,
+        "h": 70
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1300
+       }
+      }
+     ],
+     "transition": {
+      "type": "zoom",
+      "duration_ms": 700
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "complete_course",
+        "status": "completed"
+       },
+       "when": {
+        "event": "timeline_starts"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
 }
