@@ -18607,7 +18607,11 @@ fn every_command_the_editor_sends_exists() {
             let word =
                 |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_lowercase() || c == '_');
             // File names such as `course.json` are not commands.
-            let file = ["ccraft", "json", "zip", "png", "tsv", "html", "md", "txt"].contains(&rest);
+            let file = [
+                "ccraft", "json", "zip", "png", "tsv", "html", "md", "txt", "vtt", "mp3", "mp4",
+                "jpg",
+            ]
+            .contains(&rest);
             if word(prefix)
                 && word(rest)
                 && !file
