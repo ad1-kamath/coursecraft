@@ -142,9 +142,17 @@ fn m48_s1_04_small_split_widened_arrow_and_two_parts() {
     );
 
     // Clicking the Copy main half runs its main action without opening the menu.
+    assert!(
+        h.editor.ui.clipboard.is_none(),
+        "clipboard should start empty before clicking Copy"
+    );
     let dup_before = h.find_texts("Duplicate").len();
     h.click_at(copy_main.center());
     h.idle_frame();
+    assert!(
+        h.editor.ui.clipboard.is_some(),
+        "clicking Copy main part should copy the selected object to the clipboard"
+    );
     assert_eq!(
         h.find_texts("Duplicate").len(),
         dup_before,
@@ -174,12 +182,25 @@ fn m48_s1_05_hover_fill_covers_only_hovered_part() {
         "LargeSplit halves must not overlap: {top_rect:?} vs {bot_rect:?}"
     );
 
+    let whole_preview = top_rect.union(bot_rect);
+    let has_h_divider = |shapes: &[egui::epaint::ClippedShape]| {
+        shapes.iter().any(|cs| match &cs.shape {
+            Shape::LineSegment { points, .. } => {
+                (points[0].y - top_rect.max.y).abs() <= 1.5
+                    && (points[1].y - top_rect.max.y).abs() <= 1.5
+                    && points[0].x >= top_rect.min.x - 1.0
+                    && points[1].x <= top_rect.max.x + 1.0
+            }
+            _ => false,
+        })
+    };
+
     // Hover top half of Preview.
     let shapes = h.frame_shapes(vec![Event::PointerMoved(top_rect.center())]);
     let top_hover_rects: Vec<Rect> = shapes
         .iter()
         .filter_map(|cs| match &cs.shape {
-            Shape::Rect(r) if r.fill == p.hover && top_rect.intersects(r.rect) => Some(r.rect),
+            Shape::Rect(r) if r.fill == p.hover && whole_preview.intersects(r.rect) => Some(r.rect),
             _ => None,
         })
         .collect();
@@ -193,18 +214,9 @@ fn m48_s1_05_hover_fill_covers_only_hovered_part() {
             "top hover rect {r:?} must stay in top half {top_rect:?}"
         );
     }
-    let has_divider = shapes.iter().any(|cs| match &cs.shape {
-        Shape::LineSegment { points, .. } => {
-            (points[0].y - top_rect.max.y).abs() <= 1.5
-                && (points[1].y - top_rect.max.y).abs() <= 1.5
-                && points[0].x >= top_rect.min.x - 1.0
-                && points[1].x <= top_rect.max.x + 1.0
-        }
-        _ => false,
-    });
     assert!(
-        has_divider,
-        "hovering Preview should draw a horizontal divider between top and bottom halves"
+        has_h_divider(&shapes),
+        "hovering Preview top half should draw a horizontal divider between top and bottom halves"
     );
 
     // Hover bottom half of Preview.
@@ -212,7 +224,7 @@ fn m48_s1_05_hover_fill_covers_only_hovered_part() {
     let bot_hover_rects: Vec<Rect> = shapes
         .iter()
         .filter_map(|cs| match &cs.shape {
-            Shape::Rect(r) if r.fill == p.hover && bot_rect.intersects(r.rect) => Some(r.rect),
+            Shape::Rect(r) if r.fill == p.hover && whole_preview.intersects(r.rect) => Some(r.rect),
             _ => None,
         })
         .collect();
@@ -226,15 +238,31 @@ fn m48_s1_05_hover_fill_covers_only_hovered_part() {
             "bottom hover rect {r:?} must stay in bottom half {bot_rect:?}"
         );
     }
+    assert!(
+        has_h_divider(&shapes),
+        "hovering Preview bottom half should draw a horizontal divider between top and bottom halves"
+    );
 
     // Hover main and arrow halves of a SmallSplit button ("Copy").
     let copy_main = find_ribbon_widget_bounds(&h, "Copy").expect("Copy");
     let copy_arrow = find_ribbon_widget_bounds(&h, "Copy options").expect("Copy options");
+    let whole_copy = copy_main.union(copy_arrow);
+    let has_v_divider = |shapes: &[egui::epaint::ClippedShape]| {
+        shapes.iter().any(|cs| match &cs.shape {
+            Shape::LineSegment { points, .. } => {
+                (points[0].x - copy_main.max.x).abs() <= 1.5
+                    && (points[1].x - copy_main.max.x).abs() <= 1.5
+                    && points[0].y >= copy_main.min.y - 1.0
+                    && points[1].y <= copy_main.max.y + 1.0
+            }
+            _ => false,
+        })
+    };
     let shapes = h.frame_shapes(vec![Event::PointerMoved(copy_main.center())]);
     let main_hover: Vec<Rect> = shapes
         .iter()
         .filter_map(|cs| match &cs.shape {
-            Shape::Rect(r) if r.fill == p.hover && copy_main.intersects(r.rect) => Some(r.rect),
+            Shape::Rect(r) if r.fill == p.hover && whole_copy.intersects(r.rect) => Some(r.rect),
             _ => None,
         })
         .collect();
@@ -245,12 +273,16 @@ fn m48_s1_05_hover_fill_covers_only_hovered_part() {
             "small split main hover {r:?} must not overlap arrow {copy_arrow:?}"
         );
     }
+    assert!(
+        has_v_divider(&shapes),
+        "hovering small split main half should draw a vertical divider"
+    );
 
     let shapes = h.frame_shapes(vec![Event::PointerMoved(copy_arrow.center())]);
     let arrow_hover: Vec<Rect> = shapes
         .iter()
         .filter_map(|cs| match &cs.shape {
-            Shape::Rect(r) if r.fill == p.hover && copy_arrow.intersects(r.rect) => Some(r.rect),
+            Shape::Rect(r) if r.fill == p.hover && whole_copy.intersects(r.rect) => Some(r.rect),
             _ => None,
         })
         .collect();
@@ -261,6 +293,10 @@ fn m48_s1_05_hover_fill_covers_only_hovered_part() {
             "small split arrow hover {r:?} must not overlap main {copy_main:?}"
         );
     }
+    assert!(
+        has_v_divider(&shapes),
+        "hovering small split arrow half should draw a vertical divider"
+    );
 }
 
 #[test]
@@ -269,17 +305,33 @@ fn m48_s1_06_accessibility_alt_down_and_non_split_unchanged() {
     assert!(find_ribbon_widget_bounds(&h, "Preview").is_some());
     assert!(find_ribbon_widget_bounds(&h, "Preview options").is_some());
 
-    // Non-split Large button ("Publish") has only one WidgetInfo and still runs from its label.
+    // Non-split Large button ("Publish") has only one WidgetInfo and still runs from both its
+    // icon and its label.
     assert!(
         find_widget_bounds(&h, "Publish options").is_none(),
         "non-split Publish button must not have an options widget"
     );
+    let publish_rect = find_ribbon_widget_bounds(&h, "Publish").expect("Publish button");
     let publish_label = h.find_text("Publish").expect("Publish label");
     h.click_at(publish_label);
     h.idle_frame();
     assert!(
         h.editor.ui.publish.open,
         "clicking non-split Publish label should open Publish dialog"
+    );
+    h.press(Key::Escape, Modifiers::NONE);
+    h.idle_frame();
+    assert!(
+        !h.editor.ui.publish.open,
+        "Escape should close Publish dialog"
+    );
+
+    let publish_icon = egui::pos2(publish_rect.center().x, publish_rect.min.y + 18.0);
+    h.click_at(publish_icon);
+    h.idle_frame();
+    assert!(
+        h.editor.ui.publish.open,
+        "clicking non-split Publish icon should open Publish dialog"
     );
     h.press(Key::Escape, Modifiers::NONE);
     h.idle_frame();
