@@ -55,9 +55,10 @@ pub use named_styles::{
 pub use recolor::{RecolorError, normalize_hex, recolor_course, same_rgb};
 
 pub use audit::{
-    AuditFinding, AuditReport, AuditSeverity, LARGE_BOLD_PX, LARGE_CONTRAST, LARGE_TEXT_PX,
-    MANUAL_CHECKS, MIN_TARGET_PX, MIN_TEXT_PX, NORMAL_CONTRAST, Rgba, contrast_passes,
-    contrast_ratio, is_large_text, parse_color, relative_luminance,
+    AuditFinding, AuditReport, AuditSeverity, BUTTON_DARK_INK, LARGE_BOLD_PX, LARGE_CONTRAST,
+    LARGE_TEXT_PX, MANUAL_CHECKS, MIN_TARGET_PX, MIN_TEXT_PX, NORMAL_CONTRAST, Rgba,
+    button_label_color, contrast_passes, contrast_ratio, is_large_text, parse_color,
+    relative_luminance,
 };
 
 pub use model::{
@@ -108,8 +109,8 @@ pub use shapes::{
 };
 pub use strings::{
     Hit, Location, MAX_HITS, ReplaceOutcome, StringItem, StringTarget, course_string_locations,
-    course_strings, find_in_course, find_matches, replace_in_target, snippet, string_mut,
-    variable_reference_spans,
+    course_strings, find_in_course, find_matches, parse_variable_reference_at, replace_in_target,
+    snippet, string_mut, variable_reference_spans,
 };
 pub use text::{
     CaseChange, TextRunPatch, align_paragraphs, apply_link_to_range, apply_style_to_range,

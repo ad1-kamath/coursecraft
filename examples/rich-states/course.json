@@ -618,7 +618,7 @@
           "objects": [
             {
               "id": "s05-heading",
-              "kind": { "type": "text", "text": "Course Complete — Score: %Results.ScorePercent%%", "style": { "size": 32.0, "bold": true, "color": "#0F172A" } },
+              "kind": { "type": "text", "text": "Course Complete — Score: %Course.ScorePercent%%%", "style": { "size": 32.0, "bold": true, "color": "#0F172A" } },
               "frame": { "x": 80, "y": 160, "w": 900, "h": 60 }
             }
           ],

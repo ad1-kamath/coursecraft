@@ -90,6 +90,8 @@ const DEFAULT_TEXT: Rgba = Rgba {
     b: 0x1F,
     a: 255,
 };
+/// Dark ink colour (`#1F1F1F`) used for button labels on light fills.
+pub const BUTTON_DARK_INK: Rgba = DEFAULT_TEXT;
 const WHITE: Rgba = Rgba {
     r: 255,
     g: 255,
@@ -410,12 +412,13 @@ impl Audit<'_> {
         match background {
             Background::Unknown => self.push_contrast_unknown(slide, object, &subject),
             Background::Known(background) => {
+                let foreground = button_label_color(background, None);
                 self.push_contrast(
                     slide,
                     Some(object),
                     ContrastSpec {
                         subject: &subject,
-                        foreground: WHITE,
+                        foreground,
                         background,
                         size: 20.0,
                         bold: false,
@@ -733,6 +736,30 @@ pub fn contrast_ratio(a: Rgba, b: Rgba) -> f64 {
         (second, first)
     };
     (lighter + 0.05) / (darker + 0.05)
+}
+
+/// Choose white (`#FFFFFF`) or dark ink (`#1F1F1F`) for a button label,
+/// picking whichever has the higher WCAG contrast ratio against `fill`
+/// (composited over `backdrop` when `fill` is translucent).
+///
+/// When `fill` is translucent and `backdrop` is `None`, returns white.
+#[must_use]
+pub fn button_label_color(fill: Rgba, backdrop: Option<Rgba>) -> Rgba {
+    let effective = if fill.a < 255 {
+        let Some(bg) = backdrop else {
+            return WHITE;
+        };
+        fill.over(bg)
+    } else {
+        fill
+    };
+    let white_ratio = contrast_ratio(WHITE, effective);
+    let dark_ratio = contrast_ratio(BUTTON_DARK_INK, effective);
+    if white_ratio >= dark_ratio {
+        WHITE
+    } else {
+        BUTTON_DARK_INK
+    }
 }
 
 // ------------------------------------------------------------------ helpers

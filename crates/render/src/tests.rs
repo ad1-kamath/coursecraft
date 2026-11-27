@@ -10587,3 +10587,123 @@ fn web_overlays_hide_when_a_scroll_panel_clips_them() {
     );
     assert!(overlay("free").is_some());
 }
+
+#[test]
+fn m47_s2_paint_button_label_contrasts_with_fill_and_states() {
+    let screen = Rect::from_min_size(pos2(0.0, 0.0), vec2(1280.0, 720.0));
+    let t = SlideTransform::fit(screen, Size { w: 1280, h: 720 }).expect("fit");
+    let ctx = egui::Context::default();
+    let dark_ink = Color32::from_rgb(0x1F, 0x1F, 0x1F);
+
+    let make_btn = |id: &str, fill: Color32, hover_fill: Option<Color32>| DrawItem {
+        hit: Hit::Object(id.to_owned()),
+        rect: Rect::from_min_size(pos2(100.0, 100.0), vec2(200.0, 60.0)),
+        visual: Visual::Button {
+            label: "Click".to_owned(),
+            fill,
+            fill_style: None,
+            hover_fill,
+            down_fill: None,
+            down_has_fill_style: false,
+            disabled: false,
+        },
+        dimmed: false,
+        opacity: 1.0,
+        clip: None,
+        rotation: 0.0,
+        flip_h: false,
+        flip_v: false,
+        shadow: None,
+        glow: None,
+        media_time_ms: None,
+        links: Vec::new(),
+        show_table_overflow: false,
+        clip_rect: None,
+        mark: None,
+        is_state_extra: false,
+        anim: crate::compose::AnimLook::IDENTITY,
+    };
+
+    let paint_and_label_color = |item: &DrawItem,
+                                 highlight: Highlight,
+                                 theme: Option<&coursecraft_course::Theme>,
+                                 slide_bg: Option<&coursecraft_course::Color>|
+     -> Color32 {
+        let mut found = None;
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let painter = ui.painter();
+            paint(
+                painter,
+                &t,
+                std::slice::from_ref(item),
+                highlight.clone(),
+                None,
+                theme,
+                slide_bg,
+            );
+            painter.for_each_shape(|clipped| {
+                if let egui::Shape::Text(ref text) = clipped.shape {
+                    found = Some(text.fallback_color);
+                }
+            });
+        });
+        out.drop_without_applying_deltas();
+        found.expect("button label text shape")
+    };
+
+    // Dark button keeps white label.
+    let dark_btn = make_btn("b-dark", Color32::from_rgb(0x1F, 0x4E, 0x8C), None);
+    assert_eq!(
+        paint_and_label_color(&dark_btn, Highlight::default(), None, None),
+        Color32::WHITE
+    );
+
+    // Light buttons use dark ink.
+    let yellow_btn = make_btn("b-yellow", Color32::from_rgb(0xF2, 0xB7, 0x05), None);
+    assert_eq!(
+        paint_and_label_color(&yellow_btn, Highlight::default(), None, None),
+        dark_ink
+    );
+    let white_btn = make_btn("b-white", Color32::WHITE, None);
+    assert_eq!(
+        paint_and_label_color(&white_btn, Highlight::default(), None, None),
+        dark_ink
+    );
+
+    // Dark button with light hover fill switches to dark ink when hovered.
+    let hover_btn = make_btn(
+        "b-hover",
+        Color32::from_rgb(0x1F, 0x4E, 0x8C),
+        Some(Color32::from_rgb(0xF2, 0xB7, 0x05)),
+    );
+    let hovered = Highlight {
+        hovered: Some(Hit::Object("b-hover".to_owned())),
+        pressed: None,
+    };
+    assert_eq!(
+        paint_and_label_color(&hover_btn, hovered, None, None),
+        dark_ink
+    );
+
+    // Transparent button resolves against slide_bg when known, or falls back to white when unknown.
+    let transparent_btn = make_btn("b-trans", Color32::TRANSPARENT, None);
+    let white_bg = coursecraft_course::Color("#FFFFFF".to_owned());
+    let navy_bg = coursecraft_course::Color("#1F4E8C".to_owned());
+    assert_eq!(
+        paint_and_label_color(
+            &transparent_btn,
+            Highlight::default(),
+            None,
+            Some(&white_bg)
+        ),
+        dark_ink
+    );
+    assert_eq!(
+        paint_and_label_color(&transparent_btn, Highlight::default(), None, Some(&navy_bg)),
+        Color32::WHITE
+    );
+    assert_eq!(
+        paint_and_label_color(&transparent_btn, Highlight::default(), None, None),
+        Color32::WHITE
+    );
+}

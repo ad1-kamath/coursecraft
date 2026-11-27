@@ -1993,32 +1993,15 @@ impl<'c> Player<'c> {
                     continue;
                 }
 
-                let mut found_end = None;
-                let mut j = i + 1;
-                while j < bytes.len() {
-                    if bytes.get(j) == Some(&b'%') {
-                        found_end = Some(j);
+                if let Some((name, next)) = coursecraft_course::parse_variable_reference_at(text, i)
+                    && let Some(val) = self.value(name)
+                {
+                    let formatted = format_display_value(&val);
+                    if !push_str_capped(&mut out, &formatted, MAX_LEN) {
                         break;
                     }
-                    j += 1;
-                }
-
-                if let Some(end) = found_end {
-                    let name_bytes = bytes.get(i + 1..end).unwrap_or(&[]);
-                    let name_len = name_bytes.len();
-                    if (1..=128).contains(&name_len) {
-                        let maybe_val = std::str::from_utf8(name_bytes)
-                            .ok()
-                            .and_then(|name| self.value(name));
-                        if let Some(val) = maybe_val {
-                            let formatted = format_display_value(&val);
-                            if !push_str_capped(&mut out, &formatted, MAX_LEN) {
-                                break;
-                            }
-                            i = end + 1;
-                            continue;
-                        }
-                    }
+                    i = next;
+                    continue;
                 }
 
                 if !push_str_capped(&mut out, "%", MAX_LEN) {

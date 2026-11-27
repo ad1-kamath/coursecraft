@@ -1815,6 +1815,14 @@ pub(crate) fn rotated_resize_for_test(
 }
 
 /// Test hook: the frame a Shift+drag of `handle` by `delta` slide pixels gives.
+/// Text colour used while editing a button label in place (tests only).
+#[cfg(test)]
+pub(crate) fn inline_button_label_color_for_test(
+    object: &coursecraft_course::Object,
+) -> Option<String> {
+    inline_edit_text_props(object, None, None, None).map(|props| props.style.color.0)
+}
+
 #[cfg(test)]
 pub(crate) fn shift_resize_for_test(orig: Rect, handle: ResizeHandle, delta: egui::Vec2) -> Rect {
     let min = pos2(
@@ -6734,10 +6742,17 @@ fn inline_edit_text_props(
                     && *autofit == coursecraft_course::Autofit::Grow,
             })
         }
-        (coursecraft_course::ObjectKind::Button { .. }, None) => Some(InlineEditTextProps {
+        (coursecraft_course::ObjectKind::Button { fill, .. }, None) => Some(InlineEditTextProps {
             style: coursecraft_course::TextStyle {
                 size: 20.0,
-                color: coursecraft_course::Color("#ffffff".into()),
+                // Same label colour the player paints, so typing stays visible on light fills.
+                color: coursecraft_course::parse_color(fill).map_or_else(
+                    || coursecraft_course::Color("#ffffff".into()),
+                    |fill| {
+                        let c = coursecraft_course::button_label_color(fill, None);
+                        coursecraft_course::Color(format!("#{:02x}{:02x}{:02x}", c.r, c.g, c.b))
+                    },
+                ),
                 align: coursecraft_course::Align::Center,
                 valign: coursecraft_course::VAlign::Middle,
                 ..Default::default()

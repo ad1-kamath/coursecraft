@@ -915,6 +915,39 @@ pub fn snippet(text: &str, range: Range<usize>) -> (String, Range<usize>) {
     (out, match_start..match_end)
 }
 
+/// Parse a `%name%` variable reference starting at byte index `start` in `text`.
+///
+/// Returns `Some((name, next_index))` when `text` at `start` begins with a
+/// single `%` (not `%%`), has a closing `%` with `1..=128` bytes between them,
+/// and every character in `name` is ASCII alphanumeric, `_`, `-`, or `.`.
+#[must_use]
+pub fn parse_variable_reference_at(text: &str, start: usize) -> Option<(&str, usize)> {
+    let bytes = text.as_bytes();
+    if bytes.get(start) != Some(&b'%') {
+        return None;
+    }
+    let after_open = start.saturating_add(1);
+    if bytes.get(after_open) == Some(&b'%') {
+        return None;
+    }
+    let close = bytes
+        .iter()
+        .enumerate()
+        .skip(after_open)
+        .find(|(_, byte)| **byte == b'%')
+        .map(|(index, _)| index)?;
+    let name = text.get(after_open..close)?;
+    if name.is_empty()
+        || name.len() > 128
+        || !name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.')
+    {
+        return None;
+    }
+    Some((name, close.saturating_add(1)))
+}
+
 /// Byte ranges of the `%name%` references in `text`, including both `%`
 /// signs. The rules match the XLIFF placeholder check: `%%` is an escape, and
 /// a name is non-empty and at most 128 bytes.
@@ -932,24 +965,9 @@ pub fn variable_reference_spans(text: &str) -> Vec<Range<usize>> {
             i = i.saturating_add(2);
             continue;
         }
-        let Some(close) = bytes
-            .iter()
-            .enumerate()
-            .skip(i.saturating_add(1))
-            .find(|(_, byte)| **byte == b'%')
-            .map(|(index, _)| index)
-        else {
-            break;
-        };
-        if let Some(name) = text.get(i.saturating_add(1)..close)
-            && !name.is_empty()
-            && name.len() <= 128
-            && name
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.')
-        {
-            spans.push(i..close.saturating_add(1));
-            i = close.saturating_add(1);
+        if let Some((_, next)) = parse_variable_reference_at(text, i) {
+            spans.push(i..next);
+            i = next;
         } else {
             i = i.saturating_add(1);
         }
