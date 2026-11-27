@@ -21,8 +21,8 @@ const HEALTHY_HABITS_JSON: &str = include_str!("../../../examples/healthy-habits
 /// Media files of the Healthy Habits course, by their path under `media/`.
 const HEALTHY_HABITS_MEDIA: &[(&str, &[u8])] = &[
     (
-        "badge.jpg",
-        include_bytes!("../../../examples/healthy-habits/media/badge.jpg"),
+        "badge-round.jpg",
+        include_bytes!("../../../examples/healthy-habits/media/badge-round.jpg"),
     ),
     (
         "bonus.mp3",
@@ -35,6 +35,10 @@ const HEALTHY_HABITS_MEDIA: &[(&str, &[u8])] = &[
     (
         "breathe-circle.json",
         include_bytes!("../../../examples/healthy-habits/media/breathe-circle.json"),
+    ),
+    (
+        "breathe-round.jpg",
+        include_bytes!("../../../examples/healthy-habits/media/breathe-round.jpg"),
     ),
     (
         "breathe.jpg",
@@ -81,6 +85,10 @@ const HEALTHY_HABITS_MEDIA: &[(&str, &[u8])] = &[
         include_bytes!("../../../examples/healthy-habits/media/checkin.vtt"),
     ),
     (
+        "connect-round.jpg",
+        include_bytes!("../../../examples/healthy-habits/media/connect-round.jpg"),
+    ),
+    (
         "connect.jpg",
         include_bytes!("../../../examples/healthy-habits/media/connect.jpg"),
     ),
@@ -115,6 +123,10 @@ const HEALTHY_HABITS_MEDIA: &[(&str, &[u8])] = &[
     (
         "desk.vtt",
         include_bytes!("../../../examples/healthy-habits/media/desk.vtt"),
+    ),
+    (
+        "evening-round.jpg",
+        include_bytes!("../../../examples/healthy-habits/media/evening-round.jpg"),
     ),
     (
         "evening.jpg",
@@ -197,6 +209,10 @@ const HEALTHY_HABITS_MEDIA: &[(&str, &[u8])] = &[
         include_bytes!("../../../examples/healthy-habits/media/hero.jpg"),
     ),
     (
+        "move-round.jpg",
+        include_bytes!("../../../examples/healthy-habits/media/move-round.jpg"),
+    ),
+    (
         "move.jpg",
         include_bytes!("../../../examples/healthy-habits/media/move.jpg"),
     ),
@@ -249,10 +265,6 @@ const HEALTHY_HABITS_MEDIA: &[(&str, &[u8])] = &[
         include_bytes!("../../../examples/healthy-habits/media/plan.vtt"),
     ),
     (
-        "quiz.jpg",
-        include_bytes!("../../../examples/healthy-habits/media/quiz.jpg"),
-    ),
-    (
         "quiz.mp3",
         include_bytes!("../../../examples/healthy-habits/media/quiz.mp3"),
     ),
@@ -293,6 +305,10 @@ const HEALTHY_HABITS_MEDIA: &[(&str, &[u8])] = &[
         include_bytes!("../../../examples/healthy-habits/media/steps.vtt"),
     ),
     (
+        "stretch-poster.jpg",
+        include_bytes!("../../../examples/healthy-habits/media/stretch-poster.jpg"),
+    ),
+    (
         "stretch.mp4",
         include_bytes!("../../../examples/healthy-habits/media/stretch.mp4"),
     ),
@@ -309,8 +325,8 @@ const HEALTHY_HABITS_MEDIA: &[(&str, &[u8])] = &[
         include_bytes!("../../../examples/healthy-habits/media/tips.vtt"),
     ),
     (
-        "wave.jpg",
-        include_bytes!("../../../examples/healthy-habits/media/wave.jpg"),
+        "wave-round.jpg",
+        include_bytes!("../../../examples/healthy-habits/media/wave-round.jpg"),
     ),
     (
         "welcome.mp3",

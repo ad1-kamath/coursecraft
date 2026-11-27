@@ -17,7 +17,21 @@ workaround in `examples/healthy-habits/build.py`. Ordered by how much an author 
   `apply_object_samples`), and add a test with a by-letter `%var%` text.
 - **Workaround used:** the certificate name plays in as one piece.
 
-## 2. Question prompt and answers can't be moved or narrowed
+## 2. A shape-masked image ignores its crop and squashes the picture
+
+- **Seen:** an image with `"shape": "ellipse"` and a crop draws the whole 16:9 source squeezed
+  into the circle; the same crop with no mask draws correctly.
+- **Cause:** `crates/render/src/paint.rs` (around line 3034): with a mask, the image goes
+  through `paint_picture_fill`, which takes no crop window; only the unmasked branch passes
+  `crop` to `image_dest_rect`. Picture fills on shapes (`fill_style.picture`, mode `stretch`)
+  have the same limit: they always stretch the whole picture to the shape.
+- **Fix idea:** pass the crop window (UV rect) into `paint_picture_fill` for masked images, and
+  give picture fills a `fill` (cover) mode that keeps the picture's ratio. Add a render test
+  comparing a masked crop with the unmasked one.
+- **Workaround used:** the masked pictures use square copies cut ahead of time
+  (`*-round.jpg`) with no crop.
+
+## 3. Question prompt and answers can't be moved or narrowed
 
 - **Seen:** a picture placed beside a question is covered by the prompt and the answer rows.
 - **Cause:** the player lays questions out on a fixed full-width grid
@@ -27,27 +41,27 @@ workaround in `examples/healthy-habits/build.py`. Ordered by how much an author 
   make room for a picture.
 - **Workaround used:** question pictures are small corner cards at the bottom right.
 
-## 3. No glyph and no fallback for U+2715 (✕)
+## 4. No glyph and no fallback for U+2715 (✕)
 
 - **Seen:** a `✕` in a button label draws as an empty box.
 - **Fix idea:** add a symbol fallback font, or map common symbols (✕ ✓ ★ →) to a bundled face;
   `a11y-check` or `validate` could warn about characters no font can draw.
 - **Workaround used:** `×` (U+00D7).
 
-## 4. Image masks and reveal effects use different names for a circle
+## 5. Image masks and reveal effects use different names for a circle
 
 - **Seen:** an image `shape` mask of `"circle"` is rejected; it needs the shape name
   `"ellipse"`. The shape reveal effect calls the same thing `"circle"`.
 - **Fix idea:** accept `circle` as an alias for `ellipse` in masks (and say so in the error).
 
-## 5. `render --layer X` also shows layers the slide opens by itself
+## 6. `render --layer X` also shows layers the slide opens by itself
 
 - **Seen:** `render --slide results1 --layer passed` also draws the failed layer, because the
   slide's own timeline-start trigger shows it at the same time.
 - **Fix idea:** with `--layer`, show only the named layer (or add `--only-layer`). This is a
   CLI checking tool quirk, not something learners see.
 
-## 6. `snapshot-player` "ended" view hides objects whose entrance starts late
+## 7. `snapshot-player` "ended" view hides objects whose entrance starts late
 
 - **Seen:** on long slides, a snapshot taken at the slide's end can leave out objects that
   start after a pause trigger, which makes the frame look broken when the player is fine.

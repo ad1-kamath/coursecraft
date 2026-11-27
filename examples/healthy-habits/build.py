@@ -211,10 +211,14 @@ def button(oid, label, frame, fill=TEAL, hover=None, name=None):
 
 def image(oid, src, alt, frame, crop=None, name=None, mask=None):
     k = {"type": "image", "src": src, "alt": alt}
+    if mask:
+        # A shape mask draws the whole source and ignores `crop`, so masked pictures use a
+        # square copy cut ahead of time (`<name>-round.jpg`) and no crop.
+        k["src"] = src.replace(".jpg", "-round.jpg")
+        k["shape"] = mask
+        crop = None
     if crop:
         k["crop"] = crop
-    if mask:
-        k["shape"] = mask
     return obj(oid, name or oid, k, frame)
 
 def crop_for(frame, x=0.5, src_ratio=1376 / 768):
@@ -647,7 +651,7 @@ setup(s, CREAM, T("cover", 650, **{"from": "bottom"}), "Follow along with three 
 slide(s)["revisit"] = "reset"
 eyebrow(s, "v_eyebrow", "LESSON 1  ·  MOVE", 88, 48, start=0)
 add(s, ent(heading("v_title", "Three stretches you can do at your desk", 84, 76, 1000, 64, 42), RISE, 700, 150, "overshoot"))
-vid = add(s, obj("v_video", "Stretch video", {"type": "video", "src": "stretch.mp4", "autoplay": False, "captions": "stretch.vtt", "cues": [
+vid = add(s, obj("v_video", "Stretch video", {"type": "video", "src": "stretch.mp4", "autoplay": False, "poster": "stretch-poster.jpg", "captions": "stretch.vtt", "cues": [
     {"id": "c_neck", "at_ms": 300, "name": "Neck stretch"}, {"id": "c_shoulder", "at_ms": 4700, "name": "Shoulder stretch"},
     {"id": "c_twist", "at_ms": 9100, "name": "Seated twist"}]}, F(88, 160, 712, 400)))
 vid["shadow"] = SOFT
@@ -692,7 +696,7 @@ s = "eyes"
 setup(s, CREAM, T("split", 800, orientation="vertical", inout="out"), "Start the 20-second timer and look at something far away until it ends.",
       master=False, duration=45000)   # long enough for the 20-second timer started after the narration
 efr = F(0, 0, 560, 720)
-ep = add(s, image("e_pic", "eyes.jpg", "A man resting his eyes by looking out of a window at distant hills", efr, crop={"x": 0.12, "y": 0.0, "w": 0.524, "h": 1.0}, name="Eyes picture"))
+ep = add(s, image("e_pic", "eyes.jpg", "A man resting his eyes by looking out of a window at distant hills", efr, crop=crop_for(efr, 0.36), name="Eyes picture"))
 ent(ep, wipe("bottom"), 900)
 eyebrow(s, "e_eyebrow", "LESSON 1  ·  MOVE", 620, 72, start=200)
 add(s, ent(heading("e_title", "Give your eyes a\n20-second holiday", 616, 98, 600, 120, 44), RISE, 800, 400, "overshoot", "by_paragraph"))
@@ -845,6 +849,11 @@ trig(s, click("breathe_next"), jump("next"))
 s = "steps"
 setup(s, CREAM, T("push", 650, **{"from": "right"}), "Use Next and Back to walk through the four steps.", duration=NARR["steps"]["duration_ms"] + 1000)
 slide(s)["revisit"] = "reset"
+eyebrow(s, "st_eyebrow", "LESSON 2  ·  BREATHE", 88, 32, start=0)
+add(s, ent(heading("st_title", "A one-minute reset", 84, 54, 900, 56, 40), RISE, 700, 150, "overshoot", "by_letter"))
+for o in slide(s)["objects"]:
+    if o["id"].startswith(("step_line", "step_circle", "step_label")):
+        o["frame"]["y"] += 40
 steps4 = [("Sit tall", "Feet flat, hands resting in your lap. Let your shoulders drop away from your ears."),
           ("Breathe in · 4", "Breathe in slowly through your nose while you count to four."),
           ("Hold · 4", "Hold the breath gently, without strain, for another count of four."),
@@ -853,16 +862,18 @@ for i, (title, detail) in enumerate(steps4, 1):
     set_label(s, f"step_label{i}", title)
     set_label(s, f"step_panel{i}_title1", title, size=34, font=SERIF, bold=False)
     set_label(s, f"step_panel{i}_detail1", detail, size=22, color=BODY)
-    find(s, f"step_panel{i}_detail1")["frame"] = F(116, 304, 620, 200)
-    find(s, f"step_panel{i}_title1")["frame"] = F(116, 240, 620, 54)
+    find(s, f"step_panel{i}_detail1")["frame"] = F(116, 340, 620, 180)
+    find(s, f"step_panel{i}_title1")["frame"] = F(116, 280, 620, 54)
     ent(find(s, f"step_panel{i}_title1"), RISE, 600, 0, "overshoot")
     ent(find(s, f"step_panel{i}_detail1"), FADE, 500, 250)
-    pfr = F(850, 236, 320, 320)
+    pfr = F(880, 274, 290, 290)
     sp = add(s, image(f"st_pic{i}", "breathe.jpg", "A woman breathing calmly", pfr, crop=crop_for(pfr, 0.72), name=f"Step {i} picture", mask="ellipse"), f"step_layer{i}")
     ent(sp, reveal_shape("circle"), 700, 100)
 for i in range(1, 5):
     pnl = find(s, f"step_panel{i}1")
     pnl["kind"]["fill"] = WHITE
+    pnl["frame"]["y"] = 254
+    pnl["frame"]["h"] = 336
     pnl["kind"]["outline"] = {"color": SAGE, "width": 2, "dash": "solid"}
     pnl["shadow"] = CARD
 find(s, "step_back1")["frame"] = F(88, 610, 120, 48)
@@ -944,7 +955,7 @@ voice(s, "scenario", x=1100, y=28)
 # ------------------------------------------------------------------ 13. Day (timeline insert)
 s = "day"
 setup(s, CREAM, T("wipe", 800, **{"from": "left"}), "Tap each time to see a habit that fits that part of the day.", duration=NARR["day"]["duration_ms"] + 2500)
-band = add(s, image("dy_band", "day.jpg", "A landscape from sunrise to sunset", F(0, 150, 1280, 150), crop={"x": 0.0, "y": 0.33, "w": 1.0, "h": 0.28}, name="Day panorama"), index=0)
+band = add(s, image("dy_band", "day.jpg", "A landscape from sunrise to sunset", F(0, 150, 1280, 150), crop={"x": 0.0, "y": 0.42, "w": 1.0, "h": round(1376 / 768 / (1280 / 150), 4)}, name="Day panorama"), index=0)
 band["opacity"] = 0.55
 band["decorative"] = True
 ent(band, wipe("left"), 1400, 300, "ease_in_out")
@@ -996,11 +1007,12 @@ voice(s, "day", x=1100, y=28)
 s = "tips"
 setup(s, SAND, T("random_bars", 700, orientation="vertical"), "Tap each tile to reveal a quick win.", duration=NARR["tips"]["duration_ms"] + 2000)
 slide(s)["revisit"] = "reset"
-eyebrow(s, "tp_eyebrow", "SIX QUICK WINS", 88, 36, CORAL_DK, start=0)
+eyebrow(s, "tp_eyebrow", "LESSON 3  ·  CONNECT", 88, 36, CORAL_DK, start=0)
+add(s, ent(heading("tp_title", "Six quick wins. Tap to reveal.", 84, 62, 900, 56, 40), RISE, 700, 150, "overshoot"))
 tips = [("Stand for calls", "Every phone call is a chance to stand and walk."),
         ("Stairs first", "One flight up beats the lift for your heart."),
         ("Bottle on desk", "If you can see it, you'll drink it."),
-        ("Walking 1:1s", "Talk side by side instead of face to screen."),
+        ("Walk and talk", "Hold one-to-ones side by side instead of face to screen."),
         ("Lunch away", "Eat anywhere but your keyboard."),
         ("Last task first", "Write tomorrow's first task down, then log off.")]
 for i, (front, back) in enumerate(tips, 1):
@@ -1010,15 +1022,18 @@ for i, (front, back) in enumerate(tips, 1):
     o["kind"]["text"]["text"] = front
     o["kind"]["text"]["style"].update(style(26, DEEP, False, align="center", valign="middle", font=SERIF))
     o["shadow"] = CARD
-    o["frame"]["y"] = o["frame"]["y"] + 10
+    row = (i - 1) // 3
+    o["frame"]["y"] = 138 + row * 226
+    o["frame"]["h"] = 210
     for stt in o.get("states", []):
         if stt["name"] == "Revealed":
             stt["fill"] = "#DDEDE3"
             stt["text"] = back
     ent(o, strips("top_left"), 700, cue("tips", 1) + (i - 1) * 140)
 set_label(s, "grid_counter1", "%grid1_explored% of 6 revealed", color=DEEP, bold=True)
-next_button(s, 1060, 26, "Next  →", w=140)
-find(s, "tips_next")["frame"] = F(940, 28, 140, 44)
+next_button(s, 1020, 600)
+find(s, "grid_counter1")["frame"] = F(88, 604, 600, 32)
+find(s, "grid_counter1")["kind"]["style"]["align"] = "left"
 voice(s, "tips", x=1100, y=28)
 
 # ------------------------------------------------------------------ 15. Plan: radio group, checkbox, slider, table
@@ -1080,7 +1095,7 @@ QSPEC = {
     "r3": dict(prompt="Describe one change to your workday, and when you'll make it."),
 }
 QSIDE = {"q1": ("desk.jpg", 0.45), "q2": ("breathe.jpg", 0.72), "q3": ("connect.jpg", 0.72), "q4": ("eyes.jpg", 0.35),
-         "q5": ("breathe.jpg", 0.72), "q6": ("evening.jpg", 0.72), "q8": ("quiz.jpg", 0.72), "q9": ("move.jpg", 0.72),
+         "q5": ("breathe.jpg", 0.72), "q6": ("evening.jpg", 0.72), "q9": ("move.jpg", 0.72),
          "r1": ("hero.jpg", 0.62), "r2": ("plan.jpg", 0.5), "r3": ("evening.jpg", 0.72)}
 TRANS = [T("fade", 500), T("push", 600, **{"from": "right"}), T("reveal", 650, **{"from": "right"}), T("wipe", 650, **{"from": "right"})]
 for n, (sid, kind) in enumerate([(q[0], q[1]) for q in QUIZ] + REFLECT, 1):
@@ -1157,7 +1172,7 @@ for n, (sid, kind) in enumerate([(q[0], q[1]) for q in QUIZ] + REFLECT, 1):
         pass
 
 for sid in ("q1", "q2", "q3"):
-    voice(sid, "check", x=844, y=24, oid=f"{sid}_voice")
+    voice(sid, "check", x=1112, y=24, oid=f"{sid}_voice")
 voice("q4", "quiz", x=844, y=24, oid="q4_voice")
 voice("r1", "reflect", x=844, y=24, oid="r1_voice")
 
@@ -1300,7 +1315,7 @@ voice(s, "finish", x=88, y=620, dark=True, oid="f_voice")
 s = "bonus"
 setup(s, WHITE, T_FADE, "Blink more, and the 20-20-20 rule explained.", master=False, duration=NARR["bonus"]["duration_ms"] + 1000)
 bfr = F(0, 0, 540, 720)
-add(s, ent(image("bn_pic", "eyes.jpg", "A man resting his eyes by looking out of a window", bfr, crop={"x": 0.12, "y": 0.0, "w": 0.5, "h": 1.0}, name="Eyes picture"), peek("left"), 700))
+add(s, ent(image("bn_pic", "eyes.jpg", "A man resting his eyes by looking out of a window", bfr, crop=crop_for(bfr, 0.36), name="Eyes picture"), peek("left"), 700))
 eyebrow(s, "bn_eyebrow", "BONUS TIP", 600, 120, start=100)
 add(s, ent(heading("bn_title", "Blink more, and\nlook far away", 596, 148, 620, 130, 46), RISE, 800, 300, "overshoot", "by_paragraph"))
 add(s, ent(text("bn_list", "Every 20 minutes\nlook 20 feet (6 m) away\nfor 20 seconds", F(600, 296, 580, 140), 24, DEEP, True, "Rule",
