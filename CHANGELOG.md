@@ -2,9 +2,12 @@
 
 What changed in each release, newest first. Versions follow [semantic versioning](https://semver.org): until 1.0, a minor version (0.x) may change things, but a project saved by an older CourseCraft always opens in a newer one.
 
-## Unreleased
+## 0.6.3
 
-Bug fixes from a review of 0.6.1 and from rebuilding a sample course.
+More than 150 bug fixes from a review of 0.6.1 and from rebuilding a sample course, and a redesigned Healthy Habits at Work sample course.
+
+**Sample course**
+- Healthy Habits at Work, the course that opens on first launch, is rebuilt: a new look with illustrations, voiceover with captions, music, check-your-understanding questions, drag-and-drop sorting, a breathing exercise, a mood check-in, a personal plan and a certificate.
 
 **Animation and timing**
 - Moving an object on the timeline also moves its emphasis. Copy Animation keeps an emphasis offset inside the target's time.
