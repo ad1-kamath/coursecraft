@@ -1,0 +1,8525 @@
+{
+ "schema_version": 1,
+ "id": "coursecraft-feature-tour",
+ "title": "The CourseCraft Feature Tour",
+ "slide_size": {
+  "w": 1280,
+  "h": 720
+ },
+ "variables": [
+  {
+   "name": "explored",
+   "value": 0
+  },
+  {
+   "name": "seen_layers",
+   "value": false
+  },
+  {
+   "name": "seen_states",
+   "value": false
+  },
+  {
+   "name": "seen_variables",
+   "value": false
+  }
+ ],
+ "quiz": {
+  "passing_percent": 80
+ },
+ "player": {
+  "show_nav": true,
+  "show_menu": true,
+  "show_seekbar": true,
+  "show_transcript": true
+ },
+ "theme": {
+  "accent": "#5B3FD6",
+  "background": "#F6F4FD",
+  "text": "#1F1747",
+  "font": "Inter",
+  "player": {
+   "bar": "#211656",
+   "bar_text": "#FFFFFF"
+  },
+  "palette": [
+   {
+    "id": "pal1",
+    "name": "Ink",
+    "color": "#1F1747"
+   },
+   {
+    "id": "pal2",
+    "name": "Night",
+    "color": "#211656"
+   },
+   {
+    "id": "pal3",
+    "name": "Violet",
+    "color": "#5B3FD6"
+   },
+   {
+    "id": "pal4",
+    "name": "Lilac",
+    "color": "#ECE7FD"
+   },
+   {
+    "id": "pal5",
+    "name": "Peach",
+    "color": "#F49A6C"
+   },
+   {
+    "id": "pal6",
+    "name": "Rust",
+    "color": "#7A3412"
+   },
+   {
+    "id": "pal7",
+    "name": "Mint",
+    "color": "#7ED9CF"
+   },
+   {
+    "id": "pal8",
+    "name": "Paper",
+    "color": "#F6F4FD"
+   }
+  ]
+ },
+ "text_styles": [
+  {
+   "id": "ts_title",
+   "name": "Title",
+   "style": {
+    "font": "Inter",
+    "size": 56,
+    "color": "#1F1747",
+    "bold": true
+   }
+  },
+  {
+   "id": "ts_heading",
+   "name": "Heading",
+   "style": {
+    "font": "Inter",
+    "size": 36,
+    "color": "#1F1747",
+    "bold": true
+   }
+  },
+  {
+   "id": "ts_eyebrow",
+   "name": "Eyebrow",
+   "style": {
+    "font": "Inter",
+    "size": 16,
+    "color": "#5B3FD6",
+    "bold": true,
+    "letter_spacing": 2.5
+   }
+  },
+  {
+   "id": "ts_body",
+   "name": "Body",
+   "style": {
+    "font": "Inter",
+    "size": 20,
+    "color": "#3D3566",
+    "bold": false
+   }
+  }
+ ],
+ "masters": [
+  {
+   "id": "m_content",
+   "title": "Content",
+   "background": "#F6F4FD",
+   "objects": [
+    {
+     "id": "m_glow",
+     "name": "Corner glow",
+     "kind": {
+      "type": "shape",
+      "shape": "ellipse",
+      "fill": "#ECE7FD"
+     },
+     "frame": {
+      "x": 1110,
+      "y": -150,
+      "w": 320,
+      "h": 320
+     },
+     "decorative": true
+    },
+    {
+     "id": "m_dot",
+     "name": "Brand dot",
+     "kind": {
+      "type": "shape",
+      "shape": "ellipse",
+      "fill": "#F49A6C"
+     },
+     "frame": {
+      "x": 88,
+      "y": 684,
+      "w": 8,
+      "h": 8
+     },
+     "decorative": true
+    },
+    {
+     "id": "m_brand",
+     "name": "Footer",
+     "kind": {
+      "type": "text",
+      "text": "The CourseCraft Feature Tour",
+      "style": {
+       "font": "Inter",
+       "size": 12,
+       "color": "#635C88",
+       "bold": true,
+       "letter_spacing": 1
+      }
+     },
+     "frame": {
+      "x": 104,
+      "y": 677,
+      "w": 400,
+      "h": 20
+     },
+     "decorative": true
+    }
+   ]
+  }
+ ],
+ "scenes": [
+  {
+   "id": "sc_welcome",
+   "title": "Welcome",
+   "slides": [
+    {
+     "id": "tour",
+     "title": "Welcome",
+     "duration_ms": 5000,
+     "background": "#EFECFA",
+     "objects": [
+      {
+       "id": "t-hero",
+       "name": "Hero picture",
+       "kind": {
+        "type": "image",
+        "src": "hero.jpg",
+        "alt": "A course author smiles at a large screen full of slide cards, pictures and a video.",
+        "shape": "rectangle",
+        "crop": {
+         "x": 0.0042,
+         "y": 0.0,
+         "w": 0.9917,
+         "h": 1.0
+        }
+       },
+       "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 720
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 900,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "t-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F49A6C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 181,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 300
+       }
+      },
+      {
+       "id": "t-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "WELCOME TO COURSECRAFT",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#5B3FD6",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 170,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 450
+       }
+      },
+      {
+       "id": "t-title",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "Take the\nfeature tour",
+        "style": {
+         "font": "Inter",
+         "size": 60,
+         "color": "#1F1747",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         },
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_title"
+       },
+       "frame": {
+        "x": 84,
+        "y": 208,
+        "w": 560,
+        "h": 150
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 450
+       }
+      },
+      {
+       "id": "t-body",
+       "name": "Body",
+       "kind": {
+        "type": "text",
+        "text": "Six short stops show what a CourseCraft course can do: media, layers, motion, markers, questions and results.",
+        "style": {
+         "font": "Inter",
+         "size": 20,
+         "color": "#3D3566",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.45
+         }
+        ],
+        "text_style": "ts_body"
+       },
+       "frame": {
+        "x": 88,
+        "y": 372,
+        "w": 480,
+        "h": 100
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 800
+       }
+      },
+      {
+       "id": "t-chip1",
+       "name": "Media",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFFB3",
+        "text": {
+         "text": "Media",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 486,
+        "w": 84,
+        "h": 36
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1000
+       }
+      },
+      {
+       "id": "t-chip2",
+       "name": "Interactivity",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFFB3",
+        "text": {
+         "text": "Interactivity",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 184,
+        "y": 486,
+        "w": 136,
+        "h": 36
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1100
+       }
+      },
+      {
+       "id": "t-chip3",
+       "name": "Motion",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFFB3",
+        "text": {
+         "text": "Motion",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 332,
+        "y": 486,
+        "w": 90,
+        "h": 36
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1200
+       }
+      },
+      {
+       "id": "t-chip4",
+       "name": "Quiz",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFFB3",
+        "text": {
+         "text": "Quiz",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 434,
+        "y": 486,
+        "w": 72,
+        "h": 36
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1300
+       }
+      },
+      {
+       "id": "btn-start",
+       "name": "Start Tour button",
+       "kind": {
+        "type": "button",
+        "label": "Start Tour",
+        "fill": "#5B3FD6"
+       },
+       "frame": {
+        "x": 88,
+        "y": 556,
+        "w": 200,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#4A31B8"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#1F174733"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1350
+       }
+      }
+     ],
+     "transition": {
+      "type": "fade",
+      "duration_ms": 700
+     },
+     "notes": "Start Tour goes to the video slide, so Start Tour › Play Video plays a video in two clicks.",
+     "triggers": [
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": "next"
+       },
+       "when": {
+        "event": "click",
+        "object": "btn-start"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sc_build",
+   "title": "The tour",
+   "slides": [
+    {
+     "id": "media",
+     "title": "Video and sound",
+     "duration_ms": 5000,
+     "background": "#F6F4FD",
+     "objects": [
+      {
+       "id": "md-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F49A6C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 53,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "md-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "STOP 1  ·  MEDIA",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#5B3FD6",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 42,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "md-title",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "Video and sound",
+        "style": {
+         "font": "Inter",
+         "size": 40,
+         "color": "#1F1747",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_heading"
+       },
+       "frame": {
+        "x": 84,
+        "y": 76,
+        "w": 900,
+        "h": 56
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "md-frame",
+       "name": "Video frame",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#211656",
+        "adjust": [
+         0.04
+        ]
+       },
+       "frame": {
+        "x": 80,
+        "y": 166,
+        "w": 624,
+        "h": 358
+       },
+       "decorative": true,
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 14,
+        "blur": 34,
+        "color": "#1F174733"
+       },
+       "entrance": {
+        "effect": {
+         "type": "zoom"
+        },
+        "duration_ms": 600,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "md-video",
+       "name": "Tour video",
+       "kind": {
+        "type": "video",
+        "src": "intro.mp4",
+        "autoplay": false,
+        "captions": "intro.vtt"
+       },
+       "frame": {
+        "x": 88,
+        "y": 174,
+        "w": 608,
+        "h": 342
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "md-chime",
+       "name": "Chime",
+       "kind": {
+        "type": "audio",
+        "src": "chime.wav",
+        "autoplay": false,
+        "captions": "chime.vtt"
+       },
+       "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0
+       }
+      },
+      {
+       "id": "md-body",
+       "name": "Body",
+       "kind": {
+        "type": "text",
+        "text": "Video and sound play inside the slide. A trigger starts them, and another reacts when they end.",
+        "style": {
+         "font": "Inter",
+         "size": 19,
+         "color": "#3D3566",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.45
+         }
+        ],
+        "text_style": "ts_body"
+       },
+       "frame": {
+        "x": 760,
+        "y": 170,
+        "w": 432,
+        "h": 90
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      },
+      {
+       "id": "md-pt1-icon",
+       "name": "Icon",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#ECE7FD",
+        "text": {
+         "text": "✓",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 760,
+        "y": 282,
+        "w": 32,
+        "h": 32
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 700
+       }
+      },
+      {
+       "id": "md-pt1",
+       "name": "Point",
+       "kind": {
+        "type": "text",
+        "text": "Captions follow the playhead",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#3D3566",
+         "bold": true,
+         "valign": "middle"
+        }
+       },
+       "frame": {
+        "x": 808,
+        "y": 283,
+        "w": 384,
+        "h": 30
+       },
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "right"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 780
+       }
+      },
+      {
+       "id": "md-pt2-icon",
+       "name": "Icon",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#ECE7FD",
+        "text": {
+         "text": "✓",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 760,
+        "y": 330,
+        "w": 32,
+        "h": 32
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 820
+       }
+      },
+      {
+       "id": "md-pt2",
+       "name": "Point",
+       "kind": {
+        "type": "text",
+        "text": "Play, pause and seek from triggers",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#3D3566",
+         "bold": true,
+         "valign": "middle"
+        }
+       },
+       "frame": {
+        "x": 808,
+        "y": 331,
+        "w": 384,
+        "h": 30
+       },
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "right"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      },
+      {
+       "id": "md-pt3-icon",
+       "name": "Icon",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#ECE7FD",
+        "text": {
+         "text": "✓",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 760,
+        "y": 378,
+        "w": 32,
+        "h": 32
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 940
+       }
+      },
+      {
+       "id": "md-pt3",
+       "name": "Point",
+       "kind": {
+        "type": "text",
+        "text": "A sound effect on any click",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#3D3566",
+         "bold": true,
+         "valign": "middle"
+        }
+       },
+       "frame": {
+        "x": 808,
+        "y": 379,
+        "w": 384,
+        "h": 30
+       },
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "right"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1020
+       }
+      },
+      {
+       "id": "btn-play-video",
+       "name": "Play Video button",
+       "kind": {
+        "type": "button",
+        "label": "Play Video",
+        "fill": "#5B3FD6"
+       },
+       "frame": {
+        "x": 760,
+        "y": 446,
+        "w": 180,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#4A31B8"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#1F174733"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1100
+       }
+      },
+      {
+       "id": "btn-play-sound",
+       "name": "Play Sound button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#ECE7FD",
+        "text": {
+         "text": "Play Sound",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.2
+        ]
+       },
+       "frame": {
+        "x": 956,
+        "y": 446,
+        "w": 170,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#D9D0FA"
+        }
+       ],
+       "description": "Play Sound",
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1200
+       }
+      },
+      {
+       "id": "md-status",
+       "name": "Video status",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#ECE7FD",
+        "text": {
+         "text": "●  Video not played yet",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 544,
+        "w": 300,
+        "h": 38
+       },
+       "states": [
+        {
+         "name": "finished",
+         "fill": "#0F7B5F",
+         "text": "✓  Video finished",
+         "text_style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       ],
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      },
+      {
+       "id": "md-next",
+       "name": "Next button",
+       "kind": {
+        "type": "button",
+        "label": "Next  →",
+        "fill": "#5B3FD6"
+       },
+       "frame": {
+        "x": 1012,
+        "y": 596,
+        "w": 180,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#4A31B8"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#1F174733"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "notes": "Play Video starts the clip with play_media. When it ends, a media_ends trigger changes the status pill and shows a layer.",
+     "revisit": "reset",
+     "triggers": [
+      {
+       "action": {
+        "action": "play_media",
+        "object": "md-video"
+       },
+       "when": {
+        "event": "click",
+        "object": "btn-play-video"
+       }
+      },
+      {
+       "action": {
+        "action": "play_media",
+        "object": "md-chime"
+       },
+       "when": {
+        "event": "click",
+        "object": "btn-play-sound"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "md-status",
+        "state": "finished"
+       },
+       "when": {
+        "event": "media_ends",
+        "object": "md-video"
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "video-done"
+       },
+       "when": {
+        "event": "media_ends",
+        "object": "md-video"
+       }
+      },
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": "next"
+       },
+       "when": {
+        "event": "click",
+        "object": "md-next"
+       }
+      }
+     ],
+     "layers": [
+      {
+       "id": "video-done",
+       "name": "Video finished",
+       "duration_ms": 4000,
+       "objects": [
+        {
+         "id": "vd-card",
+         "name": "Toast",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#211656",
+          "text": {
+           "text": "The video ended, so a trigger showed this layer.",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.3
+          ]
+         },
+         "frame": {
+          "x": 760,
+          "y": 520,
+          "w": 432,
+          "h": 60
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 10,
+          "blur": 24,
+          "color": "#1F174740"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        }
+       ],
+       "hide_other_layers": false,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": false
+      }
+     ]
+    },
+    {
+     "id": "interact",
+     "title": "Layers, states and variables",
+     "duration_ms": 5000,
+     "background": "#F6F4FD",
+     "objects": [
+      {
+       "id": "ia-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F49A6C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 53,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "ia-hint",
+       "name": "Hint",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#ECE7FD88",
+        "text": {
+         "text": "Select a card to see what it does",
+         "style": {
+          "font": "Inter",
+          "size": 18,
+          "color": "#635C88",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.1
+        ],
+        "outline": {
+         "color": "#5B3FD655",
+         "width": 2,
+         "dash": "dash"
+        }
+       },
+       "frame": {
+        "x": 528,
+        "y": 352,
+        "w": 656,
+        "h": 150
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      },
+      {
+       "id": "ia-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "STOP 2  ·  INTERACTIVITY",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#5B3FD6",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 42,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "ia-title",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "Layers, states and variables",
+        "style": {
+         "font": "Inter",
+         "size": 40,
+         "color": "#1F1747",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_heading"
+       },
+       "frame": {
+        "x": 84,
+        "y": 76,
+        "w": 900,
+        "h": 56
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "ia-sub",
+       "name": "Body",
+       "kind": {
+        "type": "text",
+        "text": "Select each card. The counter is a variable shown in the text.",
+        "style": {
+         "font": "Inter",
+         "size": 19,
+         "color": "#3D3566",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.45
+         }
+        ],
+        "text_style": "ts_body"
+       },
+       "frame": {
+        "x": 88,
+        "y": 134,
+        "w": 1100,
+        "h": 34
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "ia-pic",
+       "name": "Picture",
+       "kind": {
+        "type": "image",
+        "src": "layers.jpg",
+        "alt": "Translucent slide cards stacked on top of each other.",
+        "shape": "rounded_rectangle",
+        "crop": {
+         "x": 0.2211,
+         "y": 0.0,
+         "w": 0.5578,
+         "h": 1.0
+        }
+       },
+       "frame": {
+        "x": 88,
+        "y": 196,
+        "w": 400,
+        "h": 400
+       },
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 12,
+        "blur": 30,
+        "color": "#1F174722"
+       },
+       "entrance": {
+        "effect": {
+         "type": "shape",
+         "shape": "box",
+         "inout": "out"
+        },
+        "duration_ms": 800,
+        "easing": "ease_in_out"
+       },
+       "timing": {
+        "start_ms": 300
+       }
+      },
+      {
+       "id": "card-layers",
+       "name": "Layers card",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF",
+        "text": {
+         "text": "01\nLayers",
+         "style": {
+          "font": "Inter",
+          "size": 20,
+          "color": "#1F1747",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.12
+        ]
+       },
+       "frame": {
+        "x": 528,
+        "y": 196,
+        "w": 208,
+        "h": 132
+       },
+       "description": "Show layers",
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 22,
+        "color": "#1F17471F"
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#ECE7FD"
+        },
+        {
+         "name": "visited",
+         "fill": "#ECE7FD",
+         "text": "✓\nLayers",
+         "text_style": {
+          "font": "Inter",
+          "size": 20,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        {
+         "name": "selected",
+         "fill": "#5B3FD6",
+         "text": "01\nLayers",
+         "text_style": {
+          "font": "Inter",
+          "size": 20,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       ],
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "card-states",
+       "name": "States card",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF",
+        "text": {
+         "text": "02\nStates",
+         "style": {
+          "font": "Inter",
+          "size": 20,
+          "color": "#1F1747",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.12
+        ]
+       },
+       "frame": {
+        "x": 752,
+        "y": 196,
+        "w": 208,
+        "h": 132
+       },
+       "description": "Show states",
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 22,
+        "color": "#1F17471F"
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#ECE7FD"
+        },
+        {
+         "name": "visited",
+         "fill": "#ECE7FD",
+         "text": "✓\nStates",
+         "text_style": {
+          "font": "Inter",
+          "size": 20,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        {
+         "name": "selected",
+         "fill": "#5B3FD6",
+         "text": "02\nStates",
+         "text_style": {
+          "font": "Inter",
+          "size": 20,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       ],
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 620
+       }
+      },
+      {
+       "id": "card-variables",
+       "name": "Variables card",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF",
+        "text": {
+         "text": "03\nVariables",
+         "style": {
+          "font": "Inter",
+          "size": 20,
+          "color": "#1F1747",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.12
+        ]
+       },
+       "frame": {
+        "x": 976,
+        "y": 196,
+        "w": 208,
+        "h": 132
+       },
+       "description": "Show variables",
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 22,
+        "color": "#1F17471F"
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#ECE7FD"
+        },
+        {
+         "name": "visited",
+         "fill": "#ECE7FD",
+         "text": "✓\nVariables",
+         "text_style": {
+          "font": "Inter",
+          "size": 20,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        {
+         "name": "selected",
+         "fill": "#5B3FD6",
+         "text": "03\nVariables",
+         "text_style": {
+          "font": "Inter",
+          "size": 20,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       ],
+       "entrance": {
+        "effect": {
+         "type": "float",
+         "from": "bottom"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 740
+       }
+      },
+      {
+       "id": "ia-counter",
+       "name": "Counter",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#ECE7FD",
+        "text": {
+         "text": "%explored% of 3 explored",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 528,
+        "y": 528,
+        "w": 270,
+        "h": 44
+       },
+       "states": [
+        {
+         "name": "done",
+         "fill": "#0F7B5F",
+         "text": "✓  All 3 explored",
+         "text_style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#FFFFFF",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       ],
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1000
+       }
+      },
+      {
+       "id": "ia-next",
+       "name": "Next button",
+       "kind": {
+        "type": "button",
+        "label": "Next  →",
+        "fill": "#5B3FD6"
+       },
+       "frame": {
+        "x": 1012,
+        "y": 596,
+        "w": 180,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#4A31B8"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#1F174733"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "notes": "Each card shows its layer, switches to its Visited state and counts itself once in the explored variable.",
+     "revisit": "resume",
+     "layers": [
+      {
+       "id": "about-layers",
+       "name": "Layers",
+       "duration_ms": 3000,
+       "objects": [
+        {
+         "id": "layers-panel",
+         "name": "Explanation",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "adjust": [
+           0.1
+          ]
+         },
+         "frame": {
+          "x": 522,
+          "y": 346,
+          "w": 668,
+          "h": 162
+         },
+         "decorative": true,
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 8,
+          "blur": 22,
+          "color": "#1F17471F"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 300,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "layers-head",
+         "name": "Heading",
+         "kind": {
+          "type": "text",
+          "text": "Layers",
+          "style": {
+           "font": "Inter",
+           "size": 24,
+           "color": "#1F1747",
+           "bold": true
+          }
+         },
+         "frame": {
+          "x": 560,
+          "y": 372,
+          "w": 600,
+          "h": 36
+         },
+         "entrance": {
+          "effect": {
+           "type": "rise"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 80
+         }
+        },
+        {
+         "id": "layers-desc",
+         "name": "Body",
+         "kind": {
+          "type": "text",
+          "text": "A layer sits on top of the slide. Show it with a trigger to add feedback, a pop-up or a new step without leaving the slide.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#3D3566",
+           "bold": false
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.4
+           }
+          ]
+         },
+         "frame": {
+          "x": 560,
+          "y": 412,
+          "w": 600,
+          "h": 80
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 160
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": false
+      },
+      {
+       "id": "about-states",
+       "name": "States",
+       "duration_ms": 3000,
+       "objects": [
+        {
+         "id": "states-panel",
+         "name": "Explanation",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "adjust": [
+           0.1
+          ]
+         },
+         "frame": {
+          "x": 522,
+          "y": 346,
+          "w": 668,
+          "h": 162
+         },
+         "decorative": true,
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 8,
+          "blur": 22,
+          "color": "#1F17471F"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 300,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "states-head",
+         "name": "Heading",
+         "kind": {
+          "type": "text",
+          "text": "States",
+          "style": {
+           "font": "Inter",
+           "size": 24,
+           "color": "#1F1747",
+           "bold": true
+          }
+         },
+         "frame": {
+          "x": 560,
+          "y": 372,
+          "w": 600,
+          "h": 36
+         },
+         "entrance": {
+          "effect": {
+           "type": "rise"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 80
+         }
+        },
+        {
+         "id": "states-desc",
+         "name": "Body",
+         "kind": {
+          "type": "text",
+          "text": "A state changes how one object looks: hover, selected, visited or any state you name. These cards use three of them.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#3D3566",
+           "bold": false
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.4
+           }
+          ]
+         },
+         "frame": {
+          "x": 560,
+          "y": 412,
+          "w": 600,
+          "h": 80
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 160
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": false
+      },
+      {
+       "id": "about-variables",
+       "name": "Variables",
+       "duration_ms": 3000,
+       "objects": [
+        {
+         "id": "variables-panel",
+         "name": "Explanation",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "adjust": [
+           0.1
+          ]
+         },
+         "frame": {
+          "x": 522,
+          "y": 346,
+          "w": 668,
+          "h": 162
+         },
+         "decorative": true,
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 8,
+          "blur": 22,
+          "color": "#1F17471F"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 300,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "variables-head",
+         "name": "Heading",
+         "kind": {
+          "type": "text",
+          "text": "Variables",
+          "style": {
+           "font": "Inter",
+           "size": 24,
+           "color": "#1F1747",
+           "bold": true
+          }
+         },
+         "frame": {
+          "x": 560,
+          "y": 372,
+          "w": 600,
+          "h": 36
+         },
+         "entrance": {
+          "effect": {
+           "type": "rise"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 80
+         }
+        },
+        {
+         "id": "variables-desc",
+         "name": "Body",
+         "kind": {
+          "type": "text",
+          "text": "A variable remembers a value. This one counts the cards you open and shows the total in the text below.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#3D3566",
+           "bold": false
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.4
+           }
+          ]
+         },
+         "frame": {
+          "x": 560,
+          "y": 412,
+          "w": 600,
+          "h": 80
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 160
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": false
+      }
+     ],
+     "triggers": [
+      {
+       "action": {
+        "action": "change_state",
+        "object": "card-states",
+        "state": "visited"
+       },
+       "when": {
+        "event": "click",
+        "object": "card-layers"
+       },
+       "condition": {
+        "compare": {
+         "variable": "seen_states",
+         "op": "eq",
+         "value": true
+        }
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "card-variables",
+        "state": "visited"
+       },
+       "when": {
+        "event": "click",
+        "object": "card-layers"
+       },
+       "condition": {
+        "compare": {
+         "variable": "seen_variables",
+         "op": "eq",
+         "value": true
+        }
+       }
+      },
+      {
+       "action": {
+        "action": "set_variable",
+        "variable": "explored",
+        "op": "add",
+        "value": 1
+       },
+       "when": {
+        "event": "click",
+        "object": "card-layers"
+       },
+       "condition": {
+        "compare": {
+         "variable": "seen_layers",
+         "op": "eq",
+         "value": false
+        }
+       }
+      },
+      {
+       "action": {
+        "action": "set_variable",
+        "variable": "seen_layers",
+        "op": "assign",
+        "value": true
+       },
+       "when": {
+        "event": "click",
+        "object": "card-layers"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "card-layers",
+        "state": "selected"
+       },
+       "when": {
+        "event": "click",
+        "object": "card-layers"
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "about-layers"
+       },
+       "when": {
+        "event": "click",
+        "object": "card-layers"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "card-layers",
+        "state": "visited"
+       },
+       "when": {
+        "event": "click",
+        "object": "card-states"
+       },
+       "condition": {
+        "compare": {
+         "variable": "seen_layers",
+         "op": "eq",
+         "value": true
+        }
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "card-variables",
+        "state": "visited"
+       },
+       "when": {
+        "event": "click",
+        "object": "card-states"
+       },
+       "condition": {
+        "compare": {
+         "variable": "seen_variables",
+         "op": "eq",
+         "value": true
+        }
+       }
+      },
+      {
+       "action": {
+        "action": "set_variable",
+        "variable": "explored",
+        "op": "add",
+        "value": 1
+       },
+       "when": {
+        "event": "click",
+        "object": "card-states"
+       },
+       "condition": {
+        "compare": {
+         "variable": "seen_states",
+         "op": "eq",
+         "value": false
+        }
+       }
+      },
+      {
+       "action": {
+        "action": "set_variable",
+        "variable": "seen_states",
+        "op": "assign",
+        "value": true
+       },
+       "when": {
+        "event": "click",
+        "object": "card-states"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "card-states",
+        "state": "selected"
+       },
+       "when": {
+        "event": "click",
+        "object": "card-states"
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "about-states"
+       },
+       "when": {
+        "event": "click",
+        "object": "card-states"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "card-layers",
+        "state": "visited"
+       },
+       "when": {
+        "event": "click",
+        "object": "card-variables"
+       },
+       "condition": {
+        "compare": {
+         "variable": "seen_layers",
+         "op": "eq",
+         "value": true
+        }
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "card-states",
+        "state": "visited"
+       },
+       "when": {
+        "event": "click",
+        "object": "card-variables"
+       },
+       "condition": {
+        "compare": {
+         "variable": "seen_states",
+         "op": "eq",
+         "value": true
+        }
+       }
+      },
+      {
+       "action": {
+        "action": "set_variable",
+        "variable": "explored",
+        "op": "add",
+        "value": 1
+       },
+       "when": {
+        "event": "click",
+        "object": "card-variables"
+       },
+       "condition": {
+        "compare": {
+         "variable": "seen_variables",
+         "op": "eq",
+         "value": false
+        }
+       }
+      },
+      {
+       "action": {
+        "action": "set_variable",
+        "variable": "seen_variables",
+        "op": "assign",
+        "value": true
+       },
+       "when": {
+        "event": "click",
+        "object": "card-variables"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "card-variables",
+        "state": "selected"
+       },
+       "when": {
+        "event": "click",
+        "object": "card-variables"
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "about-variables"
+       },
+       "when": {
+        "event": "click",
+        "object": "card-variables"
+       }
+      },
+      {
+       "action": {
+        "action": "change_state",
+        "object": "ia-counter",
+        "state": "done"
+       },
+       "when": {
+        "event": "variable_changes",
+        "variable": "explored"
+       },
+       "condition": {
+        "compare": {
+         "variable": "explored",
+         "op": "eq",
+         "value": 3
+        }
+       }
+      },
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": "next"
+       },
+       "when": {
+        "event": "click",
+        "object": "ia-next"
+       }
+      }
+     ]
+    },
+    {
+     "id": "motion",
+     "title": "Entrances, paths and transitions",
+     "duration_ms": 5000,
+     "background": "#F6F4FD",
+     "objects": [
+      {
+       "id": "mo-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F49A6C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 53,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "mo-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "STOP 3  ·  MOTION",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#5B3FD6",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 42,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "mo-title",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "Entrances, paths and transitions",
+        "style": {
+         "font": "Inter",
+         "size": 40,
+         "color": "#1F1747",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_heading"
+       },
+       "frame": {
+        "x": 84,
+        "y": 76,
+        "w": 900,
+        "h": 56
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "mo-sub",
+       "name": "Body",
+       "kind": {
+        "type": "text",
+        "text": "Every tile below enters with a different effect. This slide arrived with a zoom transition.",
+        "style": {
+         "font": "Inter",
+         "size": 19,
+         "color": "#3D3566",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.45
+         }
+        ],
+        "text_style": "ts_body"
+       },
+       "frame": {
+        "x": 88,
+        "y": 134,
+        "w": 1100,
+        "h": 34
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "mo-tile1",
+       "name": "Fly in tile",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#5B3FD6",
+        "adjust": [
+         0.12
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 200,
+        "w": 200,
+        "h": 180
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "left"
+        },
+        "duration_ms": 800,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 400
+       }
+      },
+      {
+       "id": "mo-icon1",
+       "name": "Icon",
+       "kind": {
+        "type": "shape",
+        "shape": "arrow_right",
+        "fill": "#FFFFFF"
+       },
+       "frame": {
+        "x": 160,
+        "y": 234,
+        "w": 56,
+        "h": 56
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 700
+       }
+      },
+      {
+       "id": "mo-lab1",
+       "name": "Effect name",
+       "kind": {
+        "type": "text",
+        "text": "Fly in",
+        "style": {
+         "font": "Inter",
+         "size": 19,
+         "color": "#FFFFFF",
+         "bold": true,
+         "align": "center"
+        }
+       },
+       "frame": {
+        "x": 88,
+        "y": 316,
+        "w": 200,
+        "h": 34
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 300,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 750
+       }
+      },
+      {
+       "id": "mo-tile2",
+       "name": "Zoom tile",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#F49A6C",
+        "adjust": [
+         0.12
+        ]
+       },
+       "frame": {
+        "x": 312,
+        "y": 200,
+        "w": 200,
+        "h": 180
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "zoom"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 750
+       }
+      },
+      {
+       "id": "mo-icon2",
+       "name": "Icon",
+       "kind": {
+        "type": "shape",
+        "shape": "magnifier",
+        "fill": "#1F1747"
+       },
+       "frame": {
+        "x": 384,
+        "y": 234,
+        "w": 56,
+        "h": 56
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1050
+       }
+      },
+      {
+       "id": "mo-lab2",
+       "name": "Effect name",
+       "kind": {
+        "type": "text",
+        "text": "Zoom",
+        "style": {
+         "font": "Inter",
+         "size": 19,
+         "color": "#1F1747",
+         "bold": true,
+         "align": "center"
+        }
+       },
+       "frame": {
+        "x": 312,
+        "y": 316,
+        "w": 200,
+        "h": 34
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 300,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1100
+       }
+      },
+      {
+       "id": "mo-tile3",
+       "name": "Spin and grow tile",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#7ED9CF",
+        "adjust": [
+         0.12
+        ]
+       },
+       "frame": {
+        "x": 536,
+        "y": 200,
+        "w": 200,
+        "h": 180
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "spin_grow"
+        },
+        "duration_ms": 800,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1100
+       }
+      },
+      {
+       "id": "mo-icon3",
+       "name": "Icon",
+       "kind": {
+        "type": "shape",
+        "shape": "gear",
+        "fill": "#1F1747"
+       },
+       "frame": {
+        "x": 608,
+        "y": 234,
+        "w": 56,
+        "h": 56
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1400
+       }
+      },
+      {
+       "id": "mo-lab3",
+       "name": "Effect name",
+       "kind": {
+        "type": "text",
+        "text": "Spin and grow",
+        "style": {
+         "font": "Inter",
+         "size": 19,
+         "color": "#1F1747",
+         "bold": true,
+         "align": "center"
+        }
+       },
+       "frame": {
+        "x": 536,
+        "y": 316,
+        "w": 200,
+        "h": 34
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 300,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1450
+       }
+      },
+      {
+       "id": "mo-tile4",
+       "name": "Bounce tile",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#211656",
+        "adjust": [
+         0.12
+        ]
+       },
+       "frame": {
+        "x": 760,
+        "y": 200,
+        "w": 200,
+        "h": 180
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "bounce"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1450
+       }
+      },
+      {
+       "id": "mo-icon4",
+       "name": "Icon",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#FFFFFF"
+       },
+       "frame": {
+        "x": 832,
+        "y": 234,
+        "w": 56,
+        "h": 56
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1750
+       }
+      },
+      {
+       "id": "mo-lab4",
+       "name": "Effect name",
+       "kind": {
+        "type": "text",
+        "text": "Bounce",
+        "style": {
+         "font": "Inter",
+         "size": 19,
+         "color": "#FFFFFF",
+         "bold": true,
+         "align": "center"
+        }
+       },
+       "frame": {
+        "x": 760,
+        "y": 316,
+        "w": 200,
+        "h": 34
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 300,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1800
+       }
+      },
+      {
+       "id": "mo-tile5",
+       "name": "Wipe tile",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#D9D0FA",
+        "adjust": [
+         0.12
+        ]
+       },
+       "frame": {
+        "x": 984,
+        "y": 200,
+        "w": 200,
+        "h": 180
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "bottom"
+        },
+        "duration_ms": 800,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1800
+       }
+      },
+      {
+       "id": "mo-icon5",
+       "name": "Icon",
+       "kind": {
+        "type": "shape",
+        "shape": "arrow_chevron",
+        "fill": "#1F1747"
+       },
+       "frame": {
+        "x": 1056,
+        "y": 234,
+        "w": 56,
+        "h": 56
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 2100
+       }
+      },
+      {
+       "id": "mo-lab5",
+       "name": "Effect name",
+       "kind": {
+        "type": "text",
+        "text": "Wipe",
+        "style": {
+         "font": "Inter",
+         "size": 19,
+         "color": "#1F1747",
+         "bold": true,
+         "align": "center"
+        }
+       },
+       "frame": {
+        "x": 984,
+        "y": 316,
+        "w": 200,
+        "h": 34
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 300,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 2150
+       }
+      },
+      {
+       "id": "mo-track",
+       "name": "Track",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#D9D0FA"
+       },
+       "frame": {
+        "x": 88,
+        "y": 470,
+        "w": 760,
+        "h": 4
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 2200
+       }
+      },
+      {
+       "id": "mo-star",
+       "name": "Moving star",
+       "kind": {
+        "type": "shape",
+        "shape": "star_5",
+        "fill": "#F49A6C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 436,
+        "w": 72,
+        "h": 72
+       },
+       "description": "A star that moves along a motion path",
+       "motion_paths": [
+        {
+         "id": "glide",
+         "points": [
+          {
+           "x": 0.0,
+           "y": 0.0
+          },
+          {
+           "x": 340.0,
+           "y": -40.0
+          },
+          {
+           "x": 688.0,
+           "y": 0.0
+          }
+         ],
+         "duration_ms": 1400,
+         "easing": "ease_in_out",
+         "relative": true
+        }
+       ],
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 2400
+       }
+      },
+      {
+       "id": "mo-move",
+       "name": "Move it button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#ECE7FD",
+        "text": {
+         "text": "Move it",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.2
+        ]
+       },
+       "frame": {
+        "x": 900,
+        "y": 444,
+        "w": 140,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#D9D0FA"
+        }
+       ],
+       "description": "Move it",
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 2500
+       }
+      },
+      {
+       "id": "mo-replay",
+       "name": "Replay button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#ECE7FD",
+        "text": {
+         "text": "Replay",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.2
+        ]
+       },
+       "frame": {
+        "x": 1056,
+        "y": 444,
+        "w": 136,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#D9D0FA"
+        }
+       ],
+       "description": "Replay",
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 2600
+       }
+      },
+      {
+       "id": "mo-next",
+       "name": "Next button",
+       "kind": {
+        "type": "button",
+        "label": "Next  →",
+        "fill": "#5B3FD6"
+       },
+       "frame": {
+        "x": 1012,
+        "y": 596,
+        "w": 180,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#4A31B8"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#1F174733"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 2700
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "zoom",
+      "duration_ms": 700
+     },
+     "notes": "Five tiles, five entrance effects. Move it runs a motion path; Replay jumps back to this slide (revisit: reset).",
+     "revisit": "reset",
+     "triggers": [
+      {
+       "action": {
+        "action": "move_on_path",
+        "object": "mo-star",
+        "path": "glide"
+       },
+       "when": {
+        "event": "click",
+        "object": "mo-move"
+       }
+      },
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": {
+         "id": "motion"
+        }
+       },
+       "when": {
+        "event": "click",
+        "object": "mo-replay"
+       }
+      },
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": "next"
+       },
+       "when": {
+        "event": "click",
+        "object": "mo-next"
+       }
+      }
+     ]
+    },
+    {
+     "id": "campus",
+     "title": "Markers on a picture",
+     "duration_ms": 5000,
+     "background": "#F6F4FD",
+     "objects": [
+      {
+       "id": "cp-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F49A6C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 53,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "cp-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "STOP 4  ·  EXPLORE",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#5B3FD6",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 42,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "cp-title",
+       "name": "Title",
+       "kind": {
+        "type": "text",
+        "text": "Markers on a picture",
+        "style": {
+         "font": "Inter",
+         "size": 40,
+         "color": "#1F1747",
+         "bold": true
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.05
+         }
+        ],
+        "text_style": "ts_heading"
+       },
+       "frame": {
+        "x": 84,
+        "y": 76,
+        "w": 900,
+        "h": 56
+       },
+       "entrance": {
+        "effect": {
+         "type": "rise"
+        },
+        "duration_ms": 800,
+        "easing": "overshoot",
+        "sequence": "by_paragraph"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "cp-sub",
+       "name": "Body",
+       "kind": {
+        "type": "text",
+        "text": "Select each marker to open it. Markers are a quick way to label a picture.",
+        "style": {
+         "font": "Inter",
+         "size": 19,
+         "color": "#3D3566",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.45
+         }
+        ],
+        "text_style": "ts_body"
+       },
+       "frame": {
+        "x": 88,
+        "y": 134,
+        "w": 1100,
+        "h": 34
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "cp-map",
+       "name": "Picture",
+       "kind": {
+        "type": "image",
+        "src": "campus-map.jpg",
+        "alt": "An illustrated campus map with a library, a cafe, a round science lab and a park with a pond.",
+        "shape": "rounded_rectangle",
+        "crop": {
+         "x": 0.0009,
+         "y": 0.0,
+         "w": 0.9982,
+         "h": 1.0
+        }
+       },
+       "frame": {
+        "x": 88,
+        "y": 186,
+        "w": 680,
+        "h": 380
+       },
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 12,
+        "blur": 30,
+        "color": "#1F174722"
+       },
+       "entrance": {
+        "effect": {
+         "type": "shape",
+         "shape": "circle",
+         "inout": "out"
+        },
+        "duration_ms": 900,
+        "easing": "ease_in_out"
+       },
+       "timing": {
+        "start_ms": 300
+       }
+      },
+      {
+       "id": "cp-m1",
+       "name": "Marker: Library",
+       "kind": {
+        "type": "marker",
+        "title": "Library",
+        "body": "Quiet study rooms and the help desk.",
+        "icon": "plus",
+        "color": "#F49A6C"
+       },
+       "frame": {
+        "x": 155,
+        "y": 214,
+        "w": 42,
+        "h": 42
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1200
+       },
+       "emphasis": [
+        {
+         "effect": {
+          "type": "pulse"
+         },
+         "start_ms": 2200,
+         "duration_ms": 800,
+         "repeat": 2
+        }
+       ]
+      },
+      {
+       "id": "cp-m2",
+       "name": "Marker: Cafe",
+       "kind": {
+        "type": "marker",
+        "title": "Cafe",
+        "body": "Coffee, lunch and the best seats outside.",
+        "icon": "plus",
+        "color": "#F49A6C"
+       },
+       "frame": {
+        "x": 604,
+        "y": 226,
+        "w": 42,
+        "h": 42
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1350
+       },
+       "emphasis": [
+        {
+         "effect": {
+          "type": "pulse"
+         },
+         "start_ms": 2350,
+         "duration_ms": 800,
+         "repeat": 2
+        }
+       ]
+      },
+      {
+       "id": "cp-m3",
+       "name": "Marker: Science lab",
+       "kind": {
+        "type": "marker",
+        "title": "Science lab",
+        "body": "Labs on two floors around a glass roof.",
+        "icon": "plus",
+        "color": "#F49A6C"
+       },
+       "frame": {
+        "x": 162,
+        "y": 416,
+        "w": 42,
+        "h": 42
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1500
+       },
+       "emphasis": [
+        {
+         "effect": {
+          "type": "pulse"
+         },
+         "start_ms": 2500,
+         "duration_ms": 800,
+         "repeat": 2
+        }
+       ]
+      },
+      {
+       "id": "cp-m4",
+       "name": "Marker: Park",
+       "kind": {
+        "type": "marker",
+        "title": "Park",
+        "body": "A pond, shady trees and a walking loop.",
+        "icon": "plus",
+        "color": "#F49A6C"
+       },
+       "frame": {
+        "x": 557,
+        "y": 408,
+        "w": 42,
+        "h": 42
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1650
+       },
+       "emphasis": [
+        {
+         "effect": {
+          "type": "pulse"
+         },
+         "start_ms": 2650,
+         "duration_ms": 800,
+         "repeat": 2
+        }
+       ]
+      },
+      {
+       "id": "cp-side",
+       "name": "Card",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF",
+        "adjust": [
+         0.08
+        ]
+       },
+       "frame": {
+        "x": 808,
+        "y": 186,
+        "w": 384,
+        "h": 380
+       },
+       "decorative": true,
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 10,
+        "blur": 28,
+        "color": "#1F174722"
+       },
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "right"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 400
+       }
+      },
+      {
+       "id": "cp-side-title",
+       "name": "Heading",
+       "kind": {
+        "type": "text",
+        "text": "What markers do",
+        "style": {
+         "font": "Inter",
+         "size": 24,
+         "color": "#1F1747",
+         "bold": true
+        }
+       },
+       "frame": {
+        "x": 840,
+        "y": 214,
+        "w": 320,
+        "h": 36
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      },
+      {
+       "id": "cp-pt1-icon",
+       "name": "Icon",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#ECE7FD",
+        "text": {
+         "text": "✓",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 840,
+        "y": 272,
+        "w": 32,
+        "h": 32
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 700
+       }
+      },
+      {
+       "id": "cp-pt1",
+       "name": "Point",
+       "kind": {
+        "type": "text",
+        "text": "Open with a click or the keyboard",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#3D3566",
+         "bold": true,
+         "valign": "middle"
+        }
+       },
+       "frame": {
+        "x": 888,
+        "y": 273,
+        "w": 282,
+        "h": 30
+       },
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "right"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 780
+       }
+      },
+      {
+       "id": "cp-pt2-icon",
+       "name": "Icon",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#ECE7FD",
+        "text": {
+         "text": "✓",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 840,
+        "y": 324,
+        "w": 32,
+        "h": 32
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 820
+       }
+      },
+      {
+       "id": "cp-pt2",
+       "name": "Point",
+       "kind": {
+        "type": "text",
+        "text": "Hold a title and one sentence",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#3D3566",
+         "bold": true,
+         "valign": "middle"
+        }
+       },
+       "frame": {
+        "x": 888,
+        "y": 325,
+        "w": 282,
+        "h": 30
+       },
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "right"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 900
+       }
+      },
+      {
+       "id": "cp-pt3-icon",
+       "name": "Icon",
+       "kind": {
+        "type": "shape",
+        "shape": "ellipse",
+        "fill": "#ECE7FD",
+        "text": {
+         "text": "✓",
+         "style": {
+          "font": "Inter",
+          "size": 16,
+          "color": "#4A31B8",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        }
+       },
+       "frame": {
+        "x": 840,
+        "y": 376,
+        "w": 32,
+        "h": 32
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 940
+       }
+      },
+      {
+       "id": "cp-pt3",
+       "name": "Point",
+       "kind": {
+        "type": "text",
+        "text": "Pick a colour and an icon",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#3D3566",
+         "bold": true,
+         "valign": "middle"
+        }
+       },
+       "frame": {
+        "x": 888,
+        "y": 377,
+        "w": 282,
+        "h": 30
+       },
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "right"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1020
+       }
+      },
+      {
+       "id": "cp-tip",
+       "name": "Tip",
+       "kind": {
+        "type": "text",
+        "text": "You'll use this map again in the quiz.",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#635C88",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.4
+         }
+        ]
+       },
+       "frame": {
+        "x": 840,
+        "y": 448,
+        "w": 320,
+        "h": 50
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 1200
+       }
+      },
+      {
+       "id": "cp-next",
+       "name": "To the quiz button",
+       "kind": {
+        "type": "button",
+        "label": "To the quiz  →",
+        "fill": "#5B3FD6"
+       },
+       "frame": {
+        "x": 992,
+        "y": 596,
+        "w": 200,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#4A31B8"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#1F174733"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 1300
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "notes": "Markers open a small pop-up with a title and a sentence. The learner opens them in any order.",
+     "triggers": [
+      {
+       "action": {
+        "action": "jump_to_slide",
+        "target": "next"
+       },
+       "when": {
+        "event": "click",
+        "object": "cp-next"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sc_quiz",
+   "title": "Quick quiz",
+   "slides": [
+    {
+     "id": "q-mc",
+     "title": "Question 1",
+     "duration_ms": 5000,
+     "background": "#F6F4FD",
+     "objects": [
+      {
+       "id": "q-mc-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F49A6C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 49,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "q-mc-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "QUESTION 1 OF 6",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#5B3FD6",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 38,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "q-mc-progress_track",
+       "name": "Progress track",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#D9D0FA",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 300,
+        "h": 6
+       },
+       "decorative": true
+      },
+      {
+       "id": "q-mc-progress_fill",
+       "name": "Progress",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#5B3FD6",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 50,
+        "h": 6
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 700,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "q-mc-pic",
+       "name": "Picture",
+       "kind": {
+        "type": "image",
+        "src": "quiz.jpg",
+        "alt": "A learner thinks about a question, surrounded by answer cards.",
+        "shape": "rounded_rectangle",
+        "crop": {
+         "x": 0.5716,
+         "y": 0.0,
+         "w": 0.4284,
+         "h": 1.0
+        }
+       },
+       "frame": {
+        "x": 808,
+        "y": 96,
+        "w": 384,
+        "h": 500
+       },
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 12,
+        "blur": 30,
+        "color": "#1F174722"
+       },
+       "entrance": {
+        "effect": {
+         "type": "shape",
+         "shape": "box",
+         "inout": "out"
+        },
+        "duration_ms": 800,
+        "easing": "ease_in_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "q-mc-submit",
+       "name": "Submit button",
+       "kind": {
+        "type": "button",
+        "label": "Submit",
+        "fill": "#5B3FD6"
+       },
+       "frame": {
+        "x": 88,
+        "y": 584,
+        "w": 180,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#4A31B8"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#1F174733"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "question": {
+      "kind": "multiple_choice",
+      "prompt": "Which one shows extra content on top of a slide without leaving it?",
+      "points": 10,
+      "attempts": 2,
+      "choices": [
+       {
+        "id": "a",
+        "text": "A layer",
+        "correct": true
+       },
+       {
+        "id": "b",
+        "text": "A new scene"
+       },
+       {
+        "id": "c",
+        "text": "The slide master"
+       }
+      ],
+      "correct_layer": "q-mc-correct",
+      "incorrect_layer": "q-mc-incorrect",
+      "frame": {
+       "x": 88,
+       "y": 112,
+       "w": 660,
+       "h": 440
+      }
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "submit_question"
+       },
+       "when": {
+        "event": "click",
+        "object": "q-mc-submit"
+       }
+      }
+     ],
+     "layers": [
+      {
+       "id": "q-mc-correct",
+       "name": "Correct",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q-mc_q-mc-correct_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#0F7B5F",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#1F174740"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "q-mc_q-mc-correct_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "jump"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q-mc-ok-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Yes. Layers sit on top of their slide.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q-mc-ok-next",
+         "name": "Continue button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Continue  →",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#0F7B5F",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#ECE7FD"
+          }
+         ],
+         "description": "Continue",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "jump_to_slide",
+          "target": "next"
+         },
+         "when": {
+          "event": "click",
+          "object": "q-mc-ok-next"
+         }
+        }
+       ]
+      },
+      {
+       "id": "q-mc-incorrect",
+       "name": "Incorrect",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q-mc_q-mc-incorrect_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#B42318",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#1F174740"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "shake"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q-mc_q-mc-incorrect_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "!",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         }
+        },
+        {
+         "id": "q-mc-no-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Not quite. A layer shows content on top of the slide you're on.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q-mc-no-retry",
+         "name": "Try again button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Try again",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#B42318",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#ECE7FD"
+          }
+         ],
+         "description": "Try again",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "hide_layer"
+         },
+         "when": {
+          "event": "click",
+          "object": "q-mc-no-retry"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "q-tf",
+     "title": "Question 2",
+     "duration_ms": 5000,
+     "background": "#F6F4FD",
+     "objects": [
+      {
+       "id": "q-tf-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F49A6C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 49,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "q-tf-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "QUESTION 2 OF 6",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#5B3FD6",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 38,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "q-tf-progress_track",
+       "name": "Progress track",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#D9D0FA",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 300,
+        "h": 6
+       },
+       "decorative": true
+      },
+      {
+       "id": "q-tf-progress_fill",
+       "name": "Progress",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#5B3FD6",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 100,
+        "h": 6
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 700,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "q-tf-pic",
+       "name": "Picture",
+       "kind": {
+        "type": "image",
+        "src": "quiz.jpg",
+        "alt": "A learner thinks about a question, surrounded by answer cards.",
+        "shape": "rounded_rectangle",
+        "crop": {
+         "x": 0.5716,
+         "y": 0.0,
+         "w": 0.4284,
+         "h": 1.0
+        }
+       },
+       "frame": {
+        "x": 808,
+        "y": 96,
+        "w": 384,
+        "h": 500
+       },
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 12,
+        "blur": 30,
+        "color": "#1F174722"
+       },
+       "entrance": {
+        "effect": {
+         "type": "shape",
+         "shape": "box",
+         "inout": "out"
+        },
+        "duration_ms": 800,
+        "easing": "ease_in_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "q-tf-submit",
+       "name": "Submit button",
+       "kind": {
+        "type": "button",
+        "label": "Submit",
+        "fill": "#5B3FD6"
+       },
+       "frame": {
+        "x": 88,
+        "y": 584,
+        "w": 180,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#4A31B8"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#1F174733"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "question": {
+      "kind": "true_false",
+      "prompt": "True or false: a trigger can react when a video ends.",
+      "points": 10,
+      "attempts": 2,
+      "choices": [
+       {
+        "id": "true",
+        "text": "True",
+        "correct": true
+       },
+       {
+        "id": "false",
+        "text": "False"
+       }
+      ],
+      "correct_layer": "q-tf-correct",
+      "incorrect_layer": "q-tf-incorrect",
+      "frame": {
+       "x": 88,
+       "y": 112,
+       "w": 660,
+       "h": 440
+      }
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "submit_question"
+       },
+       "when": {
+        "event": "click",
+        "object": "q-tf-submit"
+       }
+      }
+     ],
+     "layers": [
+      {
+       "id": "q-tf-correct",
+       "name": "Correct",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q-tf_q-tf-correct_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#0F7B5F",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#1F174740"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "q-tf_q-tf-correct_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "jump"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q-tf-ok-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "True. That's how the video stop showed its message.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q-tf-ok-next",
+         "name": "Continue button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Continue  →",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#0F7B5F",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#ECE7FD"
+          }
+         ],
+         "description": "Continue",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "jump_to_slide",
+          "target": "next"
+         },
+         "when": {
+          "event": "click",
+          "object": "q-tf-ok-next"
+         }
+        }
+       ]
+      },
+      {
+       "id": "q-tf-incorrect",
+       "name": "Incorrect",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q-tf_q-tf-incorrect_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#B42318",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#1F174740"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "shake"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q-tf_q-tf-incorrect_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "!",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         }
+        },
+        {
+         "id": "q-tf-no-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "It can. A media ends trigger reacts to the end of a video.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q-tf-no-retry",
+         "name": "Try again button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Try again",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#B42318",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#ECE7FD"
+          }
+         ],
+         "description": "Try again",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "hide_layer"
+         },
+         "when": {
+          "event": "click",
+          "object": "q-tf-no-retry"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "q-fill",
+     "title": "Question 3",
+     "duration_ms": 5000,
+     "background": "#F6F4FD",
+     "objects": [
+      {
+       "id": "q-fill-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F49A6C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 49,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "q-fill-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "QUESTION 3 OF 6",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#5B3FD6",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 38,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "q-fill-progress_track",
+       "name": "Progress track",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#D9D0FA",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 300,
+        "h": 6
+       },
+       "decorative": true
+      },
+      {
+       "id": "q-fill-progress_fill",
+       "name": "Progress",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#5B3FD6",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 150,
+        "h": 6
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 700,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "q-fill-pic",
+       "name": "Picture",
+       "kind": {
+        "type": "image",
+        "src": "quiz.jpg",
+        "alt": "A learner thinks about a question, surrounded by answer cards.",
+        "shape": "rounded_rectangle",
+        "crop": {
+         "x": 0.5716,
+         "y": 0.0,
+         "w": 0.4284,
+         "h": 1.0
+        }
+       },
+       "frame": {
+        "x": 808,
+        "y": 96,
+        "w": 384,
+        "h": 500
+       },
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 12,
+        "blur": 30,
+        "color": "#1F174722"
+       },
+       "entrance": {
+        "effect": {
+         "type": "shape",
+         "shape": "box",
+         "inout": "out"
+        },
+        "duration_ms": 800,
+        "easing": "ease_in_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "q-fill-submit",
+       "name": "Submit button",
+       "kind": {
+        "type": "button",
+        "label": "Submit",
+        "fill": "#5B3FD6"
+       },
+       "frame": {
+        "x": 88,
+        "y": 584,
+        "w": 180,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#4A31B8"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#1F174733"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "question": {
+      "kind": "fill_in",
+      "prompt": "Type the missing word: a ________ remembers a value, like the counter on stop 2.",
+      "points": 10,
+      "attempts": 2,
+      "choices": [],
+      "correct_layer": "q-fill-correct",
+      "incorrect_layer": "q-fill-incorrect",
+      "accepted": [
+       "variable",
+       "a variable"
+      ],
+      "frame": {
+       "x": 88,
+       "y": 112,
+       "w": 660,
+       "h": 440
+      }
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "submit_question"
+       },
+       "when": {
+        "event": "click",
+        "object": "q-fill-submit"
+       }
+      }
+     ],
+     "layers": [
+      {
+       "id": "q-fill-correct",
+       "name": "Correct",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q-fill_q-fill-correct_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#0F7B5F",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#1F174740"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "q-fill_q-fill-correct_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "jump"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q-fill-ok-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Right, a variable.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q-fill-ok-next",
+         "name": "Continue button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Continue  →",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#0F7B5F",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#ECE7FD"
+          }
+         ],
+         "description": "Continue",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "jump_to_slide",
+          "target": "next"
+         },
+         "when": {
+          "event": "click",
+          "object": "q-fill-ok-next"
+         }
+        }
+       ]
+      },
+      {
+       "id": "q-fill-incorrect",
+       "name": "Incorrect",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q-fill_q-fill-incorrect_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#B42318",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#1F174740"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "shake"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q-fill_q-fill-incorrect_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "!",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         }
+        },
+        {
+         "id": "q-fill-no-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Not quite. The answer is variable.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q-fill-no-retry",
+         "name": "Try again button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Try again",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#B42318",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#ECE7FD"
+          }
+         ],
+         "description": "Try again",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "hide_layer"
+         },
+         "when": {
+          "event": "click",
+          "object": "q-fill-no-retry"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "q-match",
+     "title": "Question 4",
+     "duration_ms": 5000,
+     "background": "#F6F4FD",
+     "objects": [
+      {
+       "id": "q-match-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F49A6C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 49,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "q-match-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "QUESTION 4 OF 6",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#5B3FD6",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 38,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "q-match-progress_track",
+       "name": "Progress track",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#D9D0FA",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 300,
+        "h": 6
+       },
+       "decorative": true
+      },
+      {
+       "id": "q-match-progress_fill",
+       "name": "Progress",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#5B3FD6",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 200,
+        "h": 6
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 700,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "q-match-pic",
+       "name": "Picture",
+       "kind": {
+        "type": "image",
+        "src": "quiz.jpg",
+        "alt": "A learner thinks about a question, surrounded by answer cards.",
+        "shape": "rounded_rectangle",
+        "crop": {
+         "x": 0.5716,
+         "y": 0.0,
+         "w": 0.4284,
+         "h": 1.0
+        }
+       },
+       "frame": {
+        "x": 808,
+        "y": 96,
+        "w": 384,
+        "h": 500
+       },
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 12,
+        "blur": 30,
+        "color": "#1F174722"
+       },
+       "entrance": {
+        "effect": {
+         "type": "shape",
+         "shape": "box",
+         "inout": "out"
+        },
+        "duration_ms": 800,
+        "easing": "ease_in_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "q-match-submit",
+       "name": "Submit button",
+       "kind": {
+        "type": "button",
+        "label": "Submit",
+        "fill": "#5B3FD6"
+       },
+       "frame": {
+        "x": 88,
+        "y": 584,
+        "w": 180,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#4A31B8"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#1F174733"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "question": {
+      "kind": "matching",
+      "prompt": "Match each feature to what it does.",
+      "points": 10,
+      "attempts": 2,
+      "choices": [],
+      "correct_layer": "q-match-correct",
+      "incorrect_layer": "q-match-incorrect",
+      "pairs": [
+       {
+        "id": "p1",
+        "left": "Trigger",
+        "right": "Runs an action when something happens"
+       },
+       {
+        "id": "p2",
+        "left": "State",
+        "right": "Changes how an object looks"
+       },
+       {
+        "id": "p3",
+        "left": "Marker",
+        "right": "Opens a pop-up on a picture"
+       }
+      ],
+      "frame": {
+       "x": 88,
+       "y": 112,
+       "w": 660,
+       "h": 440
+      }
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "submit_question"
+       },
+       "when": {
+        "event": "click",
+        "object": "q-match-submit"
+       }
+      }
+     ],
+     "layers": [
+      {
+       "id": "q-match-correct",
+       "name": "Correct",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q-match_q-match-correct_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#0F7B5F",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#1F174740"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "q-match_q-match-correct_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "jump"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q-match-ok-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "All matched.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q-match-ok-next",
+         "name": "Continue button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Continue  →",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#0F7B5F",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#ECE7FD"
+          }
+         ],
+         "description": "Continue",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "jump_to_slide",
+          "target": "next"
+         },
+         "when": {
+          "event": "click",
+          "object": "q-match-ok-next"
+         }
+        }
+       ]
+      },
+      {
+       "id": "q-match-incorrect",
+       "name": "Incorrect",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q-match_q-match-incorrect_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#B42318",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#1F174740"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "shake"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q-match_q-match-incorrect_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "!",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         }
+        },
+        {
+         "id": "q-match-no-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Not quite. Check the pairs and try again.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q-match-no-retry",
+         "name": "Try again button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Try again",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#B42318",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#ECE7FD"
+          }
+         ],
+         "description": "Try again",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "hide_layer"
+         },
+         "when": {
+          "event": "click",
+          "object": "q-match-no-retry"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "q-map",
+     "title": "Question 5",
+     "duration_ms": 5000,
+     "background": "#F6F4FD",
+     "objects": [
+      {
+       "id": "q-map-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F49A6C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 49,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "q-map-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "QUESTION 5 OF 6",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#5B3FD6",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 38,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "q-map-progress_track",
+       "name": "Progress track",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#D9D0FA",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 300,
+        "h": 6
+       },
+       "decorative": true
+      },
+      {
+       "id": "q-map-progress_fill",
+       "name": "Progress",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#5B3FD6",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 250,
+        "h": 6
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 700,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "q-map-map",
+       "name": "Campus map",
+       "kind": {
+        "type": "image",
+        "src": "campus-map.jpg",
+        "alt": "The campus map: library top left, cafe top right, science lab bottom left, park bottom right.",
+        "shape": "rounded_rectangle"
+       },
+       "frame": {
+        "x": 88,
+        "y": 136,
+        "w": 760,
+        "h": 424
+       },
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 12,
+        "blur": 30,
+        "color": "#1F174722"
+       }
+      },
+      {
+       "id": "q-map-side",
+       "name": "Card",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF",
+        "adjust": [
+         0.08
+        ]
+       },
+       "frame": {
+        "x": 880,
+        "y": 136,
+        "w": 312,
+        "h": 424
+       },
+       "decorative": true,
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 10,
+        "blur": 28,
+        "color": "#1F174722"
+       },
+       "entrance": {
+        "effect": {
+         "type": "fly_in",
+         "from": "right"
+        },
+        "duration_ms": 600,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 300
+       }
+      },
+      {
+       "id": "q-map-hint-title",
+       "name": "Heading",
+       "kind": {
+        "type": "text",
+        "text": "Hint",
+        "style": {
+         "font": "Inter",
+         "size": 24,
+         "color": "#1F1747",
+         "bold": true
+        }
+       },
+       "frame": {
+        "x": 912,
+        "y": 164,
+        "w": 250,
+        "h": 36
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "q-map-hint",
+       "name": "Hint",
+       "kind": {
+        "type": "text",
+        "text": "The library has a dome and a wide staircase. You saw it on stop 4.",
+        "style": {
+         "font": "Inter",
+         "size": 18,
+         "color": "#3D3566",
+         "bold": false
+        },
+        "paragraphs": [
+         {
+          "line_spacing": 1.4
+         }
+        ]
+       },
+       "frame": {
+        "x": 912,
+        "y": 210,
+        "w": 250,
+        "h": 120
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      },
+      {
+       "id": "q-map-submit",
+       "name": "Submit button",
+       "kind": {
+        "type": "button",
+        "label": "Submit",
+        "fill": "#5B3FD6"
+       },
+       "frame": {
+        "x": 88,
+        "y": 584,
+        "w": 180,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#4A31B8"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#1F174733"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "question": {
+      "kind": "hotspot",
+      "prompt": "On the campus map, select the library.",
+      "points": 10,
+      "attempts": 2,
+      "choices": [],
+      "correct_layer": "q-map-correct",
+      "incorrect_layer": "q-map-incorrect",
+      "frame": {
+       "x": 88,
+       "y": 80,
+       "w": 900,
+       "h": 44
+      },
+      "hotspot_image": "q-map-map",
+      "regions": [
+       {
+        "id": "library",
+        "shape": "rect",
+        "x": 118,
+        "y": 144,
+        "w": 296,
+        "h": 170,
+        "correct": true
+       }
+      ]
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "submit_question"
+       },
+       "when": {
+        "event": "click",
+        "object": "q-map-submit"
+       }
+      }
+     ],
+     "layers": [
+      {
+       "id": "q-map-correct",
+       "name": "Correct",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q-map_q-map-correct_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#0F7B5F",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#1F174740"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "q-map_q-map-correct_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "jump"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q-map-ok-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "That's the library.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q-map-ok-next",
+         "name": "Continue button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Continue  →",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#0F7B5F",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#ECE7FD"
+          }
+         ],
+         "description": "Continue",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "jump_to_slide",
+          "target": "next"
+         },
+         "when": {
+          "event": "click",
+          "object": "q-map-ok-next"
+         }
+        }
+       ]
+      },
+      {
+       "id": "q-map-incorrect",
+       "name": "Incorrect",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q-map_q-map-incorrect_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#B42318",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#1F174740"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "shake"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q-map_q-map-incorrect_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "!",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         }
+        },
+        {
+         "id": "q-map-no-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Not quite. The library has the dome, top left.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q-map-no-retry",
+         "name": "Try again button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Try again",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#B42318",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#ECE7FD"
+          }
+         ],
+         "description": "Try again",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "hide_layer"
+         },
+         "when": {
+          "event": "click",
+          "object": "q-map-no-retry"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "q-sort",
+     "title": "Question 6",
+     "duration_ms": 5000,
+     "background": "#F6F4FD",
+     "objects": [
+      {
+       "id": "q-sort-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F49A6C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 49,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "q-sort-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "QUESTION 6 OF 6",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#5B3FD6",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 38,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 150
+       }
+      },
+      {
+       "id": "q-sort-progress_track",
+       "name": "Progress track",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#D9D0FA",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 300,
+        "h": 6
+       },
+       "decorative": true
+      },
+      {
+       "id": "q-sort-progress_fill",
+       "name": "Progress",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#5B3FD6",
+        "adjust": [
+         0.5
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 76,
+        "w": 300,
+        "h": 6
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 700,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "grp-media",
+       "name": "Media group",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#ECE7FD",
+        "adjust": [
+         0.06
+        ],
+        "outline": {
+         "color": "#5B3FD666",
+         "width": 2,
+         "dash": "dash"
+        }
+       },
+       "frame": {
+        "x": 88,
+        "y": 300,
+        "w": 400,
+        "h": 250
+       },
+       "description": "Drop zone: Media",
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "grp-media-lab",
+       "name": "Group label",
+       "kind": {
+        "type": "text",
+        "text": "MEDIA",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#5B3FD6",
+         "bold": true,
+         "letter_spacing": 2.5
+        }
+       },
+       "frame": {
+        "x": 112,
+        "y": 316,
+        "w": 352,
+        "h": 30
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 400
+       }
+      },
+      {
+       "id": "grp-quiz",
+       "name": "Questions group",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#ECE7FD",
+        "adjust": [
+         0.06
+        ],
+        "outline": {
+         "color": "#5B3FD666",
+         "width": 2,
+         "dash": "dash"
+        }
+       },
+       "frame": {
+        "x": 508,
+        "y": 300,
+        "w": 400,
+        "h": 250
+       },
+       "description": "Drop zone: Questions",
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 300
+       }
+      },
+      {
+       "id": "grp-quiz-lab",
+       "name": "Group label",
+       "kind": {
+        "type": "text",
+        "text": "QUESTIONS",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#5B3FD6",
+         "bold": true,
+         "letter_spacing": 2.5
+        }
+       },
+       "frame": {
+        "x": 532,
+        "y": 316,
+        "w": 352,
+        "h": 30
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 400,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 400
+       }
+      },
+      {
+       "id": "it-video",
+       "name": "Video clip button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF",
+        "text": {
+         "text": "Video clip",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#1F1747",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.2
+        ]
+       },
+       "frame": {
+        "x": 88,
+        "y": 196,
+        "w": 192,
+        "h": 56
+       },
+       "description": "Video clip",
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 6,
+        "blur": 16,
+        "color": "#1F174722"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      },
+      {
+       "id": "it-sound",
+       "name": "Sound effect button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF",
+        "text": {
+         "text": "Sound effect",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#1F1747",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.2
+        ]
+       },
+       "frame": {
+        "x": 296,
+        "y": 196,
+        "w": 192,
+        "h": 56
+       },
+       "description": "Sound effect",
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 6,
+        "blur": 16,
+        "color": "#1F174722"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      },
+      {
+       "id": "it-match",
+       "name": "Matching button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF",
+        "text": {
+         "text": "Matching",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#1F1747",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.2
+        ]
+       },
+       "frame": {
+        "x": 504,
+        "y": 196,
+        "w": 192,
+        "h": 56
+       },
+       "description": "Matching",
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 6,
+        "blur": 16,
+        "color": "#1F174722"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 700
+       }
+      },
+      {
+       "id": "it-hotspot",
+       "name": "Hotspot button",
+       "kind": {
+        "type": "shape",
+        "shape": "rounded_rectangle",
+        "fill": "#FFFFFF",
+        "text": {
+         "text": "Hotspot",
+         "style": {
+          "font": "Inter",
+          "size": 17,
+          "color": "#1F1747",
+          "bold": true,
+          "align": "center",
+          "valign": "middle"
+         }
+        },
+        "adjust": [
+         0.2
+        ]
+       },
+       "frame": {
+        "x": 712,
+        "y": 196,
+        "w": 192,
+        "h": 56
+       },
+       "description": "Hotspot",
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 6,
+        "blur": 16,
+        "color": "#1F174722"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 400,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 800
+       }
+      },
+      {
+       "id": "q-sort-submit",
+       "name": "Submit button",
+       "kind": {
+        "type": "button",
+        "label": "Submit",
+        "fill": "#5B3FD6"
+       },
+       "frame": {
+        "x": 88,
+        "y": 584,
+        "w": 180,
+        "h": 56
+       },
+       "states": [
+        {
+         "name": "hover",
+         "fill": "#4A31B8"
+        }
+       ],
+       "shadow": {
+        "offset_x": 0,
+        "offset_y": 8,
+        "blur": 18,
+        "color": "#1F174733"
+       },
+       "entrance": {
+        "effect": {
+         "type": "pop"
+        },
+        "duration_ms": 450,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 600
+       }
+      }
+     ],
+     "master": "m_content",
+     "transition": {
+      "type": "push",
+      "duration_ms": 600,
+      "from": "right"
+     },
+     "question": {
+      "kind": "drag_drop",
+      "prompt": "Drag each item into the right group.",
+      "points": 10,
+      "attempts": 2,
+      "choices": [],
+      "correct_layer": "q-sort-correct",
+      "incorrect_layer": "q-sort-incorrect",
+      "drag_items": [
+       {
+        "item": "it-video",
+        "target": "grp-media"
+       },
+       {
+        "item": "it-sound",
+        "target": "grp-media"
+       },
+       {
+        "item": "it-match",
+        "target": "grp-quiz"
+       },
+       {
+        "item": "it-hotspot",
+        "target": "grp-quiz"
+       }
+      ],
+      "drop_targets": [
+       "grp-media",
+       "grp-quiz"
+      ],
+      "one_per_target": false,
+      "frame": {
+       "x": 88,
+       "y": 112,
+       "w": 900,
+       "h": 50
+      }
+     },
+     "triggers": [
+      {
+       "action": {
+        "action": "submit_question"
+       },
+       "when": {
+        "event": "click",
+        "object": "q-sort-submit"
+       }
+      }
+     ],
+     "layers": [
+      {
+       "id": "q-sort-correct",
+       "name": "Correct",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q-sort_q-sort-correct_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#0F7B5F",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#1F174740"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         }
+        },
+        {
+         "id": "q-sort_q-sort-correct_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "✓",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "jump"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q-sort-ok-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Sorted!",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q-sort-ok-next",
+         "name": "See result button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "See result  →",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#0F7B5F",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#ECE7FD"
+          }
+         ],
+         "description": "See result",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "jump_to_slide",
+          "target": "next"
+         },
+         "when": {
+          "event": "click",
+          "object": "q-sort-ok-next"
+         }
+        }
+       ]
+      },
+      {
+       "id": "q-sort-incorrect",
+       "name": "Incorrect",
+       "duration_ms": 5000,
+       "objects": [
+        {
+         "id": "q-sort_q-sort-incorrect_bar",
+         "name": "Feedback panel",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#B42318",
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 240,
+          "y": 588,
+          "w": 800,
+          "h": 92
+         },
+         "shadow": {
+          "offset_x": 0,
+          "offset_y": 12,
+          "blur": 30,
+          "color": "#1F174740"
+         },
+         "entrance": {
+          "effect": {
+           "type": "fly_in",
+           "from": "bottom"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 0
+         },
+         "emphasis": [
+          {
+           "effect": {
+            "type": "shake"
+           },
+           "start_ms": 700,
+           "duration_ms": 700
+          }
+         ]
+        },
+        {
+         "id": "q-sort_q-sort-incorrect_icon",
+         "name": "Feedback icon",
+         "kind": {
+          "type": "shape",
+          "shape": "ellipse",
+          "fill": "#FFFFFF33",
+          "text": {
+           "text": "!",
+           "style": {
+            "font": "Inter",
+            "size": 24,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          }
+         },
+         "frame": {
+          "x": 262,
+          "y": 610,
+          "w": 48,
+          "h": 48
+         },
+         "decorative": true,
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 250
+         }
+        },
+        {
+         "id": "q-sort-no-text",
+         "name": "Feedback text",
+         "kind": {
+          "type": "text",
+          "text": "Not quite. Videos and sounds are media; the rest are questions.",
+          "style": {
+           "font": "Inter",
+           "size": 18,
+           "color": "#FFFFFF",
+           "bold": true,
+           "valign": "middle"
+          }
+         },
+         "frame": {
+          "x": 326,
+          "y": 604,
+          "w": 520,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 400,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 200
+         }
+        },
+        {
+         "id": "q-sort-no-retry",
+         "name": "Try again button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#FFFFFF",
+          "text": {
+           "text": "Try again",
+           "style": {
+            "font": "Inter",
+            "size": 16,
+            "color": "#B42318",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 860,
+          "y": 612,
+          "w": 160,
+          "h": 46
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#ECE7FD"
+          }
+         ],
+         "description": "Try again",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 400,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 350
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": true,
+       "triggers": [
+        {
+         "action": {
+          "action": "hide_layer"
+         },
+         "when": {
+          "event": "click",
+          "object": "q-sort-no-retry"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "results",
+     "title": "Your result",
+     "duration_ms": 5000,
+     "background": "#EFECFA",
+     "objects": [
+      {
+       "id": "r-pic",
+       "name": "Picture",
+       "kind": {
+        "type": "image",
+        "src": "done.jpg",
+        "alt": "A happy learner raises both arms next to a big trophy and confetti.",
+        "shape": "rectangle",
+        "crop": {
+         "x": 0.2298,
+         "y": 0.0,
+         "w": 0.4803,
+         "h": 1.0
+        }
+       },
+       "frame": {
+        "x": 660,
+        "y": 0,
+        "w": 620,
+        "h": 720
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 800,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 0
+       }
+      },
+      {
+       "id": "r-eyebrow_rule",
+       "name": "Eyebrow rule",
+       "kind": {
+        "type": "shape",
+        "shape": "rectangle",
+        "fill": "#F49A6C"
+       },
+       "frame": {
+        "x": 88,
+        "y": 159,
+        "w": 28,
+        "h": 3
+       },
+       "decorative": true,
+       "entrance": {
+        "effect": {
+         "type": "wipe",
+         "from": "left"
+        },
+        "duration_ms": 450,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 200
+       }
+      },
+      {
+       "id": "r-eyebrow",
+       "name": "Eyebrow",
+       "kind": {
+        "type": "text",
+        "text": "TOUR COMPLETE",
+        "style": {
+         "font": "Inter",
+         "size": 16,
+         "color": "#5B3FD6",
+         "bold": true,
+         "letter_spacing": 2.5
+        },
+        "text_style": "ts_eyebrow"
+       },
+       "frame": {
+        "x": 128,
+        "y": 148,
+        "w": 700,
+        "h": 26
+       },
+       "entrance": {
+        "effect": {
+         "type": "fade"
+        },
+        "duration_ms": 500,
+        "easing": "ease_out"
+       },
+       "timing": {
+        "start_ms": 350
+       }
+      },
+      {
+       "id": "r-score",
+       "name": "Score",
+       "kind": {
+        "type": "text",
+        "text": "%Course.ScorePercent%%",
+        "style": {
+         "font": "Inter",
+         "size": 104,
+         "color": "#5B3FD6",
+         "bold": true
+        }
+       },
+       "frame": {
+        "x": 84,
+        "y": 184,
+        "w": 400,
+        "h": 120
+       },
+       "entrance": {
+        "effect": {
+         "type": "zoom"
+        },
+        "duration_ms": 700,
+        "easing": "overshoot"
+       },
+       "timing": {
+        "start_ms": 500
+       }
+      }
+     ],
+     "transition": {
+      "type": "zoom",
+      "duration_ms": 700
+     },
+     "notes": "Submits the quiz, then shows the passed or failed layer.",
+     "triggers": [
+      {
+       "action": {
+        "action": "submit_results"
+       },
+       "when": {
+        "event": "timeline_starts"
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "passed"
+       },
+       "when": {
+        "event": "timeline_starts"
+       },
+       "condition": {
+        "compare": {
+         "variable": "Quiz.Passed",
+         "op": "eq",
+         "value": true
+        }
+       }
+      },
+      {
+       "action": {
+        "action": "show_layer",
+        "layer": "failed"
+       },
+       "when": {
+        "event": "timeline_starts"
+       },
+       "condition": {
+        "compare": {
+         "variable": "Quiz.Passed",
+         "op": "eq",
+         "value": false
+        }
+       }
+      }
+     ],
+     "layers": [
+      {
+       "id": "passed",
+       "name": "Passed",
+       "duration_ms": 3000,
+       "objects": [
+        {
+         "id": "passed-title",
+         "name": "Heading",
+         "kind": {
+          "type": "text",
+          "text": "You've seen the tour",
+          "style": {
+           "font": "Inter",
+           "size": 40,
+           "color": "#1F1747",
+           "bold": true
+          },
+          "text_style": "ts_heading"
+         },
+         "frame": {
+          "x": 88,
+          "y": 310,
+          "w": 560,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "rise"
+          },
+          "duration_ms": 600,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 300
+         }
+        },
+        {
+         "id": "passed-body",
+         "name": "Body",
+         "kind": {
+          "type": "text",
+          "text": "Open Healthy Habits at Work for a full course, or start your own from a template.",
+          "style": {
+           "font": "Inter",
+           "size": 20,
+           "color": "#3D3566",
+           "bold": false
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.45
+           }
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 376,
+          "w": 500,
+          "h": 70
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 600,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 500
+         }
+        },
+        {
+         "id": "r-finish",
+         "name": "Finish  ✓ button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#5B3FD6",
+          "text": {
+           "text": "Finish  ✓",
+           "style": {
+            "font": "Inter",
+            "size": 18,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 470,
+          "w": 170,
+          "h": 56
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#4A31B8"
+          }
+         ],
+         "description": "Finish  ✓",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 800
+         }
+        },
+        {
+         "id": "r-restart",
+         "name": "Start again button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#ECE7FD",
+          "text": {
+           "text": "Start again",
+           "style": {
+            "font": "Inter",
+            "size": 17,
+            "color": "#4A31B8",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 274,
+          "y": 470,
+          "w": 170,
+          "h": 56
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#D9D0FA"
+          }
+         ],
+         "description": "Start again",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 900
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": false,
+       "triggers": [
+        {
+         "action": {
+          "action": "exit_course"
+         },
+         "when": {
+          "event": "click",
+          "object": "r-finish"
+         }
+        },
+        {
+         "action": {
+          "action": "jump_to_slide",
+          "target": {
+           "id": "tour"
+          }
+         },
+         "when": {
+          "event": "click",
+          "object": "r-restart"
+         }
+        }
+       ]
+      },
+      {
+       "id": "failed",
+       "name": "Failed",
+       "duration_ms": 3000,
+       "objects": [
+        {
+         "id": "failed-title",
+         "name": "Heading",
+         "kind": {
+          "type": "text",
+          "text": "So close",
+          "style": {
+           "font": "Inter",
+           "size": 40,
+           "color": "#1F1747",
+           "bold": true
+          },
+          "text_style": "ts_heading"
+         },
+         "frame": {
+          "x": 88,
+          "y": 310,
+          "w": 560,
+          "h": 60
+         },
+         "entrance": {
+          "effect": {
+           "type": "rise"
+          },
+          "duration_ms": 600,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 300
+         }
+        },
+        {
+         "id": "failed-body",
+         "name": "Body",
+         "kind": {
+          "type": "text",
+          "text": "You need 80% to pass. Have another go at the questions.",
+          "style": {
+           "font": "Inter",
+           "size": 20,
+           "color": "#3D3566",
+           "bold": false
+          },
+          "paragraphs": [
+           {
+            "line_spacing": 1.45
+           }
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 376,
+          "w": 500,
+          "h": 70
+         },
+         "entrance": {
+          "effect": {
+           "type": "fade"
+          },
+          "duration_ms": 600,
+          "easing": "ease_out"
+         },
+         "timing": {
+          "start_ms": 500
+         }
+        },
+        {
+         "id": "r-retry",
+         "name": "Try again button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#5B3FD6",
+          "text": {
+           "text": "Try again",
+           "style": {
+            "font": "Inter",
+            "size": 18,
+            "color": "#FFFFFF",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 88,
+          "y": 470,
+          "w": 170,
+          "h": 56
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#4A31B8"
+          }
+         ],
+         "description": "Try again",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 800
+         }
+        },
+        {
+         "id": "r-restart2",
+         "name": "Restart the tour button",
+         "kind": {
+          "type": "shape",
+          "shape": "rounded_rectangle",
+          "fill": "#ECE7FD",
+          "text": {
+           "text": "Restart the tour",
+           "style": {
+            "font": "Inter",
+            "size": 17,
+            "color": "#4A31B8",
+            "bold": true,
+            "align": "center",
+            "valign": "middle"
+           }
+          },
+          "adjust": [
+           0.2
+          ]
+         },
+         "frame": {
+          "x": 274,
+          "y": 470,
+          "w": 200,
+          "h": 56
+         },
+         "states": [
+          {
+           "name": "hover",
+           "fill": "#D9D0FA"
+          }
+         ],
+         "description": "Restart the tour",
+         "entrance": {
+          "effect": {
+           "type": "pop"
+          },
+          "duration_ms": 450,
+          "easing": "overshoot"
+         },
+         "timing": {
+          "start_ms": 900
+         }
+        }
+       ],
+       "hide_other_layers": true,
+       "pause_base_timeline": false,
+       "prevent_base_clicks": false,
+       "triggers": [
+        {
+         "action": {
+          "action": "retry_quiz"
+         },
+         "when": {
+          "event": "click",
+          "object": "r-retry"
+         }
+        },
+        {
+         "action": {
+          "action": "jump_to_slide",
+          "target": {
+           "id": "tour"
+          }
+         },
+         "when": {
+          "event": "click",
+          "object": "r-restart2"
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

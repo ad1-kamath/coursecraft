@@ -1,0 +1,330 @@
+[
+ {
+  "input": "start"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "click",
+  "object": "btn-start"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "click",
+  "object": "btn-play-video"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "media_time",
+  "object": "md-video",
+  "at_ms": 7000
+ },
+ {
+  "input": "media_ended",
+  "object": "md-video"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "btn-play-sound"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "md-next"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "click",
+  "object": "card-layers"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "card-states"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "card-variables"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "card-layers"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "ia-next"
+ },
+ {
+  "input": "tick",
+  "ms": 4000
+ },
+ {
+  "input": "click",
+  "object": "mo-move"
+ },
+ {
+  "input": "tick",
+  "ms": 2000
+ },
+ {
+  "input": "click",
+  "object": "mo-replay"
+ },
+ {
+  "input": "tick",
+  "ms": 4000
+ },
+ {
+  "input": "click",
+  "object": "mo-next"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "marker_toggled",
+  "object": "cp-m1"
+ },
+ {
+  "input": "tick",
+  "ms": 800
+ },
+ {
+  "input": "markers_closed"
+ },
+ {
+  "input": "marker_toggled",
+  "object": "cp-m2"
+ },
+ {
+  "input": "tick",
+  "ms": 800
+ },
+ {
+  "input": "markers_closed"
+ },
+ {
+  "input": "marker_toggled",
+  "object": "cp-m3"
+ },
+ {
+  "input": "tick",
+  "ms": 800
+ },
+ {
+  "input": "markers_closed"
+ },
+ {
+  "input": "marker_toggled",
+  "object": "cp-m4"
+ },
+ {
+  "input": "tick",
+  "ms": 800
+ },
+ {
+  "input": "markers_closed"
+ },
+ {
+  "input": "click",
+  "object": "cp-next"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "select_choice",
+  "choice": "a"
+ },
+ {
+  "input": "click",
+  "object": "q-mc-submit"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "q-mc-ok-next"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "select_choice",
+  "choice": "true"
+ },
+ {
+  "input": "click",
+  "object": "q-tf-submit"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "q-tf-ok-next"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "text_entered",
+  "text": "Variable"
+ },
+ {
+  "input": "click",
+  "object": "q-fill-submit"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "q-fill-ok-next"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "match_selected",
+  "left": "p1",
+  "right": "p1"
+ },
+ {
+  "input": "match_selected",
+  "left": "p2",
+  "right": "p2"
+ },
+ {
+  "input": "match_selected",
+  "left": "p3",
+  "right": "p3"
+ },
+ {
+  "input": "click",
+  "object": "q-match-submit"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "q-match-ok-next"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "hotspot_clicked",
+  "x": 230,
+  "y": 220
+ },
+ {
+  "input": "click",
+  "object": "q-map-submit"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "q-map-ok-next"
+ },
+ {
+  "input": "tick",
+  "ms": 3000
+ },
+ {
+  "input": "drag_dropped",
+  "item": "it-video",
+  "target": "grp-media",
+  "x": 288,
+  "y": 425
+ },
+ {
+  "input": "drag_dropped",
+  "item": "it-sound",
+  "target": "grp-media",
+  "x": 288,
+  "y": 425
+ },
+ {
+  "input": "drag_dropped",
+  "item": "it-match",
+  "target": "grp-quiz",
+  "x": 708,
+  "y": 425
+ },
+ {
+  "input": "drag_dropped",
+  "item": "it-hotspot",
+  "target": "grp-quiz",
+  "x": 708,
+  "y": 425
+ },
+ {
+  "input": "click",
+  "object": "q-sort-submit"
+ },
+ {
+  "input": "tick",
+  "ms": 1500
+ },
+ {
+  "input": "click",
+  "object": "q-sort-ok-next"
+ },
+ {
+  "input": "tick",
+  "ms": 3500
+ },
+ {
+  "input": "click",
+  "object": "r-finish"
+ }
+]
