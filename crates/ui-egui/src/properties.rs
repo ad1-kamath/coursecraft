@@ -793,7 +793,7 @@ impl PropertiesState {
         }
 
         if selection.is_multi() {
-            self.sync_multi(slide, selection);
+            self.sync_multi(course, slide, selection);
         }
 
         self.cue_edits.clear();
@@ -1170,7 +1170,12 @@ impl PropertiesState {
         }
     }
 
-    fn sync_multi(&mut self, slide: &coursecraft_course::Slide, selection: &crate::Selection) {
+    fn sync_multi(
+        &mut self,
+        course: &Course,
+        slide: &coursecraft_course::Slide,
+        selection: &crate::Selection,
+    ) {
         let objects: Vec<&coursecraft_course::Object> = selection
             .ids()
             .iter()
@@ -1201,22 +1206,10 @@ impl PropertiesState {
             self.opacity = coursecraft_course::clamp_opacity(first.opacity);
         }
 
-        let one_group = selection
-            .object
-            .as_deref()
-            .and_then(|id| slide.object(id))
-            .and_then(|(o, _)| o.group.as_deref())
-            .filter(|gid| {
-                objects.len() >= 2
-                    && objects.iter().all(|o| o.group.as_deref() == Some(*gid))
-                    && slide
-                        .group(gid)
-                        .is_some_and(|_| slide.group_members(gid).len() == objects.len())
+        let (entrance_src, exit_src) = if let Some(gid) = selection.selected_group_id(course) {
+            slide.group(&gid).map_or((None, None), |(group, _)| {
+                (group.entrance.as_ref(), group.exit.as_ref())
             })
-            .and_then(|gid| slide.group(gid).map(|(g, _)| g));
-
-        let (entrance_src, exit_src) = if let Some(group) = one_group {
-            (group.entrance.as_ref(), group.exit.as_ref())
         } else {
             let same_entrance = objects
                 .first()
@@ -12297,13 +12290,14 @@ fn show_group_animations_section(
     let Some(slide) = editor.session.course.slide(&editor.selection.slide) else {
         return;
     };
-    let Some((group, owner)) = slide.group(gid) else {
-        return;
+    let (group_opt, owner) = match slide.group(gid) {
+        Some((group, owner)) => (Some(group), owner),
+        None => (None, editor.selection.layer.as_deref()),
     };
     let slide_id = slide.id.clone();
-    let group_entrance = group.entrance.clone();
-    let group_exit = group.exit.clone();
-    let group_emphasis = group.emphasis.clone();
+    let group_entrance = group_opt.and_then(|g| g.entrance.clone());
+    let group_exit = group_opt.and_then(|g| g.exit.clone());
+    let group_emphasis = group_opt.map_or_else(Vec::new, |g| g.emphasis.clone());
     let editor_playhead = editor.ui.timeline.playhead_ms;
     let emphasis_start = slide.group_timing(gid, owner).map_or(editor_playhead, |t| {
         if editor_playhead >= t.start_ms && t.end_ms.is_none_or(|end| editor_playhead < end) {
@@ -12313,7 +12307,7 @@ fn show_group_animations_section(
         }
     });
 
-    inspector_section_header(ui, "Group animation");
+    inspector_section_header(ui, tl!("Group animation"));
     auto_preview_toggle(ui, &mut editor.ui.anim_preview.auto);
     let selected_ids = editor.selection.ids();
     let props = &mut editor.ui.properties;
@@ -12323,7 +12317,7 @@ fn show_group_animations_section(
 
     show_anim_row(
         ui,
-        "Entrance animation",
+        tl!("Entrance animation"),
         "entrance",
         &mut props.entrance_effect,
         &mut props.entrance_fx,
@@ -12337,7 +12331,7 @@ fn show_group_animations_section(
         &mut entrance_preview,
     );
     inspector_separator(ui);
-    inspector_section_header(ui, "Emphasis");
+    inspector_section_header(ui, tl!("Emphasis"));
     let mut emphasis_requests = Vec::new();
     crate::anim_panel::show_emphasis_card(
         ui,
@@ -12348,7 +12342,7 @@ fn show_group_animations_section(
     inspector_separator(ui);
     show_anim_row(
         ui,
-        "Exit animation",
+        tl!("Exit animation"),
         "exit",
         &mut props.exit_effect,
         &mut props.exit_fx,

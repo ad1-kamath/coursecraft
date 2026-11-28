@@ -342,7 +342,12 @@ impl PreviewState {
         };
         let into = (t - LEAD_MS).clamp(0.0, duration);
         if let Some(ref gid) = p.group {
-            let Some((_, owner)) = slide.group(gid) else {
+            let Some(owner) = slide.group(gid).map(|(_, o)| o).or_else(|| {
+                p.objects
+                    .first()
+                    .and_then(|id| slide.object(id))
+                    .map(|(_, o)| o)
+            }) else {
                 self.current = None;
                 return None;
             };

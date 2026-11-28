@@ -415,7 +415,9 @@ fn add_emphasis(editor: &mut Editor, index: usize) {
             return;
         };
         if let Some(ref gid) = group_id {
-            let owner = s.group(gid).and_then(|(_, o)| o);
+            let owner = s
+                .group(gid)
+                .map_or(editor.selection.layer.as_deref(), |(_, o)| o);
             let start = s.group_timing(gid, owner).map_or(playhead, |t| {
                 let inside = playhead >= t.start_ms && t.end_ms.is_none_or(|end| playhead < end);
                 if inside { playhead } else { t.start_ms }

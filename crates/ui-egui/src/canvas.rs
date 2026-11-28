@@ -5699,12 +5699,17 @@ fn handle_canvas_click(
             if let Some(id) = picked {
                 let targets = if editor.animation_painter_armed()
                     && editor.ui.group_focus.is_none()
+                    && editor
+                        .selection
+                        .group_members(&editor.session.course, &id)
+                        .len()
+                        >= 2
                     && let Some(gid) = editor
                         .session
                         .course
                         .slide(&editor.selection.slide)
-                        .and_then(|s| s.group_of_object(&id))
-                        .map(|(g, _)| g.id.clone())
+                        .and_then(|s| s.object(&id))
+                        .and_then(|(o, _)| o.group.clone())
                 {
                     vec![gid]
                 } else {
