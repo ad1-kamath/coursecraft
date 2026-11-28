@@ -2,6 +2,11 @@
 
 What changed in each release, newest first. Versions follow [semantic versioning](https://semver.org): until 1.0, a minor version (0.x) may change things, but a project saved by an older CourseCraft always opens in a newer one.
 
+## Unreleased
+
+**Questions**
+- In the editor's Preview, the "Choose…" lists in matching questions now open. Escape closes only the open list, and the arrow keys move through the list you opened.
+
 ## 0.6.6
 
 Fixes from using 0.6.5: easier split buttons, no more pile of slide tabs, a layer bar you can always see, and shadows that follow what a shape draws.
