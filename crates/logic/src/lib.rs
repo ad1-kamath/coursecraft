@@ -2676,6 +2676,11 @@ fn clock_next_wake(
             if !group.has_animation() {
                 continue;
             }
+            if !master.objects.iter().any(|o| {
+                o.group.as_deref() == Some(group.id.as_str()) && o.initial_state != "hidden"
+            }) {
+                continue;
+            }
             let Some(timing) = master.group_timing(&group.id, None) else {
                 continue;
             };

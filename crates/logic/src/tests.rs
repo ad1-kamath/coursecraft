@@ -14513,12 +14513,20 @@ fn m49_s4_master_objects_stay_noninteractive_unfocusable_and_event_free() {
             "id": "m1",
             "title": "Master",
             "duration_ms": 5000,
-            "objects": [{
-                "id": "m_btn",
-                "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" },
-                "frame": { "x": 100, "y": 100, "w": 100, "h": 100 },
-                "entrance": { "effect": { "type": "fade" }, "duration_ms": 400, "easing": "linear" }
-            }]
+            "objects": [
+                {
+                    "id": "m_btn",
+                    "kind": { "type": "button", "label": "Master Button" },
+                    "frame": { "x": 100, "y": 100, "w": 140, "h": 50 },
+                    "entrance": { "effect": { "type": "fade" }, "duration_ms": 400, "easing": "linear" }
+                },
+                {
+                    "id": "shared_obj",
+                    "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" },
+                    "frame": { "x": 300, "y": 100, "w": 100, "h": 100 },
+                    "entrance": { "effect": { "type": "fade" }, "duration_ms": 400, "easing": "linear" }
+                }
+            ]
         }],
         "scenes": [{
             "id": "sc0",
@@ -14527,7 +14535,16 @@ fn m49_s4_master_objects_stay_noninteractive_unfocusable_and_event_free() {
                 "id": "s1",
                 "title": "Slide 1",
                 "master": "m1",
-                "duration_ms": 3000
+                "duration_ms": 3000,
+                "objects": [{
+                    "id": "shared_obj",
+                    "kind": { "type": "shape", "shape": "rectangle", "fill": "#0000FF" },
+                    "frame": { "x": 500, "y": 100, "w": 100, "h": 100 }
+                }],
+                "triggers": [{
+                    "when": { "event": "animation_completes", "object": "shared_obj" },
+                    "action": { "action": "set_variable", "variable": "hits", "op": "add", "value": 1 }
+                }]
             }]
         }]
     }"##;
@@ -14535,7 +14552,19 @@ fn m49_s4_master_objects_stay_noninteractive_unfocusable_and_event_free() {
     let mut p = Player::new(&c).expect("player");
     p.handle(&Input::Start);
 
-    // Ticking past master entrance emits no AnimationCompletes or other effects.
+    // Master button must never join keyboard focus order or accept FocusChanged.
+    assert!(
+        !p.keyboard_objects().iter().any(|id| id == "m_btn"),
+        "master button must not appear in keyboard_objects: {:?}",
+        p.keyboard_objects()
+    );
+    p.handle(&Input::FocusChanged {
+        object: Some("m_btn".into()),
+    });
+    assert_eq!(p.state().focused_object, None);
+
+    // Ticking past the master entrance on `shared_obj` must not fire AnimationCompletes
+    // (the slide's own `shared_obj` has no entrance, so `hits` stays 0).
     let tick_effects = p.handle(&Input::Tick { ms: 600 });
     assert_eq!(p.variable("hits"), Some(&Value::Number(0.0)));
     assert!(
@@ -14543,7 +14572,7 @@ fn m49_s4_master_objects_stay_noninteractive_unfocusable_and_event_free() {
         "expected no effects from master entrance tick, got {tick_effects:?}"
     );
 
-    // Clicking a master object produces a Warning (unknown/non-live on slide) and no action effects.
+    // Clicking a master object produces a Warning (not on this slide) and no action effects.
     let click_effects = p.handle(&Input::Click {
         object: "m_btn".into(),
     });
@@ -14567,13 +14596,33 @@ fn m49_s4_next_wake_ms_wakes_for_master_animations() {
             "id": "m1",
             "title": "Master",
             "duration_ms": 5000,
-            "objects": [{
-                "id": "m_rect",
-                "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" },
-                "frame": { "x": 100, "y": 100, "w": 100, "h": 100 },
-                "entrance": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" },
-                "exit": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" }
-            }]
+            "groups": [{
+                "id": "mg_hidden",
+                "entrance": { "effect": { "type": "fade" }, "duration_ms": 2000, "easing": "linear" }
+            }],
+            "objects": [
+                {
+                    "id": "m_rect",
+                    "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" },
+                    "frame": { "x": 100, "y": 100, "w": 100, "h": 100 },
+                    "entrance": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" },
+                    "exit": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" }
+                },
+                {
+                    "id": "m_hid_a",
+                    "group": "mg_hidden",
+                    "initial_state": "hidden",
+                    "kind": { "type": "shape", "shape": "rectangle", "fill": "#00FF00" },
+                    "frame": { "x": 250, "y": 100, "w": 50, "h": 50 }
+                },
+                {
+                    "id": "m_hid_b",
+                    "group": "mg_hidden",
+                    "initial_state": "hidden",
+                    "kind": { "type": "shape", "shape": "rectangle", "fill": "#0000FF" },
+                    "frame": { "x": 310, "y": 100, "w": 50, "h": 50 }
+                }
+            ]
         }],
         "scenes": [{
             "id": "sc0",
@@ -14594,7 +14643,8 @@ fn m49_s4_next_wake_ms_wakes_for_master_animations() {
     // At t=0: master entrance is active -> Some(0).
     assert_eq!(p.next_wake_ms(), Some(0));
 
-    // At t=1000: master entrance finished, exit starts at 4500 -> wake delta 3500.
+    // At t=1000: master entrance finished (hidden master group `mg_hidden` must not keep waking),
+    // exit starts at 4500 -> wake delta 3500.
     p.handle(&Input::Tick { ms: 1000 });
     assert_eq!(p.next_wake_ms(), Some(3500));
 

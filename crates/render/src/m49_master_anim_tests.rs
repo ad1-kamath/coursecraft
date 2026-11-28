@@ -296,3 +296,74 @@ fn m49_s4_slide_transition_with_animated_master_renders_cleanly() {
     assert_eq!(view.last_items()[0].hit, Hit::None);
     assert!((view.last_items()[0].opacity - 1.0).abs() < 0.01);
 }
+
+#[test]
+fn m49_s4_master_access_tree_and_hide_base_objects_layer() {
+    let json = serde_json::json!({
+        "schema_version": 1,
+        "id": "m49-master-access",
+        "title": "Master Access",
+        "slide_size": { "w": 1280, "h": 720 },
+        "masters": [{
+            "id": "m1",
+            "title": "Master",
+            "background": "#FFFFFF",
+            "duration_ms": 5000,
+            "objects": [{
+                "id": "m_banner",
+                "kind": { "type": "text", "text": "Master Banner" },
+                "frame": { "x": 100, "y": 50, "w": 300, "h": 50 },
+                "timing": { "start_ms": 0, "end_ms": 1500 },
+                "entrance": { "effect": { "type": "fade" }, "duration_ms": 400, "easing": "linear" },
+                "exit": { "effect": { "type": "fade" }, "duration_ms": 400, "easing": "linear" }
+            }]
+        }],
+        "scenes": [{
+            "id": "sc1",
+            "title": "Scene",
+            "slides": [{
+                "id": "s1",
+                "title": "Slide 1",
+                "master": "m1",
+                "duration_ms": 3000,
+                "layers": [{
+                    "id": "l1",
+                    "name": "Overlay",
+                    "duration_ms": 3000,
+                    "hide_base_objects": true,
+                    "objects": [],
+                    "triggers": []
+                }],
+                "triggers": [{
+                    "when": { "event": "timeline_starts" },
+                    "action": { "action": "show_layer", "layer": "l1" }
+                }]
+            }]
+        }]
+    });
+    let c = Course::from_json(&json.to_string()).expect("course");
+    let mut p = Player::new(&c).expect("player");
+    p.handle(&Input::Start);
+    assert!(p.base_objects_hidden());
+
+    let frame = crate::player_frame::PlayerFrame::new();
+    let has_banner = |player: &Player<'_>| {
+        let items = compose(player);
+        let tree = crate::access::build_access_tree(player, &frame, &items, false, false);
+        (
+            !items.is_empty(),
+            tree.nodes.iter().any(|n| n.label == "Master Banner"),
+        )
+    };
+
+    // At t=0: opacity is 0 -> neither drawn nor announced.
+    assert_eq!(has_banner(&p), (false, false));
+
+    // At t=600: visible even under hide_base_objects layer -> drawn and announced.
+    p.handle(&Input::Tick { ms: 600 });
+    assert_eq!(has_banner(&p), (true, true));
+
+    // At t=1600: exit completed -> neither drawn nor announced.
+    p.handle(&Input::Tick { ms: 1000 });
+    assert_eq!(has_banner(&p), (false, false));
+}
