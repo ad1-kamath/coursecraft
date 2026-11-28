@@ -30,8 +30,8 @@ cp "$tmp/Assets.car" apps/coursecraft/icons/Assets.car
 rm -rf "$tmp"
 ```
 
-Verify the compiled catalog contains both Light and Dark appearances:
+Verify the compiled catalog contains both Light and Dark foreground vectors and distinct appearance renditions:
 
 ```sh
-xcrun assetutil --info apps/coursecraft/icons/Assets.car | head -n 30
+xcrun assetutil --info apps/coursecraft/icons/Assets.car | grep -E '"AssetType"|"Appearance"|"Name"|"LayerOpacity"'
 ```

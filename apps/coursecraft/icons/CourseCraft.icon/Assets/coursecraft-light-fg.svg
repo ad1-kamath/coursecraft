@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="100 100 824 824">
   <title>CourseCraft Foreground (Light)</title>
   <g id="Layer_1" data-name="Layer 1">
     <path d="M758.2 325.6 C679.836 232.203 551.425 197.791 436.859 239.487 C322.294 281.183 246.04 390.082 246.04 512 C246.04 633.918 322.294 742.817 436.859 784.513 C551.425 826.209 679.836 791.797 758.2 698.4 L666.2 621.3 C620.254 676.033 544.984 696.19 477.835 671.742 C410.686 647.294 365.994 583.461 365.994 512 C365.994 440.539 410.686 376.706 477.835 352.258 C544.984 327.81 620.254 347.967 666.2 402.7 Z" fill="#f1ebdd" stroke="#141414" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
