@@ -95,7 +95,7 @@ fn group_finished_exit(
         return false;
     };
     let end_ms = timing.end_ms.unwrap_or(duration_ms);
-    t >= end_ms
+    t >= end_ms || t >= duration_ms
 }
 
 /// Clock time when `obj`'s visible window ends on a timeline of length `duration_ms`,

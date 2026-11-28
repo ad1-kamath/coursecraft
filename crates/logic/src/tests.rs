@@ -14135,8 +14135,7 @@ fn m47_s1_display_text_and_validator_parser_agree() {
         "variables":[{"name":"score","value":42}],
         "scenes":[{"id":"sc0","title":"S","slides":[{"id":"s0","title":"Slide","objects":[]}]}]
     }"##;
-    let mut c = Course::from_json(json).expect("valid json");
-    c.player.show_seekbar = false;
+    let c = Course::from_json(json).expect("valid json");
     let mut p = Player::new(&c).expect("player");
     p.handle(&Input::Start);
 
@@ -14192,8 +14191,7 @@ fn m49_s2_group_sample_uses_group_timing_and_bounding_box() {
             }]
         }]
     }"##;
-    let mut c = Course::from_json(json).expect("valid json");
-    c.player.show_seekbar = false;
+    let c = Course::from_json(json).expect("valid json");
     let mut p = Player::new(&c).expect("player");
     p.handle(&Input::Start);
 
@@ -14236,56 +14234,83 @@ fn m49_s2_group_sample_uses_group_timing_and_bounding_box() {
 
 #[test]
 fn m49_s2_group_exit_ends_interactive_group_liveness() {
+    // Members of g1 have no `end_ms` and no own `exit`, so without the group's exit they
+    // would stay live after the 2000 ms slide timeline finishes. Members of g2 have
+    // `end_ms` > `duration_ms`, so only the timeline-end check on group exit ends liveness.
     let json = r##"{
         "schema_version": 1,
         "id": "m49-group-live",
         "title": "Group Liveness",
         "slide_size": { "w": 1280, "h": 720 },
-        "variables": [{ "name": "clicks", "value": 0 }],
+        "variables": [
+            { "name": "clicks", "value": 0 },
+            { "name": "plain_clicks", "value": 0 }
+        ],
         "scenes": [{
             "id": "sc0",
             "title": "S",
             "slides": [{
                 "id": "s0",
                 "title": "Slide",
-                "duration_ms": 5000,
-                "groups": [{
-                    "id": "g1",
-                    "interactive": true,
-                    "exit": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" }
-                }],
-                "objects": [
-                    { "id": "a", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 100, "y": 100, "w": 100, "h": 100 }, "timing": { "start_ms": 0, "end_ms": 2000 } },
-                    { "id": "b", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 200, "y": 100, "w": 100, "h": 100 }, "timing": { "start_ms": 0, "end_ms": 2000 } }
+                "duration_ms": 2000,
+                "groups": [
+                    {
+                        "id": "g1",
+                        "interactive": true,
+                        "exit": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" }
+                    },
+                    {
+                        "id": "g2",
+                        "exit": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" }
+                    }
                 ],
-                "triggers": [{
-                    "when": { "event": "click", "object": "g1" },
-                    "action": { "action": "set_variable", "variable": "clicks", "value": 1 }
-                }]
+                "objects": [
+                    { "id": "a", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 100, "y": 100, "w": 100, "h": 100 } },
+                    { "id": "b", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 200, "y": 100, "w": 100, "h": 100 } },
+                    { "id": "c", "group": "g2", "kind": { "type": "shape", "shape": "rectangle", "fill": "#0000FF" }, "frame": { "x": 400, "y": 100, "w": 100, "h": 100 }, "timing": { "start_ms": 0, "end_ms": 5000 } },
+                    { "id": "d", "group": "g2", "kind": { "type": "shape", "shape": "rectangle", "fill": "#0000FF" }, "frame": { "x": 500, "y": 100, "w": 100, "h": 100 }, "timing": { "start_ms": 0, "end_ms": 5000 } }
+                ],
+                "triggers": [
+                    {
+                        "when": { "event": "click", "object": "g1" },
+                        "action": { "action": "set_variable", "variable": "clicks", "value": 1 }
+                    },
+                    {
+                        "when": { "event": "click", "object": "c" },
+                        "action": { "action": "set_variable", "variable": "plain_clicks", "value": 1 }
+                    }
+                ]
             }]
         }]
     }"##;
-    let mut c = Course::from_json(json).expect("valid json");
-    c.player.show_seekbar = false;
+    let c = Course::from_json(json).expect("valid json");
     let mut p = Player::new(&c).expect("player");
     p.handle(&Input::Start);
 
-    // Before exit finishes (t = 1750): live and clickable.
+    // Before exit finishes (t = 1750): both interactive group and plain group member are live.
     p.handle(&Input::Tick { ms: 1750 });
     p.handle(&Input::Click {
         object: "g1".into(),
     });
     assert_eq!(p.variable("clicks"), Some(&Value::Number(1.0)));
+    p.handle(&Input::Click { object: "c".into() });
+    assert_eq!(p.variable("plain_clicks"), Some(&Value::Number(1.0)));
 
-    // After exit finishes (t = 2000): no longer live, click ignored.
+    // After timeline ends (t = 2000): group exit finished -> neither g1 nor member c is live.
     p.handle(&Input::Tick { ms: 250 });
     let out = p.handle(&Input::Click {
         object: "g1".into(),
     });
-    assert_eq!(p.variable("clicks"), Some(&Value::Number(1.0)));
     assert!(
         out.iter().any(|e| matches!(e, Effect::Warning { .. })),
         "clicking exited interactive group should warn: {out:?}"
+    );
+    let out_plain = p.handle(&Input::Click { object: "c".into() });
+    assert!(
+        out_plain
+            .iter()
+            .any(|e| matches!(e, Effect::Warning { .. })),
+        "clicking member of exited group (even with end_ms > duration_ms) should warn: {out_plain:?}"
     );
 }
 

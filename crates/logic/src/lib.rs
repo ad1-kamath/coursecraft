@@ -2521,7 +2521,7 @@ fn clock_next_wake(
         }
         if let Some(exit) = exit {
             let end_ms = timing.end_ms.unwrap_or(duration_ms);
-            let exit_start = end_ms.saturating_sub(exit.duration_ms);
+            let exit_start = end_ms.saturating_sub(exit.duration_ms).max(timing.start_ms);
             if clock.ms >= exit_start && clock.ms < end_ms {
                 return Some(0);
             }

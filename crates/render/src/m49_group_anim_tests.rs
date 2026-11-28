@@ -278,3 +278,150 @@ fn m49_s2_legacy_per_child_animations_unchanged() {
     let items = compose(&player);
     assert!(items.iter().all(|it| it.group_anim.is_none()));
 }
+
+#[test]
+fn m49_s2_child_wipe_preserved_inside_group_fly_in() {
+    // Child "a" has a left-to-right 50% wipe entrance; group "g1" has a fly_in from left
+    // (non-offscreen fast path). At t=500 ms the group has translated left, AND child "a"
+    // must still have its right half clipped by its own wipe.
+    let json = serde_json::json!({
+        "schema_version": 1,
+        "id": "m49-child-wipe-in-group",
+        "title": "Child Wipe In Group",
+        "slide_size": { "w": 1280, "h": 720 },
+        "scenes": [{
+            "id": "s1",
+            "title": "Scene",
+            "slides": [{
+                "id": "slide1",
+                "title": "Slide",
+                "background": "#FFFFFF",
+                "duration_ms": 3000,
+                "groups": [{
+                    "id": "g1",
+                    "entrance": { "effect": { "type": "fly_in", "from": "top" }, "duration_ms": 1000, "easing": "linear" }
+                }],
+                "objects": [
+                    {
+                        "id": "a",
+                        "group": "g1",
+                        "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" },
+                        "frame": { "x": 400, "y": 400, "w": 200, "h": 200 },
+                        "entrance": { "effect": { "type": "wipe", "from": "left" }, "duration_ms": 1000, "easing": "linear" }
+                    },
+                    {
+                        "id": "b",
+                        "group": "g1",
+                        "kind": { "type": "shape", "shape": "rectangle", "fill": "#0000FF" },
+                        "frame": { "x": 700, "y": 400, "w": 200, "h": 200 }
+                    }
+                ]
+            }]
+        }]
+    });
+    let c = Course::from_json(&json.to_string()).expect("course");
+    let mut player = coursecraft_logic::Player::new(&c).expect("player");
+    player.handle(&coursecraft_logic::Input::Start);
+    player.handle(&coursecraft_logic::Input::Tick { ms: 500 });
+    let ga = player.sample_group("g1").expect("group sample");
+    let shifted_y = (500.0 + ga.offset.1).round() as u32;
+
+    let img = render_at(&c, 500);
+    // Left half of child "a" (x=450) is revealed red at the group-shifted y.
+    assert_eq!(px(&img, 450, shifted_y), [255, 0, 0, 255]);
+    // Right half of child "a" (x=550) must still be clipped away (white background).
+    assert_eq!(px(&img, 550, shifted_y), [255, 255, 255, 255]);
+}
+
+#[test]
+fn m49_s2_group_fade_cache_updates_when_child_visual_changes() {
+    // Render two consecutive frames on the SAME egui::Context while a group fades.
+    // Changing a child's fill colour (same rect/opacity/transform) must miss the fade
+    // cache and upload the updated colour rather than reusing a stale cached texture.
+    let make_items = |fill: egui::Color32| {
+        let ga = std::sync::Arc::new(crate::compose::GroupAnim {
+            id: "g1".into(),
+            frame: egui::Rect::from_min_size(egui::pos2(100.0, 100.0), egui::vec2(200.0, 100.0)),
+            sample: coursecraft_logic::ObjectSample {
+                opacity: 0.5,
+                ..coursecraft_logic::ObjectSample::IDENTITY
+            },
+        });
+        let make = |id: &str, x: f32| crate::compose::DrawItem {
+            hit: Hit::Object(id.into()),
+            rect: egui::Rect::from_min_size(egui::pos2(x, 100.0), egui::vec2(100.0, 100.0)),
+            visual: crate::compose::Visual::Shape {
+                shape: coursecraft_course::ShapeKind::Rectangle,
+                adjust: Vec::new(),
+                fill,
+                fill_style: None,
+                outline: None,
+                text: None,
+                hover_fill: None,
+                down_fill: None,
+                down_has_fill_style: false,
+                disabled: false,
+            },
+            dimmed: false,
+            opacity: 1.0,
+            clip: None,
+            rotation: 0.0,
+            flip_h: false,
+            flip_v: false,
+            shadow: None,
+            glow: None,
+            media_time_ms: None,
+            links: Vec::new(),
+            show_table_overflow: false,
+            clip_rect: None,
+            mark: None,
+            is_state_extra: false,
+            anim: crate::compose::AnimLook::IDENTITY,
+            group_anim: Some(ga.clone()),
+        };
+        vec![make("a", 100.0), make("b", 200.0)]
+    };
+
+    let t = crate::layout::SlideTransform::fit(
+        egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(400.0, 300.0)),
+        coursecraft_course::Size { w: 400, h: 300 },
+    )
+    .expect("fit");
+
+    let mut frame = 0usize;
+    let img = crate::offscreen::render_ui(
+        400,
+        300,
+        1.0,
+        |_| {},
+        |ctx| {
+            // Pass 0 paints red; pass 1+ paints blue on the exact same Context.
+            let fill = if frame == 0 {
+                egui::Color32::from_rgb(255, 0, 0)
+            } else {
+                egui::Color32::from_rgb(0, 0, 255)
+            };
+            frame += 1;
+            let items = make_items(fill);
+            let painter = ctx.layer_painter(egui::LayerId::background());
+            crate::paint::paint_items(
+                &painter,
+                &t,
+                &items,
+                crate::paint::Highlight::default(),
+                None,
+                None,
+                None,
+                (0.0, 0.0),
+            );
+        },
+    )
+    .expect("render");
+
+    // Final rasterised image comes from the last pass (blue at 50% over white: ~[128, 128, 255]).
+    let p = px(&img, 150, 150);
+    assert!(
+        p[2] > 240 && p[0] > 100 && p[0] < 160,
+        "expected updated faded blue after visual change, got {p:?}"
+    );
+}

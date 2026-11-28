@@ -2527,16 +2527,44 @@ pub(crate) fn transform_painted_shapes(
     painter.set(marker, egui::Shape::Noop);
 
     let ppp = painter.pixels_per_point();
+    let outer_clip = painter.clip_rect();
+    let moves_geometry = post.scales()
+        || post.offset != egui::Vec2::ZERO
+        || (post.rotation.is_finite() && post.rotation != 0.0);
     for (_, mut clipped) in painted {
-        if post.scales() {
-            // Content is laid out larger or smaller than it shows; don't let tessellation
-            // cull parts that the scale brings back on screen. The painter clips the result.
+        let orig_clip = clipped.clip_rect;
+        let inner_clip = orig_clip != outer_clip
+            && orig_clip.min.x.is_finite()
+            && orig_clip.min.y.is_finite()
+            && orig_clip.max.x.is_finite()
+            && orig_clip.max.y.is_finite();
+        if inner_clip && !orig_clip.is_positive() {
+            continue;
+        }
+        if !inner_clip && moves_geometry {
+            // Content is laid out larger or smaller (or shifted/turned) than it shows;
+            // don't let tessellation cull parts that the transform brings back on screen.
+            // The painter clips the result.
             clipped.clip_rect = Rect::EVERYTHING;
         }
+        let clip_quad = inner_clip.then(|| {
+            vec![
+                orig_clip.left_top(),
+                orig_clip.right_top(),
+                orig_clip.right_bottom(),
+                orig_clip.left_bottom(),
+            ]
+        });
         for primitive in painter.ctx().tessellate(vec![clipped], ppp).into_iter() {
-            let egui::epaint::Primitive::Mesh(mesh) = primitive.primitive else {
+            let egui::epaint::Primitive::Mesh(mut mesh) = primitive.primitive else {
                 continue;
             };
+            if let Some(quad) = clip_quad.as_ref() {
+                mesh = crate::mesh_post::clip_mesh(&mesh, std::slice::from_ref(quad));
+                if mesh.is_empty() {
+                    continue;
+                }
+            }
             let mesh = post.apply(mesh);
             if !mesh.is_empty() {
                 painter.add(egui::Shape::mesh(mesh));
@@ -2686,18 +2714,46 @@ fn fnv1a_u64(mut hash: u64, bytes: &[u8]) -> u64 {
     hash
 }
 
+struct FnvWriter(u64);
+
+impl std::fmt::Write for FnvWriter {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        self.0 = fnv1a_u64(self.0, s.as_bytes());
+        Ok(())
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn group_run_fingerprint(
     ga: &crate::compose::GroupAnim,
     run: &[DrawItem],
+    bounds: Rect,
     highlight: &Highlight,
     scale: f32,
     offset: (f32, f32),
+    slide_bg_rgba: Option<coursecraft_course::Rgba>,
+    theme_text_color: Color32,
+    theme_accent_color: Color32,
 ) -> u64 {
+    use std::fmt::Write as _;
+
     let mut h = 0xcbf2_9ce4_8422_2325_u64;
     h = fnv1a_u64(h, ga.id.as_bytes());
+    h = fnv1a_u64(h, &(run.len() as u64).to_le_bytes());
     h = fnv1a_u64(h, &scale.to_bits().to_le_bytes());
     h = fnv1a_u64(h, &offset.0.to_bits().to_le_bytes());
     h = fnv1a_u64(h, &offset.1.to_bits().to_le_bytes());
+    h = fnv1a_u64(h, &bounds.min.x.to_bits().to_le_bytes());
+    h = fnv1a_u64(h, &bounds.min.y.to_bits().to_le_bytes());
+    h = fnv1a_u64(h, &bounds.max.x.to_bits().to_le_bytes());
+    h = fnv1a_u64(h, &bounds.max.y.to_bits().to_le_bytes());
+    if let Some(bg) = slide_bg_rgba {
+        h = fnv1a_u64(h, &[1, bg.r, bg.g, bg.b, bg.a]);
+    } else {
+        h = fnv1a_u64(h, &[0]);
+    }
+    h = fnv1a_u64(h, &theme_text_color.to_array());
+    h = fnv1a_u64(h, &theme_accent_color.to_array());
     for item in run {
         h = fnv1a_u64(h, &item.rect.min.x.to_bits().to_le_bytes());
         h = fnv1a_u64(h, &item.rect.min.y.to_bits().to_le_bytes());
@@ -2716,20 +2772,89 @@ fn group_run_fingerprint(
         h = fnv1a_u64(h, &item.anim.scale.0.to_bits().to_le_bytes());
         h = fnv1a_u64(h, &item.anim.scale.1.to_bits().to_le_bytes());
         if let Some(c) = item.clip {
+            h = fnv1a_u64(h, &[1]);
             h = fnv1a_u64(h, &c.min_x.to_bits().to_le_bytes());
             h = fnv1a_u64(h, &c.min_y.to_bits().to_le_bytes());
             h = fnv1a_u64(h, &c.max_x.to_bits().to_le_bytes());
             h = fnv1a_u64(h, &c.max_y.to_bits().to_le_bytes());
+        } else {
+            h = fnv1a_u64(h, &[0]);
+        }
+        if let Some(cr) = item.clip_rect {
+            h = fnv1a_u64(h, &[1]);
+            h = fnv1a_u64(h, &cr.min.x.to_bits().to_le_bytes());
+            h = fnv1a_u64(h, &cr.min.y.to_bits().to_le_bytes());
+            h = fnv1a_u64(h, &cr.max.x.to_bits().to_le_bytes());
+            h = fnv1a_u64(h, &cr.max.y.to_bits().to_le_bytes());
+        } else {
+            h = fnv1a_u64(h, &[0]);
         }
         if let Some(tint) = item.anim.tint {
+            h = fnv1a_u64(h, &[1]);
             h = fnv1a_u64(h, &tint.rgb);
             h = fnv1a_u64(h, &tint.amount.to_bits().to_le_bytes());
+        } else {
+            h = fnv1a_u64(h, &[0]);
+        }
+        if let Some(ms) = item.media_time_ms {
+            h = fnv1a_u64(h, &[1]);
+            h = fnv1a_u64(h, &ms.to_le_bytes());
+        } else {
+            h = fnv1a_u64(h, &[0]);
         }
         let is_pressed = item.hit != Hit::None && highlight.pressed.as_ref() == Some(&item.hit);
         let is_hovered = item.hit != Hit::None && highlight.hovered.as_ref() == Some(&item.hit);
         h = fnv1a_u64(h, &[u8::from(is_pressed), u8::from(is_hovered)]);
+        let mut w = FnvWriter(h);
+        let _ = write!(
+            w,
+            "{:?}|{:?}|{:?}|{:?}|{:?}",
+            item.visual, item.anim.mask, item.shadow, item.glow, item.mark
+        );
+        h = w.0;
     }
     h
+}
+
+fn run_has_volatile_media(run: &[DrawItem], media_source: Option<&dyn MediaSource>) -> bool {
+    let Some(src_provider) = media_source else {
+        return false;
+    };
+    run.iter().any(|item| match &item.visual {
+        Visual::Image { src, .. } | Visual::Lottie { src, .. } => {
+            matches!(src_provider.get(src), crate::media::MediaFetch::Pending)
+        }
+        Visual::Video {
+            poster, playing, ..
+        } => {
+            *playing
+                || poster.as_deref().is_some_and(|p| {
+                    matches!(src_provider.get(p), crate::media::MediaFetch::Pending)
+                })
+        }
+        _ => false,
+    })
+}
+
+fn outline_margin(item: &DrawItem, scale: f32) -> f32 {
+    let width = match &item.visual {
+        Visual::Shape {
+            outline: Some(o), ..
+        }
+        | Visual::Text {
+            outline: Some(o), ..
+        }
+        | Visual::Image {
+            outline: Some(o), ..
+        } => o.width,
+        Visual::Path(path) => path.outline.as_ref().map_or(0.0, |o| o.width),
+        _ => 0.0,
+    };
+    if width.is_finite() && width > 0.0 {
+        width * scale
+    } else {
+        0.0
+    }
 }
 
 fn group_run_bounds(
@@ -2749,7 +2874,7 @@ fn group_run_bounds(
             item.rect.size(),
         );
         let visual = t.to_screen_rect(shifted);
-        let margin = effect_margin(item, scale);
+        let margin = effect_margin(item, scale).max(outline_margin(item, scale));
         let rot = if item.rotation.is_finite() {
             item.rotation
         } else {
@@ -2906,10 +3031,22 @@ fn paint_group_run(
     } else {
         ppp
     };
-    let pixel_w = (bounds.width() * eff_ppp).round().clamp(1.0, 2048.0) as u32;
-    let pixel_h = (bounds.height() * eff_ppp).round().clamp(1.0, 2048.0) as u32;
+    let pixel_w = (bounds.width() * eff_ppp).ceil().clamp(1.0, 2048.0) as u32;
+    let pixel_h = (bounds.height() * eff_ppp).ceil().clamp(1.0, 2048.0) as u32;
 
-    let fingerprint = group_run_fingerprint(ga, run, highlight, scale, offset);
+    let media_source = media.as_ref().map(|(_, src)| *src);
+    let volatile_media = run_has_volatile_media(run, media_source);
+    let fingerprint = group_run_fingerprint(
+        ga,
+        run,
+        bounds,
+        highlight,
+        scale,
+        offset,
+        slide_bg_rgba,
+        theme_text_color,
+        theme_accent_color,
+    );
     let key = GroupTextureKey {
         id: ga.id.clone(),
         pixel_w,
@@ -2922,26 +3059,29 @@ fn paint_group_run(
     let cache_id = egui::Id::unique(GROUP_FADE_CACHE_ID);
     let flag_id = egui::Id::unique(GROUP_FADE_FLAG_ID);
 
-    let cached_tex = ctx.data_mut(|d| {
-        let found = {
-            let cache = d.get_temp_mut_or_default::<GroupFadeCache>(cache_id);
-            if let Some((pass, tex)) = cache.get_mut(&key) {
-                *pass = current_pass;
-                Some(tex.clone())
-            } else {
-                None
+    let cached_tex = if volatile_media {
+        None
+    } else {
+        ctx.data_mut(|d| {
+            let found = {
+                let cache = d.get_temp_mut_or_default::<GroupFadeCache>(cache_id);
+                if let Some((pass, tex)) = cache.get_mut(&key) {
+                    *pass = current_pass;
+                    Some(tex.clone())
+                } else {
+                    None
+                }
+            };
+            if found.is_some() {
+                d.insert_temp(flag_id, true);
             }
-        };
-        if found.is_some() {
-            d.insert_temp(flag_id, true);
-        }
-        found
-    });
+            found
+        })
+    };
 
     let tex = if let Some(tex) = cached_tex {
         tex
     } else {
-        let media_source = media.as_ref().map(|(_, src)| *src);
         let Some(img) = crate::offscreen::render_group_to_rgba(
             ctx,
             t,
@@ -2984,9 +3124,18 @@ fn paint_group_run(
         handle
     };
 
+    let zoom =
+        (pixel_w as f32 / bounds.width().max(1e-4)).min(pixel_h as f32 / bounds.height().max(1e-4));
+    let uv = Rect::from_min_max(
+        Pos2::ZERO,
+        pos2(
+            (bounds.width() * zoom / pixel_w as f32).clamp(0.0, 1.0),
+            (bounds.height() * zoom / pixel_h as f32).clamp(0.0, 1.0),
+        ),
+    );
     let group_marker = slide_painter.add(egui::Shape::Noop);
     let tint = Color32::WHITE.linear_multiply(opacity);
-    slide_painter.image(tex.id(), bounds, FULL_UV, tint);
+    slide_painter.image(tex.id(), bounds, uv, tint);
     transform_painted_shapes(slide_painter, group_marker, &group_post);
     true
 }
