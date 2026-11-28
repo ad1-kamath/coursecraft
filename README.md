@@ -30,18 +30,19 @@ The sample course "Healthy Habits at Work" was built entirely with `coursecraft-
 
 ## Get CourseCraft
 
-Download the latest version from the **Releases** page of this repository: a `.dmg` for macOS (Apple Silicon and Intel), a Windows installer (`-setup.exe`), or an `.AppImage` or `.tar.gz` for Linux (x86-64; built automatically but less tested, so reports are welcome). It's free, with no account and no subscription.
+Download the latest version from the **Releases** page of this repository: a `.dmg` for macOS (Apple Silicon and Intel), a Windows installer (`-setup.exe`) or portable `-portable.zip` (no install, good for trying it out), or an `.AppImage` or `.tar.gz` for Linux (x86-64; built automatically but less tested, so reports are welcome). It's free, with no account and no subscription.
 
 The first time you open it:
 - **macOS** says it can't check the app, because it isn't signed with a paid Apple developer account. Right-click the app and choose Open, or go to System Settings → Privacy & Security → Open Anyway.
 - **Windows** SmartScreen may warn about an unknown publisher. Choose More info → Run anyway.
 - **Linux:** make the `.AppImage` executable (`chmod +x coursecraft-*.AppImage`) and run it, or unpack the `.tar.gz` archive and run `bin/coursecraft` in its folder. Both need GTK 3, which most desktops already have.
 
-CourseCraft checks for a newer version when it starts (turn that off in Preferences), and Help → Check for Updates checks on demand. On macOS (`.app`) and Linux (`.AppImage` or unpacked `.tar.gz`), where your copy can update itself, it offers Update and Restart after verifying the release's `SHA256SUMS.txt`; on Windows it offers the `-setup.exe` installer for you to download and run (users on an older portable build are guided to the installer). Nothing installs or restarts without your confirmation. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
+CourseCraft checks for a newer version when it starts (turn that off in Preferences), and Help → Check for Updates checks on demand. On macOS (`.app`) and Linux (`.AppImage` or unpacked `.tar.gz`), where your copy can update itself, it offers Update and Restart after verifying the release's `SHA256SUMS.txt`; on Windows it offers the `-setup.exe` installer for you to download and run, or the new `-portable.zip` if you use the portable copy. Nothing installs or restarts without your confirmation. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 ### Install on Windows
 
 - **Installer (`coursecraft-<version>-windows-x64-setup.exe`):** Installs per user into `%LOCALAPPDATA%\Programs\CourseCraft` without administrator rights, adds a Start menu shortcut (and an optional desktop shortcut), and registers an uninstaller in Windows **Settings → Apps**.
+- **Portable (`coursecraft-<version>-windows-x64-portable.zip`):** Unzip anywhere (a USB stick works) and run `coursecraft.exe`; nothing is installed (settings still live in `%APPDATA%\CourseCraft`, below). To update, unpack the new zip in place of the folder. To remove it, delete the folder.
 - **Settings and logs:** Preferences, saved project version history, and crash notes (`last-crash.txt`) are stored in `%APPDATA%\CourseCraft`.
 
 Built to the conventions of the [ArtCraft](https://github.com/storytold) Crafting Apps, and on their open-source `craft-ui`, `craft-i18n` and `craft-update` libraries (the same ones DeckCraft uses): native egui/wgpu, the same code on the web via WebAssembly, every action a command, and no crashes.

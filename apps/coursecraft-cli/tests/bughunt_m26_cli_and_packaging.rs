@@ -183,17 +183,17 @@ fn a8_3_release_yml_and_iss_defines_parity() {
     }
     assert!(yml.contains("-windows-x64-setup"));
     assert!(
-        !yml.contains("-windows-x64-portable"),
-        "release.yml must not build a portable Windows package"
+        yml.contains("-windows-x64-portable"),
+        "release.yml must build the portable Windows zip"
     );
     assert!(
-        !yml.contains("portable.txt"),
-        "release.yml must not create portable.txt"
+        yml.contains("portable.txt"),
+        "the portable zip must carry portable.txt so the update check knows it"
     );
 }
 
 #[test]
-fn release_workflow_builds_dmg_setup_tarball_appimage_and_no_portable() {
+fn release_workflow_builds_dmg_setup_portable_tarball_and_appimage() {
     let root = repo_root();
     let yml =
         std::fs::read_to_string(root.join(".github/workflows/release.yml")).expect("release.yml");
@@ -206,15 +206,10 @@ fn release_workflow_builds_dmg_setup_tarball_appimage_and_no_portable() {
     assert!(yml.contains("scripts/package-macos.sh"));
     assert!(mac.contains("coursecraft-$version-macos-$arch.dmg"));
 
-    // Windows Inno Setup -setup.exe only (no portable package)
+    // Windows: Inno Setup -setup.exe and a portable zip
     assert!(yml.contains("coursecraft-$ver-windows-x64-setup"));
     assert!(yml.contains("packaging/windows/coursecraft.iss"));
-    for forbidden in ["portable", "Portable", "portable.txt"] {
-        assert!(
-            !yml.contains(forbidden),
-            "release.yml must not mention or build portable Windows packages ({forbidden})"
-        );
-    }
+    assert!(yml.contains("coursecraft-$ver-windows-x64-portable"));
 
     // Linux .tar.gz and .AppImage
     assert!(yml.contains("dist/$name.tar.gz"));
@@ -366,16 +361,18 @@ fn cc_3_published_web_zip_preserves_course_and_media() {
 // ============================================================================
 
 #[test]
-fn a8_5_docs_explain_release_downloads_without_windows_portable() {
+fn a8_5_docs_explain_release_downloads_with_windows_portable() {
     let root = repo_root();
     let readme = std::fs::read_to_string(root.join("README.md")).expect("README.md");
-    for required in [".dmg", "-setup.exe", ".AppImage", ".tar.gz"] {
+    for required in [
+        ".dmg",
+        "-setup.exe",
+        "-portable.zip",
+        ".AppImage",
+        ".tar.gz",
+    ] {
         assert!(readme.contains(required), "README.md missing {required}");
     }
-    assert!(
-        !readme.contains("-portable.zip") && !readme.contains("portable.txt"),
-        "README.md should no longer advertise Windows portable zips"
-    );
     let pkg_readme =
         std::fs::read_to_string(root.join("packaging/windows/README.md")).expect("pkg README");
     assert!(pkg_readme.contains("Inno Setup") && pkg_readme.contains("release.yml"));

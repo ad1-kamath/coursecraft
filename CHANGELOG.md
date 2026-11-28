@@ -2,17 +2,20 @@
 
 What changed in each release, newest first. Versions follow [semantic versioning](https://semver.org): until 1.0, a minor version (0.x) may change things, but a project saved by an older CourseCraft always opens in a newer one.
 
-## Unreleased
+## 0.6.7
 
-**macOS**
-- Added a dark app icon on macOS when Dark icons are enabled in System Settings.
+Luca's two animation ideas: groups that animate as one picture and animations on slide masters. Also a dark app icon on macOS, the Windows portable download is back, and the matching question lists open again.
 
 **Animations**
-- Grouped objects now animate together as one unit: applying an entrance, exit, or emphasis animation to a group moves, scales, turns, wipes, and fades the whole group around its shared box without overlapping shapes showing through each other mid-fade, while individual items inside the group can still keep their own animations. Thanks to Luca.
-- Objects and groups on slide masters can now have entrance, exit, and emphasis animations and be timed on the timeline in Master View, and those animations play from the start of each slide that uses the master. Thanks to Luca.
+- A group now animates as one picture. An entrance, exit or emphasis on a group moves, zooms, turns, wipes and fades the whole group around its shared box, and overlapping shapes no longer show through each other halfway through a fade. Items inside the group can still have their own animations. Courses made before keep playing as they did. Thanks to Luca.
+- Objects on a slide master can now have entrance, exit and emphasis animations, timed on the timeline in Master View. They play from the start of every slide that uses the master, and stay unclickable. Thanks to Luca.
 
 **Questions**
 - In the editor's Preview, the "Choose…" lists in matching questions now open. Escape closes only the open list, and the arrow keys move through the list you opened.
+
+**Downloads**
+- Windows: a portable download is back (`-portable.zip`). Unzip it and run CourseCraft without installing, handy for trying it out. The installer is still there too.
+- macOS: CourseCraft has its own dark app icon when Dark icons are turned on in System Settings (macOS 26 and later).
 
 ## 0.6.6
 
