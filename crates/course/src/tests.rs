@@ -6921,6 +6921,9 @@ fn gb_01_plain_group_and_interactive_group_serde() {
         initial_state: "normal".into(),
         focus_order: None,
         description: None,
+        entrance: None,
+        exit: None,
+        emphasis: Vec::new(),
     };
     let full_group = crate::Group {
         id: "g-full".into(),
@@ -6929,6 +6932,9 @@ fn gb_01_plain_group_and_interactive_group_serde() {
         initial_state: "disabled".into(),
         focus_order: Some(3),
         description: Some("Returns to previous slide".into()),
+        entrance: None,
+        exit: None,
+        emphasis: Vec::new(),
     };
     course.scenes[0].slides[0]
         .groups
@@ -6995,6 +7001,9 @@ fn make_group(id: &str, interactive: bool, initial_state: &str) -> crate::Group 
         initial_state: initial_state.into(),
         focus_order: None,
         description: None,
+        entrance: None,
+        exit: None,
+        emphasis: Vec::new(),
     }
 }
 
@@ -7596,6 +7605,9 @@ fn gb_02_validation_accepts_valid_interactive_group_and_triggers() {
         initial_state: "normal".into(),
         focus_order: Some(1),
         description: Some("Continue to next section".into()),
+        entrance: None,
+        exit: None,
+        emphasis: Vec::new(),
     });
 
     // Interactive group on a Layer as well.
@@ -8468,4 +8480,141 @@ fn m47_s1_state_extra_path_table_bank_and_pairs_refs_are_found_without_run_dupli
             "missing warning for {expected_var} at {expected_path}; got: {var_warnings:#?}"
         );
     }
+}
+
+#[test]
+fn m49_s1_group_animation_roundtrips_and_omits_when_unset() {
+    let mut course = Course::from_json(HELLO).expect("parse hello");
+    let minimal = make_group("g-min", false, "normal");
+    assert!(!minimal.has_animation());
+    assert!(minimal.is_plain_empty());
+
+    let animated = crate::Group {
+        id: "g-anim".into(),
+        name: String::new(),
+        interactive: false,
+        initial_state: "normal".into(),
+        focus_order: None,
+        description: None,
+        entrance: Some(crate::Animation {
+            effect: crate::AnimEffect::new("fade"),
+            duration_ms: 400,
+            easing: crate::Easing::EaseOut,
+            sequence: Default::default(),
+        }),
+        exit: Some(crate::Animation {
+            effect: crate::AnimEffect::new("zoom"),
+            duration_ms: 300,
+            easing: crate::Easing::EaseIn,
+            sequence: Default::default(),
+        }),
+        emphasis: vec![crate::Emphasis::new("pulse", 500)],
+    };
+    assert!(animated.has_animation());
+    assert!(!animated.is_plain_empty());
+
+    course.scenes[0].slides[0].groups = vec![minimal.clone(), animated.clone()];
+    let json = course.to_json().expect("serialize");
+    let value: serde_json::Value = serde_json::from_str(&json).expect("json");
+    let arr = value["scenes"][0]["slides"][0]["groups"]
+        .as_array()
+        .expect("groups array");
+    let min_obj = arr[0].as_object().expect("min group");
+    assert!(!min_obj.contains_key("entrance"));
+    assert!(!min_obj.contains_key("exit"));
+    assert!(!min_obj.contains_key("emphasis"));
+
+    let reparsed = Course::from_json(&json).expect("reparse");
+    assert_eq!(reparsed.scenes[0].slides[0].groups, vec![minimal, animated]);
+}
+
+#[test]
+fn m49_s1_group_animation_validation_checks_durations_and_windows() {
+    let mut course = Course::from_json(HELLO).expect("parse hello");
+    let slide = &mut course.scenes[0].slides[0];
+    slide.duration_ms = 2000;
+    for i in 0..2 {
+        let mut o = slide.objects[0].clone();
+        o.id = format!("m{i}");
+        o.group = Some("g-anim".into());
+        o.timing = crate::Timing {
+            start_ms: 100,
+            end_ms: Some(400),
+        };
+        slide.objects.push(o);
+    }
+
+    // Duration 0 and 60001 errors + window overflow warning.
+    let mut bad_emp = crate::Emphasis::new("pulse", 1500);
+    bad_emp.duration_ms = 60_001;
+    slide.groups.push(crate::Group {
+        id: "g-anim".into(),
+        name: String::new(),
+        interactive: false,
+        initial_state: "normal".into(),
+        focus_order: None,
+        description: None,
+        entrance: Some(crate::Animation {
+            effect: crate::AnimEffect::new("fade"),
+            duration_ms: 0,
+            easing: crate::Easing::EaseOut,
+            sequence: Default::default(),
+        }),
+        exit: Some(crate::Animation {
+            effect: crate::AnimEffect::new("fade"),
+            duration_ms: 500,
+            easing: crate::Easing::EaseIn,
+            sequence: Default::default(),
+        }),
+        emphasis: vec![bad_emp],
+    });
+    let report = course.validate();
+    assert!(
+        report
+            .iter()
+            .any(|e| e.severity == Severity::Error && e.path.ends_with("entrance/duration_ms"))
+    );
+    assert!(
+        report
+            .iter()
+            .any(|e| e.severity == Severity::Error && e.path.ends_with("emphasis/0/duration_ms"))
+    );
+    assert!(
+        report
+            .iter()
+            .any(|w| w.severity == Severity::Warning && w.message.contains("group \"g-anim\""))
+    );
+
+    // Valid non-interactive animated group on a master is allowed; interactive is rejected.
+    let mut master = course.scenes[0].slides[0].clone();
+    master.id = "master1".into();
+    master.triggers.clear();
+    master.layers.clear();
+    master.question = None;
+    master.groups[0].entrance = Some(crate::Animation {
+        effect: crate::AnimEffect::new("fade"),
+        duration_ms: 200,
+        easing: crate::Easing::EaseOut,
+        sequence: Default::default(),
+    });
+    master.groups[0].exit = None;
+    master.groups[0].emphasis.clear();
+
+    let mut clean_course = Course::from_json(HELLO).expect("parse hello");
+    clean_course.masters.push(master);
+    let master_errors: Vec<_> = clean_course
+        .validate()
+        .into_iter()
+        .filter(|e| e.severity == Severity::Error)
+        .collect();
+    assert!(
+        master_errors.is_empty(),
+        "non-interactive animated group on master should be valid: {master_errors:?}"
+    );
+
+    clean_course.masters[0].groups[0].interactive = true;
+    let interactive_master_report = clean_course.validate();
+    assert!(interactive_master_report.iter().any(|e| {
+        e.severity == Severity::Error && e.message.contains("must not have interactive group")
+    }));
 }

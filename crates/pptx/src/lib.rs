@@ -1043,6 +1043,8 @@ struct SlideTracker {
     /// DrawingML shape id (`cNvPr/@id`) to imported object ids (may be multiple for
     /// multi-subpath custom geometry or flattened `grpSp` groups).
     pptx_ids: HashMap<String, Vec<String>>,
+    /// DrawingML group shape id (`grpSp/nvGrpSpPr/cNvPr/@id`) to CourseCraft `group` id.
+    pptx_group_ids: HashMap<String, String>,
     pending_connectors: Vec<PendingConnector>,
 }
 
@@ -1058,6 +1060,7 @@ impl SlideTracker {
             image_count: 0,
             table_count: 0,
             pptx_ids: HashMap::new(),
+            pptx_group_ids: HashMap::new(),
             pending_connectors: Vec::new(),
         }
     }
@@ -1439,6 +1442,7 @@ pub fn import_pptx_with_limits(
             // reach a master shape with the same id (N52).
             resolve_connector_glues(&mut objects, &mut tracker);
             tracker.pptx_ids.clear();
+            tracker.pptx_group_ids.clear();
         }
         if let Some(lp) = layout_path.as_deref()
             && let Some(layout_tree) = layout_tree_opt.as_ref()
@@ -1465,6 +1469,7 @@ pub fn import_pptx_with_limits(
         }
         resolve_connector_glues(&mut objects, &mut tracker);
         tracker.pptx_ids.clear();
+        tracker.pptx_group_ids.clear();
 
         if let Some(sp_tree) = slide_tree.find_descendant("spTree") {
             let initial_xfrm = GroupTransform::default();
@@ -1488,6 +1493,7 @@ pub fn import_pptx_with_limits(
         }
         resolve_connector_glues(&mut objects, &mut tracker);
 
+        let mut groups: Vec<coursecraft_course::Group> = Vec::new();
         let mut triggers: Vec<coursecraft_course::Trigger> = Vec::new();
         let max_anim_end_ms = slide_tree
             .find_descendant("timing")
@@ -1496,6 +1502,7 @@ pub fn import_pptx_with_limits(
                     timing_node,
                     &layout,
                     &mut objects,
+                    &mut groups,
                     &mut triggers,
                     &mut tracker,
                 )
@@ -1516,7 +1523,7 @@ pub fn import_pptx_with_limits(
             background: slide_background,
             objects,
             layers: Vec::new(),
-            groups: Vec::new(),
+            groups,
             triggers,
             cue_points: Vec::new(),
             question: None,
@@ -2886,6 +2893,26 @@ fn process_group_children(
 
                 let before = cx.objects.len();
                 process_group_children(child, new_transform, depth.saturating_add(1), cx)?;
+                if depth == 0 && cx.objects.len().saturating_sub(before) >= 2 {
+                    let spid = drawing_id(child);
+                    let base =
+                        spid.map_or_else(|| "pptx_grp".to_owned(), |id| format!("pptx_grp_{id}"));
+                    let mut gid = base.clone();
+                    let mut suffix = 2usize;
+                    while cx.objects[..before]
+                        .iter()
+                        .any(|o| o.group.as_deref() == Some(gid.as_str()) || o.id == gid)
+                    {
+                        gid = format!("{base}_{suffix}");
+                        suffix = suffix.saturating_add(1);
+                    }
+                    for obj in &mut cx.objects[before..] {
+                        obj.group = Some(gid.clone());
+                    }
+                    if let Some(spid) = spid {
+                        cx.tracker.pptx_group_ids.insert(spid.to_owned(), gid);
+                    }
+                }
                 record_pptx_id(child, before, cx);
             }
             "cxnSp" => {

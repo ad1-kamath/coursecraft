@@ -1198,7 +1198,15 @@ fn check_slide(course: &Course, cx: &mut Ctx<'_>, slide: &Slide) {
     }
     if !slide.groups.is_empty() {
         cx.with_field("groups", |cx| {
-            check_groups_list(cx, slide, &slide.objects, &slide.groups, &mut ids, false);
+            check_groups_list(
+                cx,
+                slide,
+                &slide.objects,
+                &slide.groups,
+                &mut ids,
+                false,
+                slide.duration_ms,
+            );
         });
     }
     if cx.should_stop() {
@@ -1286,7 +1294,15 @@ fn check_slide_layers<'a>(
                 }
                 if !cx.should_stop() && !layer.groups.is_empty() {
                     cx.with_field("groups", |cx| {
-                        check_groups_list(cx, slide, &layer.objects, &layer.groups, ids, false);
+                        check_groups_list(
+                            cx,
+                            slide,
+                            &layer.objects,
+                            &layer.groups,
+                            ids,
+                            false,
+                            layer.duration_ms,
+                        );
                     });
                 }
                 if !cx.should_stop() && !layer.triggers.is_empty() {
@@ -1452,7 +1468,15 @@ fn check_master(course: &Course, cx: &mut Ctx<'_>, master: &Slide) {
     }
     if !cx.should_stop() && !master.groups.is_empty() {
         cx.with_field("groups", |cx| {
-            check_groups_list(cx, master, &master.objects, &master.groups, &mut ids, true);
+            check_groups_list(
+                cx,
+                master,
+                &master.objects,
+                &master.groups,
+                &mut ids,
+                true,
+                master.duration_ms,
+            );
         });
     }
     if cx.issues.len() > first_new {
@@ -1562,6 +1586,7 @@ fn check_groups_list<'a>(
     groups: &'a [Group],
     ids: &mut BTreeSet<&'a str>,
     is_master: bool,
+    timeline_ms: u32,
 ) {
     for (gi, g) in groups.iter().enumerate() {
         cx.with_index(gi, |cx| {
@@ -1595,6 +1620,42 @@ fn check_groups_list<'a>(
                 if cx.should_stop() {
                     return;
                 }
+            }
+            check_animations(
+                cx,
+                g.entrance.as_ref(),
+                g.exit.as_ref(),
+                &g.emphasis,
+                "a group",
+            );
+            if !members.is_empty() {
+                let mut start_ms = u32::MAX;
+                let mut end_ms: Option<u32> = Some(0);
+                for m in &members {
+                    start_ms = start_ms.min(m.timing.start_ms);
+                    end_ms = match (end_ms, m.timing.end_ms) {
+                        (Some(cur), Some(e)) => Some(cur.max(e)),
+                        _ => None,
+                    };
+                }
+                let timing = crate::Timing { start_ms, end_ms };
+                let who = if slide.id.is_empty() {
+                    format!("group {:?}", g.id)
+                } else {
+                    format!("group {:?} on slide {:?}", g.id, slide.id)
+                };
+                check_anim_windows(
+                    cx,
+                    &who,
+                    &timing,
+                    g.entrance.as_ref(),
+                    g.exit.as_ref(),
+                    &g.emphasis,
+                    timeline_ms,
+                );
+            }
+            if cx.should_stop() {
+                return;
             }
             if !g.interactive {
                 return;
@@ -3501,38 +3562,34 @@ fn check_state_extras(course: &Course, cx: &mut Ctx<'_>, extras: &[crate::StateE
     });
 }
 
-fn check_object_animations(cx: &mut Ctx<'_>, o: &Object) {
-    for (which, anim) in [("entrance", &o.entrance), ("exit", &o.exit)] {
+fn check_animations(
+    cx: &mut Ctx<'_>,
+    entrance: Option<&crate::Animation>,
+    exit: Option<&crate::Animation>,
+    emphasis: &[crate::Emphasis],
+    subject: &str,
+) {
+    for (which, anim) in [("entrance", entrance), ("exit", exit)] {
         if let Some(anim) = anim {
             check_anim_effect(cx, which, &anim.effect);
+            if anim.duration_ms == 0 || anim.duration_ms > 60000 {
+                cx.err_at(
+                    &format!("{which}/duration_ms"),
+                    "animation duration_ms must be 1..=60000",
+                );
+            }
         }
     }
-    if let Some(ref anim) = o.entrance
-        && (anim.duration_ms == 0 || anim.duration_ms > 60000)
-    {
-        cx.err_at(
-            "entrance/duration_ms",
-            "animation duration_ms must be 1..=60000",
-        );
-    }
-    if let Some(ref anim) = o.exit
-        && (anim.duration_ms == 0 || anim.duration_ms > 60000)
-    {
-        cx.err_at(
-            "exit/duration_ms",
-            "animation duration_ms must be 1..=60000",
-        );
-    }
-    if o.emphasis.len() > crate::MAX_EMPHASIS_PER_OBJECT {
+    if emphasis.len() > crate::MAX_EMPHASIS_PER_OBJECT {
         cx.err_at(
             "emphasis",
             format!(
-                "an object has at most {} emphasis animations",
+                "{subject} has at most {} emphasis animations",
                 crate::MAX_EMPHASIS_PER_OBJECT
             ),
         );
     }
-    for (i, e) in o.emphasis.iter().enumerate() {
+    for (i, e) in emphasis.iter().enumerate() {
         if e.effect.def().is_none() {
             cx.warn_at(
                 &format!("emphasis/{i}/effect/type"),
@@ -3558,58 +3615,88 @@ fn check_object_animations(cx: &mut Ctx<'_>, o: &Object) {
     }
 }
 
-/// Warn about animations that the object's time window or the timeline cuts off. The window
-/// runs from `timing.start_ms` to `timing.end_ms`, or to the timeline's end. An entrance plays
-/// from the start, an exit over `[end - duration, end)`, an emphasis over its own span and only
-/// while the object is on screen. The messages name the object and slide so a UI can jump to it.
-fn check_animation_windows(cx: &mut Ctx<'_>, o: &Object, timeline_ms: u32, slide_id: &str) {
+fn check_object_animations(cx: &mut Ctx<'_>, o: &Object) {
+    check_animations(
+        cx,
+        o.entrance.as_ref(),
+        o.exit.as_ref(),
+        &o.emphasis,
+        "an object",
+    );
+}
+
+/// Warn about animations that the object's or group's time window or the timeline cuts off. The
+/// window runs from `timing.start_ms` to `timing.end_ms`, or to the timeline's end. An entrance
+/// plays from the start, an exit over `[end - duration, end)`, an emphasis over its own span and
+/// only while visible.
+fn check_anim_windows(
+    cx: &mut Ctx<'_>,
+    who: &str,
+    timing: &crate::Timing,
+    entrance: Option<&crate::Animation>,
+    exit: Option<&crate::Animation>,
+    emphasis: &[crate::Emphasis],
+    timeline_ms: u32,
+) {
     if cx.skip_warnings {
         return;
     }
-    let start = o.timing.start_ms;
-    let end = o.timing.end_ms.map_or(timeline_ms, |e| e.min(timeline_ms));
+    let start = timing.start_ms;
+    let end = timing.end_ms.map_or(timeline_ms, |e| e.min(timeline_ms));
     if start >= end {
         return;
     }
-    let who = if slide_id.is_empty() {
-        format!("object {:?}", o.id)
-    } else {
-        format!("object {:?} on slide {slide_id:?}", o.id)
-    };
-    if let Some(a) = &o.entrance
+    if let Some(a) = entrance
         && start.saturating_add(a.duration_ms) > end
     {
         cx.warn_at(
             "entrance",
             format!(
-                "{who}: the {} ms entrance animation does not finish before the object's window ends at {end} ms",
+                "{who}: the {} ms entrance animation does not finish before the window ends at {end} ms",
                 a.duration_ms
             ),
         );
     }
-    if let Some(a) = &o.exit
+    if let Some(a) = exit
         && end.saturating_sub(a.duration_ms) < start
     {
         cx.warn_at(
             "exit",
             format!(
-                "{who}: the {} ms exit animation does not fit in the object's window of {start} to {end} ms",
+                "{who}: the {} ms exit animation does not fit in the window of {start} to {end} ms",
                 a.duration_ms
             ),
         );
     }
-    for (i, e) in o.emphasis.iter().enumerate() {
+    for (i, e) in emphasis.iter().enumerate() {
         if e.start_ms < start || e.end_ms() > end {
             cx.warn_at(
                 &format!("emphasis/{i}"),
                 format!(
-                    "{who}: emphasis {i} plays from {} to {} ms, outside the object's window of {start} to {end} ms",
+                    "{who}: emphasis {i} plays from {} to {} ms, outside the window of {start} to {end} ms",
                     e.start_ms,
                     e.end_ms()
                 ),
             );
         }
     }
+}
+
+fn check_animation_windows(cx: &mut Ctx<'_>, o: &Object, timeline_ms: u32, slide_id: &str) {
+    let who = if slide_id.is_empty() {
+        format!("object {:?}", o.id)
+    } else {
+        format!("object {:?} on slide {slide_id:?}", o.id)
+    };
+    check_anim_windows(
+        cx,
+        &who,
+        &o.timing,
+        o.entrance.as_ref(),
+        o.exit.as_ref(),
+        &o.emphasis,
+        timeline_ms,
+    );
 }
 
 /// Unknown effect ids and options the effect does not take are warnings: the file still

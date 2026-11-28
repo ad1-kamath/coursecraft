@@ -177,14 +177,17 @@ fn keep_text_style_link(old: &ObjectKind, new: &mut ObjectKind, omitted: bool) {
     }
 }
 
-/// Emphasis starts are absolute on the slide timeline, so moving an object moves them by the
-/// same amount. Saturating; an emphasis never lands before the object's new start.
-fn shift_emphasis_with_start(obj: &mut Object, new_start: u32) {
-    let old_start = obj.timing.start_ms;
+/// Emphasis starts are absolute on the slide timeline, so moving an object or group moves them
+/// by the same amount. Saturating; an emphasis never lands before the new start.
+pub(super) fn shift_emphasis_slice(
+    emphasis: &mut [coursecraft_course::Emphasis],
+    old_start: u32,
+    new_start: u32,
+) {
     if new_start == old_start {
         return;
     }
-    for e in &mut obj.emphasis {
+    for e in emphasis {
         let moved = if new_start > old_start {
             e.start_ms.saturating_add(new_start - old_start)
         } else {
@@ -192,6 +195,10 @@ fn shift_emphasis_with_start(obj: &mut Object, new_start: u32) {
         };
         e.start_ms = moved.max(new_start);
     }
+}
+
+fn shift_emphasis_with_start(obj: &mut Object, new_start: u32) {
+    shift_emphasis_slice(&mut obj.emphasis, obj.timing.start_ms, new_start);
 }
 
 pub(super) fn object_update(s: &mut Session, p: &Json) -> Result<Json> {
@@ -210,6 +217,18 @@ pub(super) fn object_update(s: &mut Session, p: &Json) -> Result<Json> {
     let map = obj(C, p)?;
 
     let slide = slide_mut(s, &sid)?;
+    let group_old_start = if timing.is_some() {
+        slide
+            .group_of_object(&oid)
+            .filter(|(g, _)| !g.emphasis.is_empty())
+            .and_then(|(g, owner)| {
+                let owner_owned = owner.map(str::to_owned);
+                let old_min = slide.group_timing(&g.id, owner)?.start_ms;
+                Some((g.id.clone(), owner_owned, old_min))
+            })
+    } else {
+        None
+    };
     let obj = find_object_mut(slide, &oid)?;
     if let Some(n) = name {
         obj.name = text(C, n, "name")?;
@@ -315,6 +334,17 @@ pub(super) fn object_update(s: &mut Session, p: &Json) -> Result<Json> {
             }
             _ => return Err(bad(C, "`description`: expected string or null")),
         };
+    }
+    if let Some((gid, owner, old_min)) = group_old_start
+        && let Some(new_min) = slide
+            .group_timing(&gid, owner.as_deref())
+            .map(|t| t.start_ms)
+        && new_min != old_min
+    {
+        let groups = groups_vec_mut(slide, owner.as_deref())?;
+        if let Some(g) = groups.iter_mut().find(|g| g.id == gid) {
+            shift_emphasis_slice(&mut g.emphasis, old_min, new_min);
+        }
     }
     keep_valid(s, was_valid)?;
     Ok(Json::Null)
@@ -1133,6 +1163,9 @@ pub(super) fn group_set_interactive(s: &mut Session, p: &Json) -> Result<Json> {
                 initial_state: "normal".to_owned(),
                 focus_order: None,
                 description: None,
+                entrance: None,
+                exit: None,
+                emphasis: Vec::new(),
             });
         }
 
@@ -1175,20 +1208,36 @@ pub(super) fn group_set_interactive(s: &mut Session, p: &Json) -> Result<Json> {
         }
 
         let slide = slide_mut(s, &sid)?;
-        let mut removed_any = false;
-        let before = slide.groups.len();
-        slide.groups.retain(|g| g.id != group_id);
-        if slide.groups.len() != before {
-            removed_any = true;
-        }
-        for layer in &mut slide.layers {
-            let before_layer = layer.groups.len();
-            layer.groups.retain(|g| g.id != group_id);
-            if layer.groups.len() != before_layer {
-                removed_any = true;
+        let mut changed = false;
+        let update_list = |groups: &mut Vec<Group>, changed: &mut bool| {
+            let before = groups.len();
+            for g in groups.iter_mut().filter(|g| g.id == group_id) {
+                if g.interactive
+                    || g.initial_state != "normal"
+                    || g.focus_order.is_some()
+                    || g.description.is_some()
+                {
+                    *changed = true;
+                }
+                g.interactive = false;
+                g.initial_state = "normal".to_owned();
+                g.focus_order = None;
+                g.description = None;
+                if !g.has_animation() && !g.name.is_empty() {
+                    g.name.clear();
+                    *changed = true;
+                }
             }
+            groups.retain(|g| g.id != group_id || !g.is_plain_empty());
+            if groups.len() != before {
+                *changed = true;
+            }
+        };
+        update_list(&mut slide.groups, &mut changed);
+        for layer in &mut slide.layers {
+            update_list(&mut layer.groups, &mut changed);
         }
-        if !removed_any {
+        if !changed {
             s.skip_undo = true;
             return Ok(json!({ "group": group_id }));
         }

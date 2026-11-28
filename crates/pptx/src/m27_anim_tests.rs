@@ -618,19 +618,30 @@ fn c1_8_group_and_connector_targeting() {
 
     let (course, _report) = import_and_validate(shapes, timing);
     let slide = &course.scenes[0].slides[0];
+    let gid = obj_by_name(slide, "G1")
+        .group
+        .as_deref()
+        .expect("G1 belongs to imported group");
     for name in ["G1", "G2", "G3"] {
         let obj = obj_by_name(slide, name);
+        assert_eq!(obj.group.as_deref(), Some(gid));
         assert_eq!(obj.timing.start_ms, 250);
-        assert_eq!(
-            obj.entrance,
-            Some(Animation {
-                effect: AnimEffect::new("fade"),
-                duration_ms: 500,
-                easing: Easing::EaseOut,
-                sequence: Default::default(),
-            })
-        );
+        assert_eq!(obj.entrance, None);
     }
+    let grp = slide
+        .groups
+        .iter()
+        .find(|g| g.id == gid)
+        .expect("group record");
+    assert_eq!(
+        grp.entrance,
+        Some(Animation {
+            effect: AnimEffect::new("fade"),
+            duration_ms: 500,
+            easing: Easing::EaseOut,
+            sequence: Default::default(),
+        })
+    );
     let conn = obj_by_name(slide, "Conn1");
     assert_eq!(
         conn.entrance,
@@ -947,6 +958,7 @@ fn c1_13_hostile_and_malformed_timing_resilience() {
 
     let tree = parse_xml_tree(&deep_timing, "slide1.xml", 256).expect("parse deep timing");
     let mut objects = vec![hostile.clone()];
+    let mut groups = Vec::new();
     let mut triggers = Vec::new();
     let mut tracker = SlideTracker::new(1);
     tracker
@@ -954,11 +966,76 @@ fn c1_13_hostile_and_malformed_timing_resilience() {
         .insert("2".to_owned(), vec![hostile.id.clone()]);
     let layout =
         SlideLayout::from_emu(f64::from(STD_16_9_CX as u32), f64::from(STD_16_9_CY as u32));
-    apply_slide_timing(&tree, &layout, &mut objects, &mut triggers, &mut tracker);
+    apply_slide_timing(
+        &tree,
+        &layout,
+        &mut objects,
+        &mut groups,
+        &mut triggers,
+        &mut tracker,
+    );
     assert!(
         tracker
             .items
             .iter()
             .any(|i| i.kind == SkipKind::Animation && i.note.contains("depth"))
     );
+}
+
+#[test]
+fn m49_s1_pptx_group_entrance_lands_on_group_record() {
+    let sp_tree_inner = r#"
+        <p:grpSp>
+          <p:nvGrpSpPr><p:cNvPr id="10" name="Card Group"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+          <p:grpSpPr>
+            <a:xfrm><a:off x="0" y="0"/><a:ext cx="1828800" cy="914400"/>
+              <a:chOff x="0" y="0"/><a:chExt cx="1828800" cy="914400"/></a:xfrm>
+          </p:grpSpPr>
+          <p:sp>
+            <p:nvSpPr><p:cNvPr id="11" name="Box A"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+            <p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm>
+              <a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
+          </p:sp>
+          <p:sp>
+            <p:nvSpPr><p:cNvPr id="12" name="Box B"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+            <p:spPr><a:xfrm><a:off x="914400" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm>
+              <a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
+          </p:sp>
+        </p:grpSp>"#;
+    let timing_xml = r#"
+      <p:timing>
+        <p:tnLst><p:par><p:cTn id="1" nodeType="tmRoot"><p:childTnLst>
+          <p:seq><p:cTn id="2" nodeType="mainSeq"><p:childTnLst>
+            <p:par><p:cTn id="3" presetID="10" presetClass="entr" nodeType="withEffect" dur="500">
+              <p:stCondLst><p:cond delay="250"/></p:stCondLst>
+              <p:childTnLst><p:set><p:cBhvr><p:tgtEl><p:spTgt spid="10"/></p:tgtEl></p:cBhvr></p:set></p:childTnLst>
+            </p:cTn></p:par>
+          </p:childTnLst></p:cTn></p:seq>
+        </p:childTnLst></p:cTn></p:par></p:tnLst>
+      </p:timing>"#;
+
+    let bytes = build_pptx_with_slide(sp_tree_inner, timing_xml);
+    let imported = import_pptx(&bytes, "GroupAnim").expect("import pptx");
+    let slide = &imported.course.scenes[0].slides[0];
+    assert_eq!(slide.objects.len(), 2);
+    let gid = slide.objects[0]
+        .group
+        .as_deref()
+        .expect("child 0 has group id");
+    assert_eq!(slide.objects[1].group.as_deref(), Some(gid));
+    assert_eq!(slide.objects[0].entrance, None);
+    assert_eq!(slide.objects[1].entrance, None);
+    assert_eq!(slide.objects[0].timing.start_ms, 250);
+    assert_eq!(slide.objects[1].timing.start_ms, 250);
+    let grp = slide
+        .groups
+        .iter()
+        .find(|g| g.id == gid)
+        .expect("group record created");
+    assert!(!grp.interactive);
+    assert_eq!(
+        grp.entrance.as_ref().map(|a| a.effect.id.as_str()),
+        Some("fade")
+    );
+    assert_eq!(grp.entrance.as_ref().map(|a| a.duration_ms), Some(500));
 }

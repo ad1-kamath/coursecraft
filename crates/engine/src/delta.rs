@@ -4374,6 +4374,9 @@ mod tests {
             initial_state: "normal".to_owned(),
             focus_order: Some(2),
             description: Some("Advances to the next slide".to_owned()),
+            entrance: None,
+            exit: None,
+            emphasis: Vec::new(),
         };
 
         // 1. Mutating `slide.groups` produces a compact `SlideDelta::Fields` patch and round-trips.
@@ -4398,6 +4401,9 @@ mod tests {
             initial_state: "normal".to_owned(),
             focus_order: None,
             description: None,
+            entrance: None,
+            exit: None,
+            emphasis: Vec::new(),
         });
         let layer_delta = assert_slide_roundtrip(base, after_layer_group);
         assert!(matches!(layer_delta, SlideDelta::FullSlide(_)));

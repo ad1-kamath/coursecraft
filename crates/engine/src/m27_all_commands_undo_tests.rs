@@ -650,6 +650,9 @@ fn fixture_session() -> Session {
         initial_state: "normal".into(),
         focus_order: None,
         description: None,
+        entrance: None,
+        exit: None,
+        emphasis: Vec::new(),
     }];
     s1.layers = vec![
         Layer {

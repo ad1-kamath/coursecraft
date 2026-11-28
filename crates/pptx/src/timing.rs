@@ -114,6 +114,7 @@ pub(crate) fn apply_slide_timing(
     timing_node: &XmlNode,
     layout: &SlideLayout,
     objects: &mut [Object],
+    groups: &mut Vec<coursecraft_course::Group>,
     triggers: &mut Vec<Trigger>,
     tracker: &mut SlideTracker,
 ) -> u32 {
@@ -181,7 +182,7 @@ pub(crate) fn apply_slide_timing(
         }
     }
 
-    let max_end = schedule_main_sequence(&main_effects, layout, objects, triggers, tracker);
+    let max_end = schedule_main_sequence(&main_effects, layout, objects, groups, triggers, tracker);
     for (trigger_spid, seq_effects) in &interactive_seqs {
         schedule_interactive_sequence(
             trigger_spid,
@@ -271,6 +272,7 @@ fn schedule_main_sequence(
     effects: &[ParsedEffect<'_>],
     layout: &SlideLayout,
     objects: &mut [Object],
+    groups: &mut Vec<coursecraft_course::Group>,
     triggers: &mut Vec<Trigger>,
     tracker: &mut SlideTracker,
 ) -> u32 {
@@ -281,6 +283,8 @@ fn schedule_main_sequence(
 
     let mut had_entrance: HashSet<usize> = HashSet::new();
     let mut had_exit: HashSet<usize> = HashSet::new();
+    let mut had_group_entrance: HashSet<String> = HashSet::new();
+    let mut had_group_exit: HashSet<String> = HashSet::new();
 
     let mut last_group_start_ms: u32 = 0;
     let mut last_end_ms: u32 = 0;
@@ -325,6 +329,78 @@ fn schedule_main_sequence(
             tracker.report_animation(format!("Animation target spid {spid} not found on slide"));
             continue;
         };
+
+        if matches!(eff.preset_class, PresetClass::Entrance | PresetClass::Exit)
+            && let Some(group_id) = tracker.pptx_group_ids.get(spid).cloned()
+        {
+            check_repeat_count(eff.ctn_node, &group_id, tracker);
+            let mapped =
+                map_entrance_exit_preset(eff.preset_id, eff.preset_subtype, &group_id, tracker);
+            let anim = mapped.map(|effect| Animation {
+                effect,
+                duration_ms: eff.duration_ms,
+                easing: eff.easing,
+                sequence: Default::default(),
+            });
+            let ensure_group = |groups: &mut Vec<coursecraft_course::Group>| -> usize {
+                if let Some(pos) = groups.iter().position(|g| g.id == group_id) {
+                    pos
+                } else {
+                    groups.push(coursecraft_course::Group {
+                        id: group_id.clone(),
+                        name: String::new(),
+                        interactive: false,
+                        initial_state: "normal".to_owned(),
+                        focus_order: None,
+                        description: None,
+                        entrance: None,
+                        exit: None,
+                        emphasis: Vec::new(),
+                    });
+                    groups.len() - 1
+                }
+            };
+            match eff.preset_class {
+                PresetClass::Entrance => {
+                    if !had_group_entrance.insert(group_id.clone()) {
+                        tracker.report_animation(format!(
+                            "Duplicate entrance animation skipped on group {group_id}"
+                        ));
+                        continue;
+                    }
+                    let g_idx = ensure_group(groups);
+                    groups[g_idx].entrance = anim;
+                    for obj_id in &target_obj_ids {
+                        if let Some(&obj_idx) = id_to_index.get(obj_id) {
+                            objects[obj_idx].timing.start_ms = start_ms;
+                        }
+                    }
+                }
+                PresetClass::Exit => {
+                    if !had_group_exit.insert(group_id.clone()) {
+                        tracker.report_animation(format!(
+                            "Earlier exit animation replaced on group {group_id}"
+                        ));
+                    }
+                    let g_idx = ensure_group(groups);
+                    groups[g_idx].exit = anim;
+                    for obj_id in &target_obj_ids {
+                        if let Some(&obj_idx) = id_to_index.get(obj_id) {
+                            let obj = &mut objects[obj_idx];
+                            let safe_end = if end_ms <= obj.timing.start_ms {
+                                obj.timing.start_ms.saturating_add(eff.duration_ms.max(1))
+                            } else {
+                                end_ms
+                            };
+                            max_effect_end_ms = max_effect_end_ms.max(safe_end);
+                            obj.timing.end_ms = Some(safe_end);
+                        }
+                    }
+                }
+                PresetClass::Emphasis | PresetClass::Path => {}
+            }
+            continue;
+        }
 
         for obj_id in target_obj_ids {
             let Some(&obj_idx) = id_to_index.get(&obj_id) else {
@@ -1178,11 +1254,13 @@ mod tests {
             .insert("3".to_owned(), vec!["obj_b".to_owned()]);
 
         let layout = SlideLayout::from_emu(12_192_000.0, 6_858_000.0);
+        let mut groups = Vec::new();
         let mut triggers = Vec::new();
         let max_end = apply_slide_timing(
             &timing_tree,
             &layout,
             &mut objects,
+            &mut groups,
             &mut triggers,
             &mut tracker,
         );
@@ -1258,11 +1336,13 @@ mod tests {
         );
 
         let layout = SlideLayout::from_emu(12_192_000.0, 6_858_000.0);
+        let mut groups = Vec::new();
         let mut triggers = Vec::new();
         apply_slide_timing(
             &timing_tree,
             &layout,
             &mut objects,
+            &mut groups,
             &mut triggers,
             &mut tracker,
         );
@@ -1316,11 +1396,13 @@ mod tests {
             .insert("3".to_owned(), vec!["o2".to_owned()]);
 
         let layout = SlideLayout::from_emu(12_192_000.0, 6_858_000.0);
+        let mut groups = Vec::new();
         let mut triggers = Vec::new();
         apply_slide_timing(
             &timing_tree,
             &layout,
             &mut objects,
+            &mut groups,
             &mut triggers,
             &mut tracker,
         );
@@ -1483,11 +1565,13 @@ mod tests {
             .insert("9".to_owned(), vec!["btn".to_owned()]);
 
         let layout = SlideLayout::from_emu(12_192_000.0, 6_858_000.0);
+        let mut groups = Vec::new();
         let mut triggers = Vec::new();
         let max_end = apply_slide_timing(
             &timing_tree,
             &layout,
             &mut objects,
+            &mut groups,
             &mut triggers,
             &mut tracker,
         );
@@ -1585,8 +1669,16 @@ mod tests {
                 .insert(s.to_string(), vec![format!("o{s}")]);
         }
         let layout = SlideLayout::from_emu(12_192_000.0, 6_858_000.0);
+        let mut groups = Vec::new();
         let mut triggers = Vec::new();
-        apply_slide_timing(&tree, &layout, &mut objects, &mut triggers, &mut tracker);
+        apply_slide_timing(
+            &tree,
+            &layout,
+            &mut objects,
+            &mut groups,
+            &mut triggers,
+            &mut tracker,
+        );
         objects.iter().map(|o| o.timing.start_ms).collect()
     }
 

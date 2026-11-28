@@ -957,9 +957,9 @@ pub struct SlideCue {
 }
 
 /// Optional metadata record for a group of objects on a slide or layer.
-/// Plain authoring groups omit this record; interactive button groups store
-/// their shared opt-in flag, accessible name, initial state, and focus order here.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Plain authoring groups omit this record; interactive button groups and
+/// animated groups store their shared settings and animations here.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Group {
     /// Matches `Object.group` on the group's members on this slide/layer.
@@ -981,6 +981,34 @@ pub struct Group {
     /// Accessible description override. Omitted when unset.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Optional entrance animation for the whole group. Omitted when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entrance: Option<Animation>,
+    /// Optional exit animation for the whole group. Omitted when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exit: Option<Animation>,
+    /// Emphasis animations played by the group on the timeline. Omitted when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub emphasis: Vec<Emphasis>,
+}
+
+impl Group {
+    /// Whether this group carries any entrance, exit, or emphasis animation.
+    #[must_use]
+    pub fn has_animation(&self) -> bool {
+        self.entrance.is_some() || self.exit.is_some() || !self.emphasis.is_empty()
+    }
+
+    /// Whether this group record carries only default, empty metadata and can
+    /// be omitted from `Slide.groups` / `Layer.groups`.
+    #[must_use]
+    pub fn is_plain_empty(&self) -> bool {
+        !self.interactive
+            && !self.has_animation()
+            && self.name.is_empty()
+            && self.focus_order.is_none()
+            && self.description.is_none()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
