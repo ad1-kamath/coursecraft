@@ -14135,7 +14135,8 @@ fn m47_s1_display_text_and_validator_parser_agree() {
         "variables":[{"name":"score","value":42}],
         "scenes":[{"id":"sc0","title":"S","slides":[{"id":"s0","title":"Slide","objects":[]}]}]
     }"##;
-    let c = Course::from_json(json).expect("valid json");
+    let mut c = Course::from_json(json).expect("valid json");
+    c.player.show_seekbar = false;
     let mut p = Player::new(&c).expect("player");
     p.handle(&Input::Start);
 
@@ -14162,4 +14163,171 @@ fn m47_s1_display_text_and_validator_parser_agree() {
         coursecraft_course::variable_reference_spans("%Missing%"),
         vec![0..9]
     );
+}
+
+#[test]
+fn m49_s2_group_sample_uses_group_timing_and_bounding_box() {
+    let json = r##"{
+        "schema_version": 1,
+        "id": "m49-group-sample",
+        "title": "Group Sample",
+        "slide_size": { "w": 1280, "h": 720 },
+        "scenes": [{
+            "id": "sc0",
+            "title": "S",
+            "slides": [{
+                "id": "s0",
+                "title": "Slide",
+                "duration_ms": 5000,
+                "groups": [{
+                    "id": "g1",
+                    "entrance": { "effect": { "type": "fly_in", "from": "left" }, "duration_ms": 1000, "easing": "linear" },
+                    "exit": { "effect": { "type": "fade" }, "duration_ms": 1000, "easing": "linear" },
+                    "emphasis": [{ "effect": { "type": "pulse" }, "start_ms": 1500, "duration_ms": 1000, "repeat": 1, "easing": "linear" }]
+                }],
+                "objects": [
+                    { "id": "a", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 200, "y": 100, "w": 100, "h": 100 }, "timing": { "start_ms": 500, "end_ms": 4000 } },
+                    { "id": "b", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 400, "y": 100, "w": 200, "h": 100 }, "timing": { "start_ms": 1000, "end_ms": 4500 } }
+                ]
+            }]
+        }]
+    }"##;
+    let mut c = Course::from_json(json).expect("valid json");
+    c.player.show_seekbar = false;
+    let mut p = Player::new(&c).expect("player");
+    p.handle(&Input::Start);
+
+    // Before group union start_ms (500): hidden.
+    assert!(p.sample_group("g1").is_none());
+
+    // At t = 500 (start of entrance): fly_in from left uses union bounding box (x=200..600, w=400).
+    p.handle(&Input::Tick { ms: 500 });
+    let s_ent = p.sample_group("g1").expect("entering");
+    assert!(
+        s_ent.offset.0 < -500.0,
+        "group fly_in from left should start off-slide: {:?}",
+        s_ent
+    );
+
+    // At t = 2000 (midpoint of pulse emphasis): scaled > 1.0.
+    p.handle(&Input::Tick { ms: 1500 });
+    let s_emph = p.sample_group("g1").expect("emphasis");
+    assert!(s_emph.scale.0 > 1.01, "pulse should scale up: {:?}", s_emph);
+
+    // Reduced motion: fly_in becomes fade, pulse (motion) stays at rest.
+    p.set_reduced_motion(true);
+    let s_reduced = p.sample_group("g1").expect("reduced");
+    assert_eq!(s_reduced, crate::ObjectSample::IDENTITY);
+    p.set_reduced_motion(false);
+
+    // At t = 4000 (midpoint of exit [3500, 4500)): opacity ~ 0.5.
+    p.handle(&Input::Tick { ms: 2000 });
+    let s_exit = p.sample_group("g1").expect("exiting");
+    assert!(
+        (s_exit.opacity - 0.5).abs() < 0.05,
+        "exit opacity: {:?}",
+        s_exit
+    );
+
+    // At t = 4500 (exit finished): None.
+    p.handle(&Input::Tick { ms: 500 });
+    assert!(p.sample_group("g1").is_none());
+}
+
+#[test]
+fn m49_s2_group_exit_ends_interactive_group_liveness() {
+    let json = r##"{
+        "schema_version": 1,
+        "id": "m49-group-live",
+        "title": "Group Liveness",
+        "slide_size": { "w": 1280, "h": 720 },
+        "variables": [{ "name": "clicks", "value": 0 }],
+        "scenes": [{
+            "id": "sc0",
+            "title": "S",
+            "slides": [{
+                "id": "s0",
+                "title": "Slide",
+                "duration_ms": 5000,
+                "groups": [{
+                    "id": "g1",
+                    "interactive": true,
+                    "exit": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" }
+                }],
+                "objects": [
+                    { "id": "a", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 100, "y": 100, "w": 100, "h": 100 }, "timing": { "start_ms": 0, "end_ms": 2000 } },
+                    { "id": "b", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 200, "y": 100, "w": 100, "h": 100 }, "timing": { "start_ms": 0, "end_ms": 2000 } }
+                ],
+                "triggers": [{
+                    "when": { "event": "click", "object": "g1" },
+                    "action": { "action": "set_variable", "variable": "clicks", "value": 1 }
+                }]
+            }]
+        }]
+    }"##;
+    let mut c = Course::from_json(json).expect("valid json");
+    c.player.show_seekbar = false;
+    let mut p = Player::new(&c).expect("player");
+    p.handle(&Input::Start);
+
+    // Before exit finishes (t = 1750): live and clickable.
+    p.handle(&Input::Tick { ms: 1750 });
+    p.handle(&Input::Click {
+        object: "g1".into(),
+    });
+    assert_eq!(p.variable("clicks"), Some(&Value::Number(1.0)));
+
+    // After exit finishes (t = 2000): no longer live, click ignored.
+    p.handle(&Input::Tick { ms: 250 });
+    let out = p.handle(&Input::Click {
+        object: "g1".into(),
+    });
+    assert_eq!(p.variable("clicks"), Some(&Value::Number(1.0)));
+    assert!(
+        out.iter().any(|e| matches!(e, Effect::Warning { .. })),
+        "clicking exited interactive group should warn: {out:?}"
+    );
+}
+
+#[test]
+fn m49_s2_next_wake_ms_wakes_for_group_animation() {
+    let json = r##"{
+        "schema_version": 1,
+        "id": "m49-group-wake",
+        "title": "Group Wake",
+        "slide_size": { "w": 1280, "h": 720 },
+        "scenes": [{
+            "id": "sc0",
+            "title": "S",
+            "slides": [{
+                "id": "s0",
+                "title": "Slide",
+                "duration_ms": 5000,
+                "groups": [{
+                    "id": "g1",
+                    "entrance": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" },
+                    "exit": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" }
+                }],
+                "objects": [
+                    { "id": "a", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 100, "y": 100, "w": 100, "h": 100 } },
+                    { "id": "b", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 200, "y": 100, "w": 100, "h": 100 } }
+                ]
+            }]
+        }]
+    }"##;
+    let mut c = Course::from_json(json).expect("valid json");
+    c.player.show_seekbar = false;
+    let mut p = Player::new(&c).expect("player");
+    p.handle(&Input::Start);
+
+    // At t=0: group entrance is running -> next_wake_ms == Some(0).
+    assert_eq!(p.next_wake_ms(), Some(0));
+
+    // At t=1000: group entrance finished, exit starts at 4500 -> wake delta == 3500.
+    p.handle(&Input::Tick { ms: 1000 });
+    assert_eq!(p.next_wake_ms(), Some(3500));
+
+    // At t=4600: group exit is running -> next_wake_ms == Some(0).
+    p.handle(&Input::Tick { ms: 3600 });
+    assert_eq!(p.next_wake_ms(), Some(0));
 }

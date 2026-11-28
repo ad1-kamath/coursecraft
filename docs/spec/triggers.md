@@ -113,7 +113,7 @@ A group record in `slide.groups` or `layer.groups` with `interactive: true` turn
 
 - **Shared runtime state.** Every interactive group stores one runtime state in `object_states[slide.id][group.id]`, seeded from `group.initial_state` on slide entry, slide revisit reset (`revisit: reset`), layer revisit reset, and lightbox entry. Reading state (`Player::object_state` or a `Condition::ObjectState` check) for `group.id` or for any member object id returns the group's shared state.
 - **State changes.** `change_state` targeting `group.id` or any member id validates the state against the group's valid states (`normal`, `hidden`, `disabled`, or any state defined on at least one member; otherwise it warns and changes nothing). When the state changes, it updates `object_states[slide.id][group.id]`, emits **one** `Effect::StateChanged { object: group.id, state }`, and queues **one** `Event::StateChanges { object: group.id, to: Some(state) }`.
-- **Liveness.** An interactive group is live when all of these hold: its owning layer is visible (or it is on the base layer while no visible layer sets `hide_base_objects`), its shared state is not `hidden`, and at least one member is inside its timing window (`start_ms <= t < end_ms`) and has not finished an exit animation.
+- **Liveness.** An interactive group is live when all of these hold: its owning layer is visible (or it is on the base layer while no visible layer sets `hide_base_objects`), its shared state is not `hidden`, at least one member is inside its timing window (`start_ms <= t < end_ms`) and has not finished an exit animation, and the group's own exit animation (if any) has not finished.
 - **Clicks and built-in states.** `Input::Click` targeting `group.id` or any member id resolves to the interactive group:
   - A group that is not live warns and changes nothing.
   - A group whose state is `disabled`, or a base-layer group while a visible layer has `prevent_base_clicks`, swallows the click silently: no warning, no triggers.
@@ -548,6 +548,12 @@ Entrance and exit animations and motion paths describe object visual motion and 
   - An entrance or exit whose effect is not `fade` or `appear` plays as a linear `fade` of the same duration, from the same start. `appear` shows at once and does not move, so it is kept.
   - Emphasis plays one pass only (the first `duration_ms`, never `repeat`), and only effects that change colour or opacity alone play: `transparency`, `darken`, `lighten`, `color_pulse`. Every other emphasis (`pulse`, `grow_shrink`, `teeter`, `spin`, `shake`, `heartbeat`, `jump`, `blink`, and an unknown id) leaves the object at rest.
   - Motion paths are unchanged: they carry meaning.
+
+- **Group animations** (`Group.entrance`, `Group.exit`, `Group.emphasis`):
+  - A `Group` record in `slide.groups` or `layer.groups` can carry its own entrance, exit, and emphasis animations. They sample on the group's union timing window (`Slide::group_timing`) and union bounding box (`Slide::group_frame`), using the same effect and reduced-motion rules as objects.
+  - The group's motion, scale, rotation, rectangular clip, shaped mask, and tint apply to the whole group as one unit about the group's shared centre. When a group fades (`opacity < 1.0`) with two or more visible items, the renderer composites the group into a single offscreen layer at full opacity and fades that layer, so overlapping children do not show through each other.
+  - Member objects keep their own animations, which play inside the group's animation (the group's transform and opacity apply on top).
+  - When a group's exit animation completes (`t >= end_ms`), its members are hidden and neither the members nor an interactive group are live (`object_is_live` is false).
   - Slide transitions play as a `fade` of the same duration (see Transitions).
 
 ## Transitions

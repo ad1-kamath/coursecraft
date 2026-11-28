@@ -81,6 +81,23 @@ fn object_in_timing_window(obj: &coursecraft_course::Object, t: u32, duration_ms
     obj.timing.start_ms <= t && obj.timing.end_ms.is_none_or(|end| t < end) && !exited
 }
 
+fn group_finished_exit(
+    slide: &Slide,
+    group: &coursecraft_course::Group,
+    layer: Option<&str>,
+    t: u32,
+    duration_ms: u32,
+) -> bool {
+    if group.exit.is_none() {
+        return false;
+    }
+    let Some(timing) = slide.group_timing(&group.id, layer) else {
+        return false;
+    };
+    let end_ms = timing.end_ms.unwrap_or(duration_ms);
+    t >= end_ms
+}
+
 /// Clock time when `obj`'s visible window ends on a timeline of length `duration_ms`,
 /// or `None` when the object stays visible past the timeline end (`end_ms: None` and no exit).
 fn object_visible_end_ms(obj: &coursecraft_course::Object, duration_ms: u32) -> Option<u32> {
@@ -2716,6 +2733,9 @@ impl<'c> Player<'c> {
             if self.object_state(&group.id) == Some("hidden") {
                 return false;
             }
+            if group_finished_exit(slide, group, layer, t, duration_ms) {
+                return false;
+            }
             return slide
                 .group_members(&group.id)
                 .into_iter()
@@ -2734,6 +2754,11 @@ impl<'c> Player<'c> {
                 None => return false, // layer not visible
             },
         };
+        if let Some((group, group_layer)) = slide.group_of_object(&obj.id)
+            && group_finished_exit(slide, group, group_layer, t, duration_ms)
+        {
+            return false;
+        }
         object_in_timing_window(obj, t, duration_ms) && self.object_state(id) != Some("hidden")
     }
 

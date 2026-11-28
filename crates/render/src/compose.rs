@@ -497,6 +497,17 @@ pub struct DrawItem {
     pub is_state_extra: bool,
     /// Animation scale, tint and shaped reveal the painter applies to what it paints.
     pub anim: AnimLook,
+    /// Active group-level animation shared by every item in an animating group.
+    pub group_anim: Option<std::sync::Arc<GroupAnim>>,
+}
+
+/// Group-level animation sample shared by every [`DrawItem`] belonging to an
+/// actively animating [`coursecraft_course::Group`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct GroupAnim {
+    pub id: String,
+    pub frame: egui::Rect,
+    pub sample: coursecraft_logic::ObjectSample,
 }
 
 /// The parts of an animation sample the painter applies to the painted meshes. Offset,
@@ -2102,6 +2113,7 @@ fn compose_object_opts(
         mark: None,
         is_state_extra: false,
         anim: AnimLook::IDENTITY,
+        group_anim: None,
     })
 }
 
@@ -2345,6 +2357,7 @@ fn compose_state_extra(
         mark: None,
         is_state_extra: true,
         anim: AnimLook::IDENTITY,
+        group_anim: None,
     })
 }
 
@@ -2516,6 +2529,7 @@ fn push_item(items: &mut Vec<DrawItem>, hit: Hit, rect: egui::Rect, visual: Visu
         mark: None,
         is_state_extra: false,
         anim: AnimLook::IDENTITY,
+        group_anim: None,
     });
 }
 
@@ -2896,6 +2910,50 @@ fn push_master_items(
 }
 
 /// Push the base layer's objects, unless a visible layer hides them.
+fn active_group_anim(
+    player: &Player<'_>,
+    slide: &Slide,
+    obj: &Object,
+    cache: &mut std::collections::HashMap<String, Option<Option<std::sync::Arc<GroupAnim>>>>,
+) -> Option<Option<std::sync::Arc<GroupAnim>>> {
+    let Some((group, layer_id)) = slide.group_of_object(&obj.id) else {
+        return Some(None);
+    };
+    if !group.has_animation() {
+        return Some(None);
+    }
+    if let Some(cached) = cache.get(&group.id) {
+        return cached.clone();
+    }
+    let Some(sample) = player.sample_group(&group.id) else {
+        cache.insert(group.id.clone(), None);
+        return None;
+    };
+    if sample.opacity <= 0.0 {
+        cache.insert(group.id.clone(), None);
+        return None;
+    }
+    if sample == coursecraft_logic::ObjectSample::IDENTITY {
+        cache.insert(group.id.clone(), Some(None));
+        return Some(None);
+    }
+    let Some(frame) = slide.group_frame(&group.id, layer_id) else {
+        cache.insert(group.id.clone(), Some(None));
+        return Some(None);
+    };
+    let ga = std::sync::Arc::new(GroupAnim {
+        id: group.id.clone(),
+        frame: egui::Rect::from_min_size(
+            egui::pos2(frame.x, frame.y),
+            egui::vec2(frame.w, frame.h),
+        ),
+        sample,
+    });
+    cache.insert(group.id.clone(), Some(Some(ga.clone())));
+    Some(Some(ga))
+}
+
+#[allow(clippy::too_many_arguments)]
 fn push_base_items(
     player: &Player<'_>,
     slide: &Slide,
@@ -2904,6 +2962,7 @@ fn push_base_items(
     pressed: Option<&str>,
     items: &mut Vec<DrawItem>,
     filled: &mut Vec<std::ops::Range<usize>>,
+    group_cache: &mut std::collections::HashMap<String, Option<Option<std::sync::Arc<GroupAnim>>>>,
 ) {
     if base_hidden {
         return;
@@ -2918,6 +2977,9 @@ fn push_base_items(
         if !is_visible_at(&obj.timing, base_clock_ms) {
             continue;
         }
+        let Some(ga) = active_group_anim(player, slide, obj, group_cache) else {
+            continue;
+        };
         let Some(sample) = player.sample_object(&obj.id) else {
             continue;
         };
@@ -2960,6 +3022,11 @@ fn push_base_items(
                 &sample,
                 |n| player.sample_object_parts(&obj.id, n),
             );
+            if ga.is_some() {
+                for item in &mut obj_items {
+                    item.group_anim = ga.clone();
+                }
+            }
             if let Some(parent) = obj_items.first_mut() {
                 apply_runtime_media_state(parent, player, &obj.id);
             }
@@ -3101,6 +3168,7 @@ pub fn compose_with_pointer(
 
     // 2. Base objects
     let mut filled: Vec<std::ops::Range<usize>> = Vec::new();
+    let mut group_cache = std::collections::HashMap::new();
     push_base_items(
         player,
         slide,
@@ -3109,6 +3177,7 @@ pub fn compose_with_pointer(
         pressed,
         &mut items,
         &mut filled,
+        &mut group_cache,
     );
 
     // Drag items sit above every other base object (drop targets included), so a
@@ -3199,6 +3268,7 @@ pub fn compose_with_pointer(
                 mark: None,
                 is_state_extra: false,
                 anim: AnimLook::IDENTITY,
+                group_anim: None,
             };
             items.push(pill);
             items.push(label);
@@ -3226,6 +3296,9 @@ pub fn compose_with_pointer(
                 if !is_visible_at(&obj.timing, layer_clock_ms) {
                     continue;
                 }
+                let Some(ga) = active_group_anim(player, slide, obj, &mut group_cache) else {
+                    continue;
+                };
                 let Some(sample) = player.sample_object(&obj.id) else {
                     continue;
                 };
@@ -3266,6 +3339,11 @@ pub fn compose_with_pointer(
                         &sample,
                         |n| player.sample_object_parts(&obj.id, n),
                     );
+                    if ga.is_some() {
+                        for item in &mut obj_items {
+                            item.group_anim = ga.clone();
+                        }
+                    }
                     if let Some(parent) = obj_items.first_mut() {
                         apply_runtime_media_state(parent, player, &obj.id);
                     }
