@@ -1161,12 +1161,26 @@ impl FocusManager {
             self.hotspot_cursor = None;
         }
 
-        if reveal {
-            consume_reveal_keys(ui);
-        } else if self.drag.is_some() {
-            self.update_drag_targets(player);
-            if self.drag.is_none() {
-                // The question stopped accepting drops; fall through to keys.
+        let popup_open = egui::Popup::is_any_open(ui.ctx());
+        if !popup_open {
+            if reveal {
+                consume_reveal_keys(ui);
+            } else if self.drag.is_some() {
+                self.update_drag_targets(player);
+                if self.drag.is_none() {
+                    // The question stopped accepting drops; fall through to keys.
+                    self.handle_keys(
+                        ui,
+                        player,
+                        drawer_open,
+                        &mut inputs,
+                        captions_on,
+                        notice_dismissed,
+                    );
+                } else {
+                    self.handle_drag_keys(ui, player, &mut inputs);
+                }
+            } else {
                 self.handle_keys(
                     ui,
                     player,
@@ -1175,22 +1189,11 @@ impl FocusManager {
                     captions_on,
                     notice_dismissed,
                 );
-            } else {
-                self.handle_drag_keys(ui, player, &mut inputs);
             }
-        } else {
-            self.handle_keys(
-                ui,
-                player,
-                drawer_open,
-                &mut inputs,
-                captions_on,
-                notice_dismissed,
-            );
-        }
-        // Slide key triggers sit behind the modal drawer, so they hear nothing.
-        if self.drag.is_none() && !*drawer_open {
-            self.forward_unconsumed_key_pressed(ui, player, &mut inputs);
+            // Slide key triggers sit behind the modal drawer, so they hear nothing.
+            if self.drag.is_none() && !*drawer_open {
+                self.forward_unconsumed_key_pressed(ui, player, &mut inputs);
+            }
         }
 
         // A pointer press ends keyboard mode without moving focus, and that must
@@ -1205,7 +1208,7 @@ impl FocusManager {
                 &mut inputs,
             );
         }
-        if focus_key {
+        if focus_key && !popup_open {
             // Consume egui's own Tab/arrow focus pass so there is one focus order.
             ui.memory_mut(|memory| memory.move_focus(egui::FocusDirection::None));
         }
