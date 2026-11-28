@@ -166,14 +166,18 @@ fn painter_available(
         .format_painter
         .as_ref()
         .is_some_and(|p| p.kind == kind);
+    let can_arm = match kind {
+        crate::format_painter::PainterKind::Animation => editor.can_arm_animation_painter(),
+        crate::format_painter::PainterKind::Format => editor.can_arm_format_painter(),
+    };
     if editor.ui.editing_state.is_some() {
         Err(crate::STATE_LOCK_TOOLTIP)
     } else if editor.ui.master_view {
         Err(MASTER)
-    } else if armed || editor.can_arm_format_painter() {
+    } else if armed || can_arm {
         Ok(())
     } else if kind == crate::format_painter::PainterKind::Animation {
-        Err("Select one object to copy its animations")
+        Err("Select one object or group to copy its animations")
     } else {
         Err("Select an object to copy its format")
     }

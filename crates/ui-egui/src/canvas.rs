@@ -5697,7 +5697,19 @@ fn handle_canvas_click(
         }
         if editor.ui.format_painter.is_some() {
             if let Some(id) = picked {
-                let targets = editor.selection.group_members(&editor.session.course, &id);
+                let targets = if editor.animation_painter_armed()
+                    && editor.ui.group_focus.is_none()
+                    && let Some(gid) = editor
+                        .session
+                        .course
+                        .slide(&editor.selection.slide)
+                        .and_then(|s| s.group_of_object(&id))
+                        .map(|(g, _)| g.id.clone())
+                {
+                    vec![gid]
+                } else {
+                    editor.selection.group_members(&editor.session.course, &id)
+                };
                 editor.apply_format_painter(&targets);
             } else if editor
                 .ui
@@ -9363,6 +9375,10 @@ pub(crate) fn timeline_animated_items(
     slide_size: coursecraft_course::Size,
     playhead_ms: u32,
 ) -> Vec<DrawItem> {
+    let mut group_cache: std::collections::HashMap<
+        String,
+        Option<Option<std::sync::Arc<coursecraft_render::GroupAnim>>>,
+    > = std::collections::HashMap::new();
     items
         .iter()
         .flat_map(|item| {
@@ -9371,6 +9387,55 @@ pub(crate) fn timeline_animated_items(
             };
             let Some((obj, layer_id)) = slide.object(id) else {
                 return vec![item.clone()];
+            };
+            let group_anim = if let Some((group, owner)) = slide.group_of_object(id)
+                && group.has_animation()
+            {
+                if let Some(cached) = group_cache.get(&group.id) {
+                    match cached {
+                        None => return Vec::new(),
+                        Some(ga) => ga.clone(),
+                    }
+                } else {
+                    let group_dur = owner
+                        .and_then(|l| slide.layer(l))
+                        .map_or(slide.duration_ms, |l| l.duration_ms);
+                    let res = slide
+                        .group_timing(&group.id, owner)
+                        .zip(slide.group_frame(&group.id, owner))
+                        .and_then(|(timing, frame)| {
+                            let sample = coursecraft_logic::sample_group_animation(
+                                group,
+                                timing,
+                                frame,
+                                playhead_ms,
+                                group_dur,
+                                slide_size,
+                            )?;
+                            if sample.opacity <= 0.0 {
+                                return None;
+                            }
+                            let ga =
+                                (sample != coursecraft_logic::ObjectSample::IDENTITY).then(|| {
+                                    std::sync::Arc::new(coursecraft_render::GroupAnim {
+                                        id: group.id.clone(),
+                                        frame: egui::Rect::from_min_size(
+                                            egui::pos2(frame.x, frame.y),
+                                            egui::vec2(frame.w, frame.h),
+                                        ),
+                                        sample,
+                                    })
+                                });
+                            Some(ga)
+                        });
+                    group_cache.insert(group.id.clone(), res.clone());
+                    match res {
+                        None => return Vec::new(),
+                        Some(ga) => ga,
+                    }
+                }
+            } else {
+                None
             };
             let duration_ms = layer_id
                 .and_then(|layer| slide.layer(layer))
@@ -9398,6 +9463,9 @@ pub(crate) fn timeline_animated_items(
             {
                 for (part, s) in parts.iter_mut().zip(&samples) {
                     coursecraft_render::apply_sample_to_items(std::slice::from_mut(part), s);
+                    if group_anim.is_some() {
+                        part.group_anim = group_anim.clone();
+                    }
                 }
                 parts.retain(|p| p.opacity > 0.0);
                 return parts;
@@ -9407,6 +9475,9 @@ pub(crate) fn timeline_animated_items(
             }
             let mut item = item.clone();
             coursecraft_render::apply_sample_to_items(std::slice::from_mut(&mut item), &sample);
+            if group_anim.is_some() {
+                item.group_anim = group_anim;
+            }
             vec![item]
         })
         .collect()

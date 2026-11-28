@@ -93,6 +93,7 @@ impl Played {
 pub struct AnimPreview {
     slide: String,
     objects: Vec<String>,
+    group: Option<String>,
     what: Played,
     mode: Mode,
     /// Input time the preview started at; set by the first canvas frame that draws it.
@@ -132,27 +133,52 @@ const LEAD_MS: f64 = 150.0;
 impl PreviewState {
     /// Play `animation` of `slot` once on `objects` of `slide` (from the next canvas frame).
     pub fn play(&mut self, slide: &str, objects: Vec<String>, slot: Slot, animation: Animation) {
-        if objects.is_empty() {
-            return;
-        }
-        self.current = Some(AnimPreview {
-            slide: slide.to_owned(),
-            objects,
-            what: Played::Anim(slot, animation),
-            mode: Mode::Once,
-            started: None,
-        });
+        self.play_target(slide, objects, None, Played::Anim(slot, animation));
+    }
+
+    /// Play `animation` of `slot` once as a single unit on `group` (with member `objects`).
+    pub fn play_group(
+        &mut self,
+        slide: &str,
+        objects: Vec<String>,
+        group: String,
+        slot: Slot,
+        animation: Animation,
+    ) {
+        self.play_target(slide, objects, Some(group), Played::Anim(slot, animation));
     }
 
     /// Play `emphasis` once on `objects` of `slide` (from its first pass, not its start time).
     pub fn play_emphasis(&mut self, slide: &str, objects: Vec<String>, emphasis: Emphasis) {
+        self.play_target(slide, objects, None, Played::Emphasis(emphasis));
+    }
+
+    /// Play `emphasis` once as a single unit on `group` (with member `objects`).
+    pub fn play_group_emphasis(
+        &mut self,
+        slide: &str,
+        objects: Vec<String>,
+        group: String,
+        emphasis: Emphasis,
+    ) {
+        self.play_target(slide, objects, Some(group), Played::Emphasis(emphasis));
+    }
+
+    fn play_target(
+        &mut self,
+        slide: &str,
+        objects: Vec<String>,
+        group: Option<String>,
+        what: Played,
+    ) {
         if objects.is_empty() {
             return;
         }
         self.current = Some(AnimPreview {
             slide: slide.to_owned(),
             objects,
-            what: Played::Emphasis(emphasis),
+            group,
+            what,
             mode: Mode::Once,
             started: None,
         });
@@ -167,10 +193,30 @@ impl PreviewState {
         pass: u64,
     ) {
         let e = Emphasis::new(&effect.id, 0);
-        self.hover_played(slide, objects, Played::Emphasis(e), pass);
+        self.hover_played(slide, objects, None, Played::Emphasis(e), pass);
     }
 
-    fn hover_played(&mut self, slide: &str, objects: Vec<String>, what: Played, pass: u64) {
+    /// Loop emphasis `effect` as a single unit on `group` while called every frame.
+    pub fn hover_group_emphasis(
+        &mut self,
+        slide: &str,
+        objects: Vec<String>,
+        group: String,
+        effect: &EmphasisEffect,
+        pass: u64,
+    ) {
+        let e = Emphasis::new(&effect.id, 0);
+        self.hover_played(slide, objects, Some(group), Played::Emphasis(e), pass);
+    }
+
+    fn hover_played(
+        &mut self,
+        slide: &str,
+        objects: Vec<String>,
+        group: Option<String>,
+        what: Played,
+        pass: u64,
+    ) {
         if !self.auto || objects.is_empty() {
             return;
         }
@@ -178,6 +224,7 @@ impl PreviewState {
             && matches!(p.mode, Mode::Hover { .. })
             && p.what == what
             && p.objects == objects
+            && p.group == group
         {
             p.mode = Mode::Hover { pass };
             return;
@@ -185,6 +232,7 @@ impl PreviewState {
         self.current = Some(AnimPreview {
             slide: slide.to_owned(),
             objects,
+            group,
             what,
             mode: Mode::Hover { pass },
             started: None,
@@ -213,7 +261,32 @@ impl PreviewState {
                 sequence: Default::default(),
             },
         );
-        self.hover_played(slide, objects, what, pass);
+        self.hover_played(slide, objects, None, what, pass);
+    }
+
+    /// Loop `effect` as a single unit on `group` while called every frame.
+    #[allow(clippy::too_many_arguments)]
+    pub fn hover_group(
+        &mut self,
+        slide: &str,
+        objects: Vec<String>,
+        group: String,
+        slot: Slot,
+        effect: AnimEffect,
+        duration_ms: u32,
+        easing: Easing,
+        pass: u64,
+    ) {
+        let what = Played::Anim(
+            slot,
+            Animation {
+                effect,
+                duration_ms,
+                easing,
+                sequence: Default::default(),
+            },
+        );
+        self.hover_played(slide, objects, Some(group), what, pass);
     }
 
     /// Note `id` as just picked.
@@ -268,6 +341,45 @@ impl PreviewState {
             Mode::Hover { .. } => elapsed_ms % cycle,
         };
         let into = (t - LEAD_MS).clamp(0.0, duration);
+        if let Some(ref gid) = p.group {
+            let Some((_, owner)) = slide.group(gid) else {
+                self.current = None;
+                return None;
+            };
+            let Some(group_frame) = slide.group_frame(gid, owner) else {
+                self.current = None;
+                return None;
+            };
+            let sample = p.what.sample(into, group_frame, course.slide_size, (0, 1));
+            let ga = (sample != ObjectSample::IDENTITY).then(|| {
+                std::sync::Arc::new(coursecraft_render::GroupAnim {
+                    id: gid.clone(),
+                    frame: egui::Rect::from_min_size(
+                        egui::pos2(group_frame.x, group_frame.y),
+                        egui::vec2(group_frame.w, group_frame.h),
+                    ),
+                    sample: sample.clone(),
+                })
+            });
+            let out = items
+                .iter()
+                .filter_map(|item| {
+                    let Hit::Object(id) = &item.hit else {
+                        return Some(item.clone());
+                    };
+                    if !p.objects.iter().any(|o| o == id) {
+                        return Some(item.clone());
+                    }
+                    if sample.opacity <= 0.0 {
+                        return None;
+                    }
+                    let mut item = item.clone();
+                    item.group_anim = ga.clone();
+                    Some(item)
+                })
+                .collect();
+            return Some(out);
+        }
         let out = items
             .iter()
             .flat_map(|item| {

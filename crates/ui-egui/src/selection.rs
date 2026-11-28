@@ -242,6 +242,19 @@ impl Selection {
         members.len() == ids.len() && ids.iter().all(|id| members.contains(id))
     }
 
+    /// Group id when the selection is exactly one complete group.
+    #[must_use]
+    pub fn selected_group_id(&self, course: &Course) -> Option<String> {
+        if !self.is_one_group(course) {
+            return None;
+        }
+        let primary = self.object.as_deref()?;
+        let slide = course.slide(&self.slide)?;
+        slide
+            .object(primary)
+            .and_then(|(object, _)| object.group.clone())
+    }
+
     /// Clear every selected object, keeping the slide and layer.
     pub fn clear_objects(&mut self) {
         self.object = None;

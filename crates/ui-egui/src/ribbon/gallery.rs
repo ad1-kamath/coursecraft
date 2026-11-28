@@ -122,6 +122,27 @@ fn animation(object: &Object, motion: Motion) -> Option<&Animation> {
     }
 }
 
+fn group_animation(group: &coursecraft_course::Group, motion: Motion) -> Option<&Animation> {
+    match motion {
+        Motion::Entrance => group.entrance.as_ref(),
+        Motion::Exit => group.exit.as_ref(),
+        Motion::Transition => None,
+    }
+}
+
+fn selected_animation(editor: &Editor, motion: Motion) -> Option<Animation> {
+    if let Some(gid) = editor.selected_group_for_animation() {
+        return slide(editor)
+            .and_then(|s| s.group(&gid))
+            .and_then(|(g, _)| group_animation(g, motion))
+            .cloned();
+    }
+    objects(editor)
+        .first()
+        .and_then(|o| animation(o, motion))
+        .cloned()
+}
+
 fn transition_index(t: Option<&Transition>) -> usize {
     t.and_then(|t| {
         coursecraft_course::TRANSITIONS
@@ -209,10 +230,7 @@ pub fn tiles(editor: &Editor, gallery: Gallery) -> Vec<Tile> {
         }
         Gallery::Entrance | Gallery::Exit => {
             let motion = motion_of(gallery);
-            let first = objects(editor)
-                .first()
-                .and_then(|o| animation(o, motion))
-                .cloned();
+            let first = selected_animation(editor, motion);
             let current = effect_index(first.as_ref());
             let exit = motion == Motion::Exit;
             let none = Tile {
@@ -330,36 +348,43 @@ pub fn apply(editor: &mut Editor, gallery: Gallery, index: usize) {
         }
         Gallery::Entrance | Gallery::Exit => {
             let motion = motion_of(gallery);
+            let def = index.checked_sub(1).and_then(|i| EFFECTS.get(i));
+            let build_animation = |old: Option<&Animation>| -> Option<Animation> {
+                let effect = def.map(|d| {
+                    old.map_or_else(|| AnimEffect::new(d.id), |a| a.effect.switched_to(d.id))
+                });
+                effect.map(|effect| Animation {
+                    effect,
+                    // Appear has a default of 0: the engine needs 1 ms at least.
+                    duration_ms: old
+                        .map_or(def.map_or(500, |d| d.default_duration_ms), |a| {
+                            a.duration_ms
+                        })
+                        .clamp(1, 60_000),
+                    easing: old.map_or(Easing::EaseOut, |a| a.easing),
+                    // The text sequence belongs to the object, not to the effect.
+                    sequence: old.map_or_else(Default::default, |a| a.sequence),
+                })
+            };
             let changes: Vec<(String, String, Option<Animation>)> = {
                 let Some(s) = slide(editor) else {
                     return;
                 };
-                objects(editor)
-                    .iter()
-                    .map(|o| {
-                        let old = animation(o, motion);
-                        let def = index.checked_sub(1).and_then(|i| EFFECTS.get(i));
-                        let effect = def.map(|d| {
-                            old.map_or_else(
-                                || AnimEffect::new(d.id),
-                                |a| a.effect.switched_to(d.id),
+                if let Some(gid) = editor.selected_group_for_animation() {
+                    let old = s.group(&gid).and_then(|(g, _)| group_animation(g, motion));
+                    vec![(s.id.clone(), gid, build_animation(old))]
+                } else {
+                    objects(editor)
+                        .iter()
+                        .map(|o| {
+                            (
+                                s.id.clone(),
+                                o.id.clone(),
+                                build_animation(animation(o, motion)),
                             )
-                        });
-                        let animation = effect.map(|effect| Animation {
-                            effect,
-                            // Appear has a default of 0: the engine needs 1 ms at least.
-                            duration_ms: old
-                                .map_or(def.map_or(500, |d| d.default_duration_ms), |a| {
-                                    a.duration_ms
-                                })
-                                .clamp(1, 60_000),
-                            easing: old.map_or(Easing::EaseOut, |a| a.easing),
-                            // The text sequence belongs to the object, not to the effect.
-                            sequence: old.map_or_else(Default::default, |a| a.sequence),
-                        });
-                        (s.id.clone(), o.id.clone(), animation)
-                    })
-                    .collect()
+                        })
+                        .collect()
+                }
             };
             // One pick is one undo step, however many objects are selected.
             let steps = changes
@@ -369,7 +394,7 @@ pub fn apply(editor: &mut Editor, gallery: Gallery, index: usize) {
                 })
                 .collect();
             run_as_one_step(editor, steps);
-            if let Some(d) = index.checked_sub(1).and_then(|i| EFFECTS.get(i)) {
+            if let Some(d) = def {
                 editor.ui.anim_preview.picked(d.id);
             }
             preview_current(editor, motion);
@@ -377,26 +402,36 @@ pub fn apply(editor: &mut Editor, gallery: Gallery, index: usize) {
     }
 }
 
-/// Add emphasis `index` of the registry to every selected object, at the timeline's playhead
-/// when it is inside the object's time on screen, else at the object's start. Plays it once.
+/// Add emphasis `index` of the registry to every selected object (or the selected group), at
+/// the timeline's playhead when it is inside the time on screen, else at its start. Plays once.
 fn add_emphasis(editor: &mut Editor, index: usize) {
     let Some(def) = coursecraft_course::EMPHASIS.get(index) else {
         return;
     };
     let playhead = editor.ui.timeline.playhead_ms;
+    let group_id = editor.selected_group_for_animation();
     let adds: Vec<(String, String, u32)> = {
         let Some(s) = slide(editor) else {
             return;
         };
-        objects(editor)
-            .iter()
-            .map(|o| {
-                let inside = playhead >= o.timing.start_ms
-                    && o.timing.end_ms.is_none_or(|end| playhead < end);
-                let start = if inside { playhead } else { o.timing.start_ms };
-                (s.id.clone(), o.id.clone(), start)
-            })
-            .collect()
+        if let Some(ref gid) = group_id {
+            let owner = s.group(gid).and_then(|(_, o)| o);
+            let start = s.group_timing(gid, owner).map_or(playhead, |t| {
+                let inside = playhead >= t.start_ms && t.end_ms.is_none_or(|end| playhead < end);
+                if inside { playhead } else { t.start_ms }
+            });
+            vec![(s.id.clone(), gid.clone(), start)]
+        } else {
+            objects(editor)
+                .iter()
+                .map(|o| {
+                    let inside = playhead >= o.timing.start_ms
+                        && o.timing.end_ms.is_none_or(|end| playhead < end);
+                    let start = if inside { playhead } else { o.timing.start_ms };
+                    (s.id.clone(), o.id.clone(), start)
+                })
+                .collect()
+        }
     };
     let steps = adds
         .iter()
@@ -411,11 +446,15 @@ fn add_emphasis(editor: &mut Editor, index: usize) {
     if editor.ui.anim_preview.auto && !adds.is_empty() {
         let slide = editor.selection.slide.clone();
         let ids = editor.selection.ids();
-        editor.ui.anim_preview.play_emphasis(
-            &slide,
-            ids,
-            coursecraft_course::Emphasis::new(def.id, 0),
-        );
+        let e = coursecraft_course::Emphasis::new(def.id, 0);
+        if let Some(gid) = group_id {
+            editor
+                .ui
+                .anim_preview
+                .play_group_emphasis(&slide, ids, gid, e);
+        } else {
+            editor.ui.anim_preview.play_emphasis(&slide, ids, e);
+        }
     }
 }
 
@@ -423,57 +462,70 @@ fn slot_of(motion: Motion) -> crate::anim_preview::Slot {
     crate::anim_preview::Slot::of_exit(motion == Motion::Exit)
 }
 
-/// Play the first selected object's `motion` animation once on the canvas, when
-/// Auto-preview is on.
+/// Play the first selected object's (or selected group's) `motion` animation once on the canvas,
+/// when Auto-preview is on.
 pub fn preview_current(editor: &mut Editor, motion: Motion) {
     if !editor.ui.anim_preview.auto || motion == Motion::Transition {
         return;
     }
-    let Some(a) = objects(editor)
-        .first()
-        .and_then(|o| animation(o, motion))
-        .cloned()
-    else {
+    let Some(a) = selected_animation(editor, motion) else {
         return;
     };
     let slide = editor.selection.slide.clone();
     let ids = editor.selection.ids();
-    editor.ui.anim_preview.play(&slide, ids, slot_of(motion), a);
+    if let Some(gid) = editor.selected_group_for_animation() {
+        editor
+            .ui
+            .anim_preview
+            .play_group(&slide, ids, gid, slot_of(motion), a);
+    } else {
+        editor.ui.anim_preview.play(&slide, ids, slot_of(motion), a);
+    }
 }
 
-/// Loop `effect` on the selected objects while its tile is hovered (keeps their duration and
-/// easing, or the effect's defaults).
+/// Loop `effect` on the selected objects (or group) while its tile is hovered (keeps their
+/// duration and easing, or the effect's defaults).
 pub fn preview_hover(
     editor: &mut Editor,
     ctx: &egui::Context,
     motion: Motion,
     effect: &AnimEffect,
 ) {
-    let old = objects(editor)
-        .first()
-        .and_then(|o| animation(o, motion))
-        .cloned();
+    let old = selected_animation(editor, motion);
     let duration = old.as_ref().map_or_else(
         || effect.def().map_or(500, |d| d.default_duration_ms),
         |a| a.duration_ms,
     );
-    let easing = old.map_or(Easing::EaseOut, |a| a.easing);
+    let easing = old.as_ref().map_or(Easing::EaseOut, |a| a.easing);
     // A hovered tile shows its own effect, with the options the object has where they apply.
-    let effect = match objects(editor).first().and_then(|o| animation(o, motion)) {
+    let effect = match old {
         Some(a) if a.effect.id != effect.id => a.effect.switched_to(&effect.id),
         _ => effect.clone(),
     };
     let slide = editor.selection.slide.clone();
     let ids = editor.selection.ids();
-    editor.ui.anim_preview.hover(
-        &slide,
-        ids,
-        slot_of(motion),
-        effect,
-        duration,
-        easing,
-        ctx.cumulative_pass_nr(),
-    );
+    if let Some(gid) = editor.selected_group_for_animation() {
+        editor.ui.anim_preview.hover_group(
+            &slide,
+            ids,
+            gid,
+            slot_of(motion),
+            effect,
+            duration,
+            easing,
+            ctx.cumulative_pass_nr(),
+        );
+    } else {
+        editor.ui.anim_preview.hover(
+            &slide,
+            ids,
+            slot_of(motion),
+            effect,
+            duration,
+            easing,
+            ctx.cumulative_pass_nr(),
+        );
+    }
 }
 
 fn set_transition(editor: &mut Editor, slide: &str, transition: Option<&Transition>) {
@@ -529,28 +581,22 @@ fn current_from(editor: &Editor, motion: Motion) -> Option<Direction> {
         Motion::Transition => slide(editor)
             .and_then(|s| s.transition.as_ref())
             .and_then(|t| transition_from(&t.effect)),
-        Motion::Entrance | Motion::Exit => objects(editor)
-            .first()
-            .and_then(|o| animation(o, motion))
-            .and_then(|a| effect_from(&a.effect)),
+        Motion::Entrance | Motion::Exit => {
+            selected_animation(editor, motion).and_then(|a| effect_from(&a.effect))
+        }
     }
 }
 
-/// The first selected object's effect of `motion` (entrance or exit).
+/// The first selected object's (or group's) effect of `motion` (entrance or exit).
 fn current_effect(editor: &Editor, motion: Motion) -> Option<AnimEffect> {
-    objects(editor)
-        .first()
-        .and_then(|o| animation(o, motion))
-        .map(|a| a.effect.clone())
+    selected_animation(editor, motion).map(|a| a.effect)
 }
 
 /// Whether `motion`'s current effect can come from `dir` (transitions take every side).
 fn allows_from(editor: &Editor, motion: Motion, dir: Direction) -> bool {
     match motion {
         Motion::Transition => true,
-        Motion::Entrance | Motion::Exit => objects(editor)
-            .first()
-            .and_then(|o| animation(o, motion))
+        Motion::Entrance | Motion::Exit => selected_animation(editor, motion)
             .and_then(|a| a.effect.def())
             .and_then(coursecraft_course::EffectDef::direction)
             .is_some_and(|(_, allowed)| allowed.contains(&dir)),
@@ -563,10 +609,9 @@ fn current_duration(editor: &Editor, motion: Motion) -> Option<u32> {
         Motion::Transition => slide(editor)
             .and_then(|s| s.transition.as_ref())
             .map(|t| t.duration_ms),
-        Motion::Entrance | Motion::Exit => objects(editor)
-            .first()
-            .and_then(|o| animation(o, motion))
-            .map(|a| a.duration_ms),
+        Motion::Entrance | Motion::Exit => {
+            selected_animation(editor, motion).map(|a| a.duration_ms)
+        }
     }
 }
 
@@ -698,14 +743,27 @@ fn update(
             }
         }
         Motion::Entrance | Motion::Exit => {
-            let changes: Vec<(String, Animation)> = objects(editor)
-                .iter()
-                .filter_map(|o| {
-                    let mut a = animation(o, motion)?.clone();
-                    anim(&mut a);
-                    Some((o.id.clone(), a))
-                })
-                .collect();
+            let changes: Vec<(String, Animation)> =
+                if let Some(gid) = editor.selected_group_for_animation() {
+                    s.group(&gid)
+                        .and_then(|(g, _)| group_animation(g, motion))
+                        .cloned()
+                        .map(|mut a| {
+                            anim(&mut a);
+                            (gid, a)
+                        })
+                        .into_iter()
+                        .collect()
+                } else {
+                    objects(editor)
+                        .iter()
+                        .filter_map(|o| {
+                            let mut a = animation(o, motion)?.clone();
+                            anim(&mut a);
+                            Some((o.id.clone(), a))
+                        })
+                        .collect()
+                };
             let steps = changes
                 .iter()
                 .map(|(object, a)| set_animation_step(&id, object, motion, Some(a)))
@@ -995,10 +1053,22 @@ pub fn show(
     } else if enabled && let Some(effect) = hovered.and_then(|t| t.emphasis.as_ref()) {
         let slide = editor.selection.slide.clone();
         let ids = editor.selection.ids();
-        editor
-            .ui
-            .anim_preview
-            .hover_emphasis(&slide, ids, effect, ui.ctx().cumulative_pass_nr());
+        if let Some(gid) = editor.selected_group_for_animation() {
+            editor.ui.anim_preview.hover_group_emphasis(
+                &slide,
+                ids,
+                gid,
+                effect,
+                ui.ctx().cumulative_pass_nr(),
+            );
+        } else {
+            editor.ui.anim_preview.hover_emphasis(
+                &slide,
+                ids,
+                effect,
+                ui.ctx().cumulative_pass_nr(),
+            );
+        }
     }
     inner.response
 }
@@ -1158,6 +1228,9 @@ pub fn set_transition_option(editor: &mut Editor, value: super::effect_art::Opti
 
 /// Whether the first selected object has text to play in parts.
 fn first_has_text(editor: &Editor) -> bool {
+    if editor.selected_group_for_animation().is_some() {
+        return false;
+    }
     objects(editor).first().is_some_and(|o| match &o.kind {
         coursecraft_course::ObjectKind::Text { .. } => true,
         coursecraft_course::ObjectKind::Shape { text, .. } => text.is_some(),

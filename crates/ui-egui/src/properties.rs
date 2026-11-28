@@ -831,32 +831,34 @@ impl PropertiesState {
             self.decorative = obj.decorative;
             self.focus_order = obj.focus_order;
 
-            if let Some(ref a) = obj.entrance {
-                self.entrance_effect = a.effect.id.clone();
-                self.entrance_fx = a.effect.clone();
-                self.entrance_duration_ms = a.duration_ms;
-                self.entrance_easing = a.easing;
-                self.entrance_sequence = a.sequence;
-            } else {
-                self.entrance_effect = "none".to_owned();
-                self.entrance_fx = AnimEffect::default();
-                self.entrance_duration_ms = 500;
-                self.entrance_easing = Easing::EaseOut;
-                self.entrance_sequence = coursecraft_course::Sequence::AsOne;
-            }
+            if !selection.is_multi() {
+                if let Some(ref a) = obj.entrance {
+                    self.entrance_effect = a.effect.id.clone();
+                    self.entrance_fx = a.effect.clone();
+                    self.entrance_duration_ms = a.duration_ms;
+                    self.entrance_easing = a.easing;
+                    self.entrance_sequence = a.sequence;
+                } else {
+                    self.entrance_effect = "none".to_owned();
+                    self.entrance_fx = AnimEffect::default();
+                    self.entrance_duration_ms = 500;
+                    self.entrance_easing = Easing::EaseOut;
+                    self.entrance_sequence = coursecraft_course::Sequence::AsOne;
+                }
 
-            if let Some(ref a) = obj.exit {
-                self.exit_effect = a.effect.id.clone();
-                self.exit_fx = a.effect.clone();
-                self.exit_duration_ms = a.duration_ms;
-                self.exit_easing = a.easing;
-                self.exit_sequence = a.sequence;
-            } else {
-                self.exit_effect = "none".to_owned();
-                self.exit_fx = AnimEffect::default();
-                self.exit_duration_ms = 500;
-                self.exit_easing = Easing::EaseOut;
-                self.exit_sequence = coursecraft_course::Sequence::AsOne;
+                if let Some(ref a) = obj.exit {
+                    self.exit_effect = a.effect.id.clone();
+                    self.exit_fx = a.effect.clone();
+                    self.exit_duration_ms = a.duration_ms;
+                    self.exit_easing = a.easing;
+                    self.exit_sequence = a.sequence;
+                } else {
+                    self.exit_effect = "none".to_owned();
+                    self.exit_fx = AnimEffect::default();
+                    self.exit_duration_ms = 500;
+                    self.exit_easing = Easing::EaseOut;
+                    self.exit_sequence = coursecraft_course::Sequence::AsOne;
+                }
             }
 
             match &obj.kind {
@@ -1199,10 +1201,40 @@ impl PropertiesState {
             self.opacity = coursecraft_course::clamp_opacity(first.opacity);
         }
 
-        let same_entrance = objects
-            .first()
-            .is_some_and(|first| objects.iter().all(|o| o.entrance == first.entrance));
-        if same_entrance && let Some(a) = objects.first().and_then(|o| o.entrance.as_ref()) {
+        let one_group = selection
+            .object
+            .as_deref()
+            .and_then(|id| slide.object(id))
+            .and_then(|(o, _)| o.group.as_deref())
+            .filter(|gid| {
+                objects.len() >= 2
+                    && objects.iter().all(|o| o.group.as_deref() == Some(*gid))
+                    && slide
+                        .group(gid)
+                        .is_some_and(|_| slide.group_members(gid).len() == objects.len())
+            })
+            .and_then(|gid| slide.group(gid).map(|(g, _)| g));
+
+        let (entrance_src, exit_src) = if let Some(group) = one_group {
+            (group.entrance.as_ref(), group.exit.as_ref())
+        } else {
+            let same_entrance = objects
+                .first()
+                .is_some_and(|first| objects.iter().all(|o| o.entrance == first.entrance));
+            let same_exit = objects
+                .first()
+                .is_some_and(|first| objects.iter().all(|o| o.exit == first.exit));
+            (
+                same_entrance
+                    .then(|| objects.first().and_then(|o| o.entrance.as_ref()))
+                    .flatten(),
+                same_exit
+                    .then(|| objects.first().and_then(|o| o.exit.as_ref()))
+                    .flatten(),
+            )
+        };
+
+        if let Some(a) = entrance_src {
             self.entrance_effect = a.effect.id.clone();
             self.entrance_fx = a.effect.clone();
             self.entrance_duration_ms = a.duration_ms;
@@ -1216,10 +1248,7 @@ impl PropertiesState {
             self.entrance_sequence = coursecraft_course::Sequence::AsOne;
         }
 
-        let same_exit = objects
-            .first()
-            .is_some_and(|first| objects.iter().all(|o| o.exit == first.exit));
-        if same_exit && let Some(a) = objects.first().and_then(|o| o.exit.as_ref()) {
+        if let Some(a) = exit_src {
             self.exit_effect = a.effect.id.clone();
             self.exit_fx = a.effect.clone();
             self.exit_duration_ms = a.duration_ms;
@@ -2066,6 +2095,17 @@ fn apply_card_preview(
     exit: bool,
     preview: Option<crate::anim_panel::PanelPreview>,
 ) {
+    apply_card_preview_for(pv, props, (slide, ids, None), ctx, exit, preview);
+}
+
+fn apply_card_preview_for(
+    pv: &mut crate::anim_preview::PreviewState,
+    props: &PropertiesState,
+    (slide, ids, group): (&str, Vec<String>, Option<&str>),
+    ctx: &egui::Context,
+    exit: bool,
+    preview: Option<crate::anim_panel::PanelPreview>,
+) {
     let Some(preview) = preview else {
         return;
     };
@@ -2101,7 +2141,11 @@ fn apply_card_preview(
                 easing,
                 sequence,
             };
-            pv.play(slide, ids, slot, animation);
+            if let Some(gid) = group {
+                pv.play_group(slide, ids, gid.to_owned(), slot, animation);
+            } else {
+                pv.play(slide, ids, slot, animation);
+            }
         }
         crate::anim_panel::PanelPreview::Hover(hovered) => {
             let duration = if effect.as_str() == "none" {
@@ -2109,15 +2153,28 @@ fn apply_card_preview(
             } else {
                 duration_ms
             };
-            pv.hover(
-                slide,
-                ids,
-                slot,
-                hovered,
-                duration,
-                easing,
-                ctx.cumulative_pass_nr(),
-            );
+            if let Some(gid) = group {
+                pv.hover_group(
+                    slide,
+                    ids,
+                    gid.to_owned(),
+                    slot,
+                    hovered,
+                    duration,
+                    easing,
+                    ctx.cumulative_pass_nr(),
+                );
+            } else {
+                pv.hover(
+                    slide,
+                    ids,
+                    slot,
+                    hovered,
+                    duration,
+                    easing,
+                    ctx.cumulative_pass_nr(),
+                );
+            }
         }
     }
 }
@@ -4781,7 +4838,11 @@ fn show_animate_tab(
     }
 
     ui.add_enabled_ui(!state_edit_locked, |ui| {
-        if editor.selection.is_multi() {
+        let selected_group = editor.selected_group_for_animation();
+        if let Some(gid) = selected_group {
+            show_group_animations_section(editor, ui, &gid, actions_to_run);
+            inspector_separator(ui);
+        } else if editor.selection.is_multi() {
             let slide_id = editor.selection.slide.clone();
             let ids = editor.selection.ids();
             auto_preview_toggle(ui, &mut editor.ui.anim_preview.auto);
@@ -12226,6 +12287,167 @@ pub fn show_animations_section(
     }
 }
 
+/// Animate inspector for a selected whole group: edits the `Group` record directly.
+fn show_group_animations_section(
+    editor: &mut Editor,
+    ui: &mut Ui,
+    gid: &str,
+    actions_to_run: &mut Vec<(&'static str, Json)>,
+) {
+    let Some(slide) = editor.session.course.slide(&editor.selection.slide) else {
+        return;
+    };
+    let Some((group, owner)) = slide.group(gid) else {
+        return;
+    };
+    let slide_id = slide.id.clone();
+    let group_entrance = group.entrance.clone();
+    let group_exit = group.exit.clone();
+    let group_emphasis = group.emphasis.clone();
+    let editor_playhead = editor.ui.timeline.playhead_ms;
+    let emphasis_start = slide.group_timing(gid, owner).map_or(editor_playhead, |t| {
+        if editor_playhead >= t.start_ms && t.end_ms.is_none_or(|end| editor_playhead < end) {
+            editor_playhead
+        } else {
+            t.start_ms
+        }
+    });
+
+    inspector_section_header(ui, "Group animation");
+    auto_preview_toggle(ui, &mut editor.ui.anim_preview.auto);
+    let selected_ids = editor.selection.ids();
+    let props = &mut editor.ui.properties;
+    let pv = &mut editor.ui.anim_preview;
+    let mut action_to_run: Option<(&'static str, Json)> = None;
+    let (mut entrance_preview, mut exit_preview) = (None, None);
+
+    show_anim_row(
+        ui,
+        "Entrance animation",
+        "entrance",
+        &mut props.entrance_effect,
+        &mut props.entrance_fx,
+        &mut props.entrance_duration_ms,
+        &mut props.entrance_easing,
+        (&mut props.entrance_sequence, false),
+        &slide_id,
+        gid,
+        &mut action_to_run,
+        pv,
+        &mut entrance_preview,
+    );
+    inspector_separator(ui);
+    inspector_section_header(ui, "Emphasis");
+    let mut emphasis_requests = Vec::new();
+    crate::anim_panel::show_emphasis_card(
+        ui,
+        &group_emphasis,
+        emphasis_start,
+        &mut emphasis_requests,
+    );
+    inspector_separator(ui);
+    show_anim_row(
+        ui,
+        "Exit animation",
+        "exit",
+        &mut props.exit_effect,
+        &mut props.exit_fx,
+        &mut props.exit_duration_ms,
+        &mut props.exit_easing,
+        (&mut props.exit_sequence, false),
+        &slide_id,
+        gid,
+        &mut action_to_run,
+        pv,
+        &mut exit_preview,
+    );
+
+    let ctx = ui.ctx().clone();
+    apply_card_preview_for(
+        pv,
+        props,
+        (&slide_id, selected_ids.clone(), Some(gid)),
+        &ctx,
+        false,
+        entrance_preview,
+    );
+    apply_card_preview_for(
+        pv,
+        props,
+        (&slide_id, selected_ids.clone(), Some(gid)),
+        &ctx,
+        true,
+        exit_preview,
+    );
+    for request in emphasis_requests {
+        use crate::anim_panel::EmphasisRequest as R;
+        match request {
+            R::Add(e) => {
+                if pv.auto {
+                    pv.play_group_emphasis(
+                        &slide_id,
+                        selected_ids.clone(),
+                        gid.to_owned(),
+                        e.clone(),
+                    );
+                }
+                actions_to_run.push((
+                    "object.add_emphasis",
+                    serde_json::json!({
+                        "slide": slide_id, "object": gid, "effect": e.effect.id,
+                        "start_ms": e.start_ms,
+                    }),
+                ));
+            }
+            R::Set(index, e) => {
+                if pv.auto {
+                    pv.play_group_emphasis(
+                        &slide_id,
+                        selected_ids.clone(),
+                        gid.to_owned(),
+                        e.clone(),
+                    );
+                }
+                actions_to_run.push((
+                    "object.set_emphasis",
+                    serde_json::json!({
+                        "slide": slide_id, "object": gid, "index": index, "emphasis": e,
+                    }),
+                ));
+            }
+            R::Remove(index) => actions_to_run.push((
+                "object.remove_emphasis",
+                serde_json::json!({ "slide": slide_id, "object": gid, "index": index }),
+            )),
+            R::Play(index) => {
+                if let Some(e) = group_emphasis.get(index) {
+                    pv.play_group_emphasis(
+                        &slide_id,
+                        selected_ids.clone(),
+                        gid.to_owned(),
+                        e.clone(),
+                    );
+                }
+            }
+            R::Hover(effect) => {
+                pv.hover_group_emphasis(
+                    &slide_id,
+                    selected_ids.clone(),
+                    gid.to_owned(),
+                    &effect,
+                    ctx.cumulative_pass_nr(),
+                );
+            }
+        }
+    }
+
+    if let Some(act) = action_to_run
+        && !anim_slots_unchanged(&act, &group_entrance, &group_exit)
+    {
+        actions_to_run.push(act);
+    }
+}
+
 /// Whether `act` is an `object.set_animation` that would store what `obj`
 /// already has (a combo re-picking its value, a duration field losing focus
 /// unchanged). Running it would add an undo step that changes nothing.
@@ -12233,13 +12455,21 @@ pub(crate) fn animation_unchanged(
     act: &(&'static str, Json),
     obj: &coursecraft_course::Object,
 ) -> bool {
+    anim_slots_unchanged(act, &obj.entrance, &obj.exit)
+}
+
+fn anim_slots_unchanged(
+    act: &(&'static str, Json),
+    entrance: &Option<coursecraft_course::Animation>,
+    exit: &Option<coursecraft_course::Animation>,
+) -> bool {
     let (cmd, params) = act;
     if *cmd != "object.set_animation" {
         return false;
     }
     let stored = match params.get("which").and_then(Json::as_str) {
-        Some("entrance") => &obj.entrance,
-        Some("exit") => &obj.exit,
+        Some("entrance") => entrance,
+        Some("exit") => exit,
         _ => return false,
     };
     let wanted: Option<coursecraft_course::Animation> = match params.get("animation") {

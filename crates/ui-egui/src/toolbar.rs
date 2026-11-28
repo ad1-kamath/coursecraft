@@ -376,14 +376,6 @@ pub(crate) fn painter_clicked(
         crate::format_painter::PainterKind::Format => editor.arm_format_painter(sticky),
         crate::format_painter::PainterKind::Animation => editor.arm_animation_painter(sticky),
     };
-    if editor
-        .ui
-        .format_painter
-        .as_ref()
-        .is_some_and(|p| p.kind != kind)
-    {
-        editor.ui.format_painter = None;
-    }
     if painter_resp.double_clicked() {
         arm(editor, true);
         if let Some(p) = editor.ui.format_painter.as_mut() {
@@ -392,7 +384,9 @@ pub(crate) fn painter_clicked(
         }
     } else if painter_resp.clicked() {
         if let Some(p) = editor.ui.format_painter.as_mut() {
-            if p.just_double_clicked {
+            if p.kind != kind {
+                arm(editor, false);
+            } else if p.just_double_clicked {
                 p.just_double_clicked = false;
             } else {
                 editor.ui.format_painter = None;

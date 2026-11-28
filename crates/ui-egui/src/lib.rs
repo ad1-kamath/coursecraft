@@ -257,6 +257,8 @@ mod m48_nofill_effects_ui_tests;
 #[cfg(test)]
 mod m48_split_buttons_tests;
 #[cfg(test)]
+mod m49_group_anim_ui_tests;
+#[cfg(test)]
 mod metafile_import_tests;
 #[cfg(test)]
 mod neon_editor_fix_tests;
@@ -4397,6 +4399,15 @@ impl Editor {
     #[must_use]
     pub fn selection_is_one_group(&self) -> bool {
         self.selection.is_one_group(&self.session.course)
+    }
+
+    /// Group id when a single whole group is selected and not focused on one child.
+    #[must_use]
+    pub fn selected_group_for_animation(&self) -> Option<String> {
+        if self.ui.group_focus.is_some() {
+            return None;
+        }
+        self.selection.selected_group_id(&self.session.course)
     }
 
     /// Select every object on the focused layer.

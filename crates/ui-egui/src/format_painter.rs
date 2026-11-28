@@ -46,12 +46,19 @@ impl Editor {
             && !self.selection.slide.is_empty()
     }
 
+    /// Whether one object or one whole group is selected, so it can be an Animation Painter source.
+    #[must_use]
+    pub fn can_arm_animation_painter(&self) -> bool {
+        self.can_arm_format_painter()
+            || (self.selected_group_for_animation().is_some() && !self.selection.slide.is_empty())
+    }
+
     /// Arm the painter from the selected object. Does nothing without one.
     pub fn arm_format_painter(&mut self, sticky: bool) {
         self.arm_painter(PainterKind::Format, sticky);
     }
 
-    /// Arm the Animation Painter from the selected object.
+    /// Arm the Animation Painter from the selected object or group.
     pub fn arm_animation_painter(&mut self, sticky: bool) {
         self.arm_painter(PainterKind::Animation, sticky);
     }
@@ -66,11 +73,19 @@ impl Editor {
     }
 
     fn arm_painter(&mut self, kind: PainterKind, sticky: bool) {
-        if !self.can_arm_format_painter() {
+        let (can_arm, source) = match kind {
+            PainterKind::Animation => (
+                self.can_arm_animation_painter(),
+                self.selected_group_for_animation()
+                    .or_else(|| self.selection.object.clone()),
+            ),
+            PainterKind::Format => (self.can_arm_format_painter(), self.selection.object.clone()),
+        };
+        if !can_arm {
             return;
         }
         crate::canvas::commit_inline_edit(self);
-        let Some(source) = self.selection.object.clone() else {
+        let Some(source) = source else {
             return;
         };
         self.ui.format_painter = Some(FormatPainter {
@@ -124,6 +139,12 @@ impl Editor {
 
     /// Cmd/Ctrl+Alt+V: apply the armed painter to the current selection.
     pub fn apply_format_painter_to_selection(&mut self) {
+        if self.animation_painter_armed()
+            && let Some(gid) = self.selected_group_for_animation()
+        {
+            self.apply_format_painter(&[gid]);
+            return;
+        }
         let ids = self.selection.ids();
         self.apply_format_painter(&ids);
     }
