@@ -1,0 +1,56 @@
+{
+  "fill-specializations": [
+    {
+      "value": {
+        "solid": "srgb:0.07059,0.64706,0.58039,1.00000"
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "solid": "srgb:0.07843,0.07843,0.07843,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "layers": [
+        {
+          "glass": true,
+          "hidden-specializations": [
+            {
+              "value": false
+            },
+            {
+              "appearance": "dark",
+              "value": true
+            }
+          ],
+          "image-name": "coursecraft-light-fg.svg",
+          "name": "Foreground Light"
+        },
+        {
+          "glass": true,
+          "hidden-specializations": [
+            {
+              "value": true
+            },
+            {
+              "appearance": "dark",
+              "value": false
+            }
+          ],
+          "image-name": "coursecraft-dark-fg.svg",
+          "name": "Foreground Dark"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.4
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}

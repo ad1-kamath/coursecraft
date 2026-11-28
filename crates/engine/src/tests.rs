@@ -16030,3 +16030,322 @@ fn m39_without_a_heading_font_titles_use_the_body_font() {
     assert!(!fonts.is_empty());
     assert!(fonts.iter().all(|(_, f)| f == "Roboto"), "{fonts:?}");
 }
+
+#[test]
+fn m49_s1_set_and_undo_group_animation_keeps_children_untouched() {
+    let mut s = Session::blank("GroupAnim");
+    let a = ok(
+        &mut s,
+        "object.add",
+        json!({ "slide": "slide1", "frame": { "x": 10.0, "y": 10.0, "w": 100.0, "h": 50.0 }, "kind": { "type": "shape", "shape": "rectangle", "fill": "#112233" } }),
+    )["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let b = ok(
+        &mut s,
+        "object.add",
+        json!({ "slide": "slide1", "frame": { "x": 50.0, "y": 20.0, "w": 100.0, "h": 50.0 }, "kind": { "type": "shape", "shape": "ellipse", "fill": "#223344" } }),
+    )["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let gid = ok(
+        &mut s,
+        "object.group",
+        json!({ "slide": "slide1", "objects": [a, b] }),
+    )["group"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(s.course.slide("slide1").unwrap().groups.is_empty());
+
+    ok(
+        &mut s,
+        "object.set_animation",
+        json!({
+            "slide": "slide1",
+            "object": gid,
+            "which": "entrance",
+            "animation": { "effect": { "type": "zoom" }, "duration_ms": 400 }
+        }),
+    );
+    let slide = s.course.slide("slide1").unwrap();
+    assert_eq!(slide.groups.len(), 1);
+    assert_eq!(
+        slide.groups[0]
+            .entrance
+            .as_ref()
+            .map(|e| e.effect.id.as_str()),
+        Some("zoom")
+    );
+    assert!(slide.object(&a).unwrap().0.entrance.is_none());
+    assert!(slide.object(&b).unwrap().0.entrance.is_none());
+
+    // Undo removes the created Group record cleanly.
+    s.undo().unwrap();
+    assert!(s.course.slide("slide1").unwrap().groups.is_empty());
+    s.redo().unwrap();
+    assert_eq!(s.course.slide("slide1").unwrap().groups.len(), 1);
+
+    // Clearing the animation prunes the plain empty Group record.
+    ok(
+        &mut s,
+        "object.set_animation",
+        json!({
+            "slide": "slide1",
+            "object": gid,
+            "which": "entrance",
+            "animation": null
+        }),
+    );
+    assert!(s.course.slide("slide1").unwrap().groups.is_empty());
+}
+
+#[test]
+fn m49_s1_group_emphasis_and_copy_animation() {
+    let mut s = Session::blank("GroupEmpCopy");
+    let a = ok(
+        &mut s,
+        "object.add",
+        json!({ "slide": "slide1", "frame": { "x": 10.0, "y": 10.0, "w": 100.0, "h": 50.0 }, "kind": { "type": "shape", "shape": "rectangle", "fill": "#112233" } }),
+    )["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let b = ok(
+        &mut s,
+        "object.add",
+        json!({ "slide": "slide1", "frame": { "x": 10.0, "y": 10.0, "w": 100.0, "h": 50.0 }, "kind": { "type": "shape", "shape": "rectangle", "fill": "#112233" } }),
+    )["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let solo = ok(
+        &mut s,
+        "object.add",
+        json!({ "slide": "slide1", "frame": { "x": 50.0, "y": 20.0, "w": 100.0, "h": 50.0 }, "kind": { "type": "shape", "shape": "ellipse", "fill": "#223344" } }),
+    )["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let gid = ok(
+        &mut s,
+        "object.group",
+        json!({ "slide": "slide1", "objects": [a, b] }),
+    )["group"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    let idx = ok(
+        &mut s,
+        "object.add_emphasis",
+        json!({ "slide": "slide1", "object": gid, "effect": "pulse", "duration_ms": 500 }),
+    )["index"]
+        .as_u64()
+        .unwrap();
+    assert_eq!(idx, 0);
+
+    ok(
+        &mut s,
+        "object.set_emphasis",
+        json!({
+            "slide": "slide1",
+            "object": gid,
+            "index": 0,
+            "emphasis": { "effect": { "type": "spin" }, "start_ms": 200, "duration_ms": 600, "repeat": 2 }
+        }),
+    );
+    assert_eq!(
+        s.course.slide("slide1").unwrap().groups[0].emphasis[0]
+            .effect
+            .id,
+        "spin"
+    );
+
+    ok(
+        &mut s,
+        "object.copy_animation",
+        json!({ "slide": "slide1", "from": gid, "objects": [solo] }),
+    );
+    assert_eq!(
+        s.course
+            .slide("slide1")
+            .unwrap()
+            .object(&solo)
+            .unwrap()
+            .0
+            .emphasis[0]
+            .effect
+            .id,
+        "spin"
+    );
+
+    ok(
+        &mut s,
+        "object.remove_emphasis",
+        json!({ "slide": "slide1", "object": gid, "index": 0 }),
+    );
+    assert!(s.course.slide("slide1").unwrap().groups.is_empty());
+
+    // Undo restores the group emphasis.
+    s.undo().unwrap();
+    assert_eq!(
+        s.course.slide("slide1").unwrap().groups[0].emphasis.len(),
+        1
+    );
+}
+
+#[test]
+fn m49_s1_clearing_interactive_preserves_group_animation() {
+    let mut s = Session::blank("GroupKeepAnim");
+    let a = ok(
+        &mut s,
+        "object.add",
+        json!({ "slide": "slide1", "frame": { "x": 10.0, "y": 10.0, "w": 100.0, "h": 50.0 }, "kind": { "type": "shape", "shape": "rectangle", "fill": "#112233" } }),
+    )["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let b = ok(
+        &mut s,
+        "object.add",
+        json!({ "slide": "slide1", "frame": { "x": 10.0, "y": 10.0, "w": 100.0, "h": 50.0 }, "kind": { "type": "shape", "shape": "rectangle", "fill": "#112233" } }),
+    )["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let gid = ok(
+        &mut s,
+        "object.group",
+        json!({ "slide": "slide1", "objects": [a, b] }),
+    )["group"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    ok(
+        &mut s,
+        "group.set_interactive",
+        json!({ "slide": "slide1", "group": gid, "interactive": true }),
+    );
+    ok(
+        &mut s,
+        "object.set_animation",
+        json!({
+            "slide": "slide1",
+            "object": gid,
+            "which": "entrance",
+            "animation": { "effect": { "type": "fade" }, "duration_ms": 300 }
+        }),
+    );
+    ok(
+        &mut s,
+        "group.set_interactive",
+        json!({ "slide": "slide1", "group": gid, "interactive": false }),
+    );
+    let slide = s.course.slide("slide1").unwrap();
+    assert_eq!(slide.groups.len(), 1);
+    assert!(!slide.groups[0].interactive);
+    assert_eq!(
+        slide.groups[0]
+            .entrance
+            .as_ref()
+            .map(|e| e.effect.id.as_str()),
+        Some("fade")
+    );
+}
+
+#[test]
+fn m49_s1_copy_object_to_group_and_shift_group_emphasis_on_timing_update() {
+    let mut s = Session::blank("GroupCopyShift");
+    let a = ok(
+        &mut s,
+        "object.add",
+        json!({ "slide": "slide1", "frame": { "x": 10.0, "y": 10.0, "w": 80.0, "h": 40.0 }, "kind": { "type": "shape", "shape": "rectangle", "fill": "#112233" } }),
+    )["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let b = ok(
+        &mut s,
+        "object.add",
+        json!({ "slide": "slide1", "frame": { "x": 40.0, "y": 20.0, "w": 80.0, "h": 40.0 }, "kind": { "type": "shape", "shape": "rectangle", "fill": "#223344" } }),
+    )["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let src = ok(
+        &mut s,
+        "object.add",
+        json!({ "slide": "slide1", "frame": { "x": 100.0, "y": 100.0, "w": 80.0, "h": 40.0 }, "kind": { "type": "shape", "shape": "ellipse", "fill": "#334455" } }),
+    )["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let gid = ok(
+        &mut s,
+        "object.group",
+        json!({ "slide": "slide1", "objects": [a, b] }),
+    )["group"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    // Give solo object an entrance and emphasis, then copy it onto the plain group.
+    ok(
+        &mut s,
+        "object.set_animation",
+        json!({
+            "slide": "slide1",
+            "object": src,
+            "which": "entrance",
+            "animation": { "effect": { "type": "zoom" }, "duration_ms": 300 }
+        }),
+    );
+    ok(
+        &mut s,
+        "object.add_emphasis",
+        json!({ "slide": "slide1", "object": src, "effect": "pulse", "start_ms": 500, "duration_ms": 400 }),
+    );
+    ok(
+        &mut s,
+        "object.copy_animation",
+        json!({ "slide": "slide1", "from": src, "objects": [gid] }),
+    );
+    let slide = s.course.slide("slide1").unwrap();
+    assert_eq!(slide.groups.len(), 1);
+    assert_eq!(slide.groups[0].emphasis[0].start_ms, 500);
+
+    // Shifting both members forward by +1000 shifts group emphasis once (+1000, not +2000).
+    ok(
+        &mut s,
+        "object.update",
+        json!({ "slide": "slide1", "object": a, "timing": { "start_ms": 1000, "end_ms": null } }),
+    );
+    ok(
+        &mut s,
+        "object.update",
+        json!({ "slide": "slide1", "object": b, "timing": { "start_ms": 1000, "end_ms": null } }),
+    );
+    assert_eq!(
+        s.course.slide("slide1").unwrap().groups[0].emphasis[0].start_ms,
+        1500
+    );
+
+    // Copying from an unanimated object clears the group animation and prunes the plain record.
+    let plain = ok(
+        &mut s,
+        "object.add",
+        json!({ "slide": "slide1", "frame": { "x": 10.0, "y": 10.0, "w": 20.0, "h": 20.0 }, "kind": { "type": "shape", "shape": "rectangle", "fill": "#445566" } }),
+    )["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    ok(
+        &mut s,
+        "object.copy_animation",
+        json!({ "slide": "slide1", "from": plain, "objects": [gid] }),
+    );
+    assert!(s.course.slide("slide1").unwrap().groups.is_empty());
+}

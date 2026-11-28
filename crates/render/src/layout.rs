@@ -58,6 +58,12 @@ impl SlideTransform {
         Some(Self { scale, slide_rect })
     }
 
+    /// Construct a transform from an explicit scale and slide rect (used by offscreen group layers).
+    #[must_use]
+    pub(crate) const fn from_parts(scale: f32, slide_rect: egui::Rect) -> Self {
+        Self { scale, slide_rect }
+    }
+
     /// The uniform scale factor from slide coordinates to screen coordinates.
     #[must_use]
     pub fn scale(&self) -> f32 {

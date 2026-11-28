@@ -258,12 +258,24 @@ fn a_layout_change_is_sent_once_the_gesture_ends() {
 }
 
 #[test]
-fn master_view_keeps_the_timeline_panel_but_empties_it() {
+fn master_view_shows_the_timeline_panel_while_keeping_layers_states_triggers_unavailable() {
     let mut h = docked();
     h.editor.toggle_master_view();
     h.idle_frame();
-    assert!(h.find_text("Slide masters have no timeline.").is_some());
-    assert_eq!(h.editor.ui.timeline.panel_rect, None);
+    assert!(h.find_text("Slide masters have no timeline.").is_none());
+    assert!(h.editor.ui.timeline.panel_rect.is_some());
+
+    dock::reveal(&mut h.editor, Panel::States);
+    h.idle_frame();
+    assert!(h.find_text("Slide masters have no states.").is_some());
+
+    dock::request_bottom_tab(&mut h.editor, crate::BottomTab::Triggers);
+    h.idle_frame();
+    assert!(h.find_text("Slide masters have no triggers.").is_some());
+
+    dock::set_open(&mut h.editor, Panel::Layers, true);
+    h.idle_frame();
+    assert!(h.find_text("Slide masters have no layers.").is_some());
 }
 
 #[test]

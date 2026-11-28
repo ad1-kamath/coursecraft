@@ -583,7 +583,7 @@ fn render_timeline_header(
                     if !slide_is_draw {
                         tabs.push(BottomTab::Question);
                     }
-                } else if editor.ui.bottom_tab == BottomTab::States {
+                } else if editor.ui.bottom_tab != BottomTab::Timeline {
                     editor.ui.bottom_tab = BottomTab::Timeline;
                 }
                 for tab in tabs {
@@ -1210,6 +1210,31 @@ fn paint_animation_marks(
     else {
         return;
     };
+    let start = timing.start_ms;
+    let end = timing.end_ms.unwrap_or(duration_ms);
+    paint_anim_strips(
+        painter,
+        obj.entrance.as_ref(),
+        obj.exit.as_ref(),
+        &obj.emphasis,
+        start,
+        end,
+        bar_rect,
+        ms_to_x,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn paint_anim_strips(
+    painter: &egui::Painter,
+    entrance: Option<&coursecraft_course::Animation>,
+    exit: Option<&coursecraft_course::Animation>,
+    emphasis: &[coursecraft_course::Emphasis],
+    start: u32,
+    end: u32,
+    bar_rect: Rect,
+    ms_to_x: &dyn Fn(u32) -> f32,
+) {
     let p = coursecraft_render::palette(painter.ctx());
     let painter = painter.with_clip_rect(painter.clip_rect().intersect(bar_rect));
     let strip = |from: u32, to: u32, color: Color32| {
@@ -1224,19 +1249,17 @@ fn paint_animation_marks(
             color,
         );
     };
-    let start = timing.start_ms;
-    let end = timing.end_ms.unwrap_or(duration_ms);
-    if let Some(a) = &obj.entrance {
+    if let Some(a) = entrance {
         strip(
             start,
             start.saturating_add(a.duration_ms).min(end),
             p.success,
         );
     }
-    if let Some(a) = &obj.exit {
+    if let Some(a) = exit {
         strip(end.saturating_sub(a.duration_ms).max(start), end, p.danger);
     }
-    for e in &obj.emphasis {
+    for e in emphasis {
         strip(e.start_ms.max(start), e.end_ms().min(end), p.warning);
     }
 }
@@ -2752,6 +2775,24 @@ fn render_group_row(
         Stroke::new(1.0, bar_color),
         StrokeKind::Inside,
     );
+    if let Some((grp, _)) = editor
+        .session
+        .course
+        .slide(&editor.selection.slide)
+        .and_then(|s| s.group(group))
+        && grp.has_animation()
+    {
+        paint_anim_strips(
+            bar_painter,
+            grp.entrance.as_ref(),
+            grp.exit.as_ref(),
+            &grp.emphasis,
+            span_start,
+            span_end,
+            bar_rect,
+            &ms_to_x,
+        );
+    }
     ui.interact(
         bar_rect.intersect(g.visible_track),
         ui.scope_id().with("timeline_group_bar").with(group),
@@ -3377,7 +3418,7 @@ pub(crate) fn show_timeline_content(
     ui: &mut Ui,
     actions: &mut Vec<(&'static str, Json)>,
 ) {
-    if editor.ui.master_view && editor.ui.bottom_tab == BottomTab::States {
+    if editor.ui.master_view && editor.ui.bottom_tab != BottomTab::Timeline {
         editor.ui.bottom_tab = BottomTab::Timeline;
     }
     editor.ui.timeline.sync(

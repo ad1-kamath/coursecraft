@@ -92,6 +92,9 @@ const PENDING_DEFS_ID: &str = "coursecraft-pending-font-defs";
 /// most recently queued `ctx.set_fonts` call, so downstream caches can tell
 /// whether egui has applied the queued definitions to `ctx.fonts()` yet.
 const PENDING_FONT_MARKER_ID: &str = "coursecraft-pending-font-marker";
+/// `ctx.data` key holding the latest installed `Arc<FontDefinitions>` so offscreen
+/// sub-contexts (e.g. group fade layers) can reuse the exact same fonts.
+const ACTIVE_FONT_DEFS_ID: &str = "coursecraft-active-font-defs";
 
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
@@ -338,6 +341,7 @@ fn set_fonts_and_track(ctx: &egui::Context, defs: FontDefinitions, marker_key: &
     crate::media::test_counts::note_font_def_clone();
     let pending = Arc::new(defs.clone());
     ctx.data_mut(|data| {
+        data.insert_temp(egui::Id::unique(ACTIVE_FONT_DEFS_ID), pending.clone());
         data.insert_temp(egui::Id::unique(PENDING_DEFS_ID), (pass, pending));
         data.insert_temp(egui::Id::unique(INSTALLED_FAMILIES_ID), families);
         let marker_id = egui::Id::unique(PENDING_FONT_MARKER_ID);
@@ -351,6 +355,11 @@ fn set_fonts_and_track(ctx: &egui::Context, defs: FontDefinitions, marker_key: &
         data.insert_temp(epoch_id, next_epoch);
     });
     ctx.set_fonts(defs);
+}
+
+/// Return the most recently installed [`FontDefinitions`] on `ctx`, if any.
+pub(crate) fn active_font_defs(ctx: &egui::Context) -> Option<Arc<FontDefinitions>> {
+    ctx.data(|data| data.get_temp::<Arc<FontDefinitions>>(egui::Id::unique(ACTIVE_FONT_DEFS_ID)))
 }
 
 fn install_base(ctx: &egui::Context) {

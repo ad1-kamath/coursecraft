@@ -23,6 +23,8 @@ pub(crate) struct MeshPost<'a> {
     pub rotation: f32,
     pub flip_h: bool,
     pub flip_v: bool,
+    /// Screen-space translation applied after scale/rotation/flips and before mask.
+    pub offset: egui::Vec2,
     /// Screen-space convex polygons; only their inside is kept. Applied after the transform.
     pub mask: Option<&'a [Vec<Pos2>]>,
     pub tint: Option<Tint>,
@@ -39,6 +41,7 @@ impl MeshPost<'_> {
             rotation,
             flip_h,
             flip_v,
+            offset: egui::Vec2::ZERO,
             mask: None,
             tint: None,
             opacity: 1.0,
@@ -94,6 +97,12 @@ impl MeshPost<'_> {
                     let [a, _, c] = triangle;
                     std::mem::swap(a, c);
                 }
+            }
+        }
+        if self.offset != egui::Vec2::ZERO && self.offset.x.is_finite() && self.offset.y.is_finite()
+        {
+            for v in &mut mesh.vertices {
+                v.pos += self.offset;
             }
         }
         if let Some(polys) = self.mask {

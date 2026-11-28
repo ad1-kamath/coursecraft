@@ -21,7 +21,7 @@
 | 3 | **Slides** | always (hidden in master mode) |
 | 4 | **Design** | always (hidden in master mode) |
 | 5 | **Transitions** | slide open |
-| 6 | **Animations** | slide open |
+| 6 | **Animations** | slide open (also in Master View: Entrance, Emphasis, Exit, and Animation Painter; Motion Paths stay disabled) |
 | 7 | **View** | always |
 | 8 | **AI** | always; CourseCraft's own tab |
 | 9 | **Help** | always |
@@ -265,12 +265,12 @@ Shown when the Course Map view tab is active.
 
 | Group | Control | Kind | Action | Status | Notes |
 |---|---|---|---|---|---|
-| Advanced | Animation Painter | L | `ui:animationPainter` → `object.copy_animation` | ✅ | like the Format Painter: click arms it from the selected object, double-click keeps it on, a click on an object copies its entrance, exit and emphasis (emphasis keeps its offset from the object's start), Esc disarms |
-| Entrance Animations ↘ | effect gallery | G | `object.set_animation` `{entrance}` | ✅ | `ribbon/gallery.rs`: None plus every effect in the registry (25: Appear, Fade, Grow, Fly, Float, Split, Wipe, Shape, Wheel, Random bars, Zoom, Dissolve, Blinds, Peek, Expand, Rise up, Spin, Spin & grow, Grow & turn, Checkerboard, Strips, Flip, Swivel, Bounce, Pop), on every selected object; each tile's icon is the effect drawn by its own sample function on a small card (entrance green, exit red; it plays in a loop on hover; `ribbon/effect_art.rs`); hovering a tile also plays it on the selected objects on the canvas, and a pick plays once (`anim_preview.rs`, Auto-preview); ↘ opens the Animate inspector; Add Motion Path runs `object.add_motion_path` |
+| Advanced | Animation Painter | L | `ui:animationPainter` → `object.copy_animation` | ✅ | like the Format Painter: click arms it from the selected object or group, double-click keeps it on, a click on an object or group copies its entrance, exit and emphasis (emphasis keeps its offset from the start), Esc disarms |
+| Entrance Animations ↘ | effect gallery | G | `object.set_animation` `{entrance}` | ✅ | `ribbon/gallery.rs`: None plus every effect in the registry (25: Appear, Fade, Grow, Fly, Float, Split, Wipe, Shape, Wheel, Random bars, Zoom, Dissolve, Blinds, Peek, Expand, Rise up, Spin, Spin & grow, Grow & turn, Checkerboard, Strips, Flip, Swivel, Bounce, Pop), on every selected object or on a selected whole group; each tile's icon is the effect drawn by its own sample function on a small card (entrance green, exit red; it plays in a loop on hover; `ribbon/effect_art.rs`); hovering a tile also plays it on the selected objects or group on the canvas, and a pick plays once (`anim_preview.rs`, Auto-preview); ↘ opens the Animate inspector; Add Motion Path runs `object.add_motion_path` |
 | | Duration | N | `object.set_animation` `{duration_ms}` | ✅ | seconds |
 | | Effect Options | SS | `object.set_animation` `{from, shape, inout, spokes, orientation, sequence}` | ✅ | ▾ built from the registry, one section per option the current effect takes: Direction as a 3×3 compass of arrows (only the sides and corners the effect takes), Shape, In or out, Spokes and Orientation as rows with icons; for an object with text, a Sequence section (As one object, By paragraph, By letter); off when there is nothing to choose |
 | Exit Animations | (same three) | | `object.set_animation` `{exit}` | ✅ | |
-| Emphasis Animations | Add Emphasis Animation | G | `object.add_emphasis` | ✅ | `ribbon/gallery.rs`: the 12 emphasis effects as amber tiles drawn by their own sample functions; a pick adds one to every selected object at the playhead (or at the object's start when the playhead is outside its time on screen) and plays it once; hovering plays it in a loop on the canvas |
+| Emphasis Animations | Add Emphasis Animation | G | `object.add_emphasis` | ✅ | `ribbon/gallery.rs`: the 12 emphasis effects as amber tiles drawn by their own sample functions; a pick adds one to every selected object or to the selected whole group at the playhead (or at its start when the playhead is outside its time on screen) and plays it once; hovering plays it in a loop on the canvas |
 | | emphasis list | G | `object.set_emphasis` | ✅ | in the Animate inspector's Emphasis card (one row each), not in the ribbon |
 | | Duration / Effect Options / Delete | | `object.set_emphasis`, `object.remove_emphasis` | ✅ | in the Emphasis card: Start, Duration, Repeat, ▶ and Remove per emphasis |
 | Motion Paths | Add Motion Path | LS | `object.add_motion_path` | ✅ | |

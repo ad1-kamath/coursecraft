@@ -791,6 +791,100 @@ pub(crate) fn render_items_rgba(
     )
 }
 
+/// Rasterise a group's items into a tight transparent RGBA buffer for unified
+/// group opacity so overlapping children never show through each other mid-fade.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn render_group_to_rgba(
+    outer_ctx: &egui::Context,
+    t: &SlideTransform,
+    bounds: Rect,
+    pixel_w: u32,
+    pixel_h: u32,
+    items: &[crate::compose::DrawItem],
+    highlight: Highlight,
+    media_source: Option<&dyn MediaSource>,
+    theme: Option<&coursecraft_course::Theme>,
+    slide_bg: Option<&coursecraft_course::Color>,
+    offset: (f32, f32),
+) -> Option<RgbaImage> {
+    let pixel_w = pixel_w.clamp(1, 2048);
+    let pixel_h = pixel_h.clamp(1, 2048);
+    let buf_w = pixel_w.max(MIN_RENDER_WIDTH);
+    let buf_h = pixel_h.max(MIN_RENDER_WIDTH);
+    let zoom_x = pixel_w as f32 / bounds.width().max(1e-4);
+    let zoom_y = pixel_h as f32 / bounds.height().max(1e-4);
+    let zoom = zoom_x.min(zoom_y);
+    let off_slide_rect = Rect::from_min_size(
+        ((t.slide_rect().min - bounds.min) * zoom).to_pos2(),
+        t.slide_rect().size() * zoom,
+    );
+    let off_t = SlideTransform::from_parts(t.scale() * zoom, off_slide_rect);
+    let font_defs = crate::font::active_font_defs(outer_ctx);
+    let local_items: Vec<crate::compose::DrawItem> = items
+        .iter()
+        .map(|it| {
+            let mut c = it.clone();
+            c.group_anim = None;
+            c
+        })
+        .collect();
+    let mut local_cache = MediaCache::new();
+    let img = render_ui_at(
+        buf_w,
+        buf_h,
+        1.0,
+        None,
+        |ctx| {
+            ctx.data_mut(|d| {
+                d.insert_temp(
+                    egui::Id::unique("coursecraft-clear-color"),
+                    egui::Color32::TRANSPARENT,
+                );
+            });
+            if let Some(defs) = &font_defs {
+                ctx.set_fonts((**defs).clone());
+            } else {
+                install_fonts(ctx);
+            }
+        },
+        |ctx| {
+            let painter = ctx.layer_painter(egui::LayerId::background());
+            let media_arg = media_source.map(|src| (&mut local_cache, src));
+            crate::paint::paint_items(
+                &painter,
+                &off_t,
+                &local_items,
+                highlight.clone(),
+                media_arg,
+                theme,
+                slide_bg,
+                offset,
+            );
+        },
+    )
+    .ok()?;
+    if buf_w == pixel_w && buf_h == pixel_h {
+        return Some(img);
+    }
+    let mut cropped = vec![0u8; pixel_w as usize * pixel_h as usize * 4];
+    for y in 0..pixel_h as usize {
+        let src_start = y * buf_w as usize * 4;
+        let dst_start = y * pixel_w as usize * 4;
+        let row_bytes = pixel_w as usize * 4;
+        if let (Some(src), Some(dst)) = (
+            img.pixels.get(src_start..src_start + row_bytes),
+            cropped.get_mut(dst_start..dst_start + row_bytes),
+        ) {
+            dst.copy_from_slice(src);
+        }
+    }
+    Some(RgbaImage {
+        width: pixel_w,
+        height: pixel_h,
+        pixels: cropped,
+    })
+}
+
 /// Encode an [`RgbaImage`] to PNG bytes.
 ///
 /// Delegates to `coursecraft-media`'s safe PNG encoder.

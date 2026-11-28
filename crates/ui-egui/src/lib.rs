@@ -257,6 +257,10 @@ mod m48_nofill_effects_ui_tests;
 #[cfg(test)]
 mod m48_split_buttons_tests;
 #[cfg(test)]
+mod m49_group_anim_ui_tests;
+#[cfg(test)]
+mod m49_master_anim_ui_tests;
+#[cfg(test)]
 mod metafile_import_tests;
 #[cfg(test)]
 mod neon_editor_fix_tests;
@@ -3890,6 +3894,14 @@ impl Editor {
         dock::request_bottom_tab(self, BottomTab::Timeline);
         self.ui.placement_tool = None;
         self.ui.placement_drag = None;
+        if self
+            .ui
+            .format_painter
+            .as_ref()
+            .is_some_and(|p| p.kind == format_painter::PainterKind::Format)
+        {
+            self.ui.format_painter = None;
+        }
         self.ui.canvas_drag = None;
         self.ui.inline_edit = None;
         self.ui.crop_edit = None;
@@ -4397,6 +4409,15 @@ impl Editor {
     #[must_use]
     pub fn selection_is_one_group(&self) -> bool {
         self.selection.is_one_group(&self.session.course)
+    }
+
+    /// Group id when a single whole group is selected and not focused on one child.
+    #[must_use]
+    pub fn selected_group_for_animation(&self) -> Option<String> {
+        if self.ui.group_focus.is_some() {
+            return None;
+        }
+        self.selection.selected_group_id(&self.session.course)
     }
 
     /// Select every object on the focused layer.
@@ -5751,49 +5772,43 @@ impl Editor {
             );
         } else {
             // 3. Bottom timeline panel. Keep at least 200 px of canvas above it.
-            // Hidden in Master View, which edits slide masters without a timeline.
-            if self.ui.master_view {
-                self.ui.timeline.panel_rect = None;
-                self.ui.timeline.tab_rects.clear();
-            } else {
-                let content_h = ui.ctx().content_rect().height();
-                let chrome_h = menu_h + top_h + STATUS_BAR_HEIGHT;
-                let max_by_canvas =
-                    (content_h - chrome_h - 200.0).max(timeline::TIMELINE_PANEL_MIN_HEIGHT);
-                let max_panel_h = (content_h * timeline::TIMELINE_PANEL_MAX_FRACTION)
-                    .min(max_by_canvas)
-                    .max(timeline::TIMELINE_PANEL_MIN_HEIGHT);
-                let initial_panel_h = self
-                    .ui
-                    .timeline
-                    .panel_height
-                    .clamp(timeline::TIMELINE_PANEL_MIN_HEIGHT, max_panel_h);
-                // The canvas/side panels are laid out after this panel and sit on top of the outer half
-                // of the default 5px resize grab zone, leaving only ~4px inside the panel. Widen it and
-                // keep the first `RESIZE_GRAB_PX` of the panel free of content so it is easy to hit.
-                let old_grab = ui.style().interaction.resize_grab_radius_side;
-                ui.style_mut().interaction.resize_grab_radius_side = timeline::PANEL_RESIZE_GRAB_PX;
-                let timeline_panel = Panel::bottom("editor_timeline_panel")
-                    .default_size(initial_panel_h)
-                    .size_range(timeline::TIMELINE_PANEL_MIN_HEIGHT..=max_panel_h)
-                    .resizable(true)
-                    .frame(egui::Frame::NONE.fill(p.panel).inner_margin(edge_margin))
-                    .show_separator_line(true)
-                    .show(ui, |ui| {
-                        // A resizable panel otherwise shrinks to its content; always fill the
-                        // size the user picked (or the default).
-                        ui.set_min_height(ui.available_height());
-                        ui.add_space(timeline::PANEL_RESIZE_GRAB_PX - 2.0);
-                        self.timeline_body(ui);
-                    });
-                ui.style_mut().interaction.resize_grab_radius_side = old_grab;
-                self.ui.timeline.panel_rect = Some(timeline_panel.response.rect);
-                self.ui.timeline.panel_height = timeline_panel.response.rect.height();
-                if ui.input(|i| i.pointer.primary_pressed())
-                    && let Some(pos) = ui.input(|i| i.pointer.interact_pos())
-                {
-                    self.ui.timeline.focused = timeline_panel.response.rect.contains(pos);
-                }
+            let content_h = ui.ctx().content_rect().height();
+            let chrome_h = menu_h + top_h + STATUS_BAR_HEIGHT;
+            let max_by_canvas =
+                (content_h - chrome_h - 200.0).max(timeline::TIMELINE_PANEL_MIN_HEIGHT);
+            let max_panel_h = (content_h * timeline::TIMELINE_PANEL_MAX_FRACTION)
+                .min(max_by_canvas)
+                .max(timeline::TIMELINE_PANEL_MIN_HEIGHT);
+            let initial_panel_h = self
+                .ui
+                .timeline
+                .panel_height
+                .clamp(timeline::TIMELINE_PANEL_MIN_HEIGHT, max_panel_h);
+            // The canvas/side panels are laid out after this panel and sit on top of the outer half
+            // of the default 5px resize grab zone, leaving only ~4px inside the panel. Widen it and
+            // keep the first `RESIZE_GRAB_PX` of the panel free of content so it is easy to hit.
+            let old_grab = ui.style().interaction.resize_grab_radius_side;
+            ui.style_mut().interaction.resize_grab_radius_side = timeline::PANEL_RESIZE_GRAB_PX;
+            let timeline_panel = Panel::bottom("editor_timeline_panel")
+                .default_size(initial_panel_h)
+                .size_range(timeline::TIMELINE_PANEL_MIN_HEIGHT..=max_panel_h)
+                .resizable(true)
+                .frame(egui::Frame::NONE.fill(p.panel).inner_margin(edge_margin))
+                .show_separator_line(true)
+                .show(ui, |ui| {
+                    // A resizable panel otherwise shrinks to its content; always fill the
+                    // size the user picked (or the default).
+                    ui.set_min_height(ui.available_height());
+                    ui.add_space(timeline::PANEL_RESIZE_GRAB_PX - 2.0);
+                    self.timeline_body(ui);
+                });
+            ui.style_mut().interaction.resize_grab_radius_side = old_grab;
+            self.ui.timeline.panel_rect = Some(timeline_panel.response.rect);
+            self.ui.timeline.panel_height = timeline_panel.response.rect.height();
+            if ui.input(|i| i.pointer.primary_pressed())
+                && let Some(pos) = ui.input(|i| i.pointer.interact_pos())
+            {
+                self.ui.timeline.focused = timeline_panel.response.rect.contains(pos);
             }
 
             // 4. Left slides panel

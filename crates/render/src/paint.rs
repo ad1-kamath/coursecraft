@@ -2527,16 +2527,44 @@ pub(crate) fn transform_painted_shapes(
     painter.set(marker, egui::Shape::Noop);
 
     let ppp = painter.pixels_per_point();
+    let outer_clip = painter.clip_rect();
+    let moves_geometry = post.scales()
+        || post.offset != egui::Vec2::ZERO
+        || (post.rotation.is_finite() && post.rotation != 0.0);
     for (_, mut clipped) in painted {
-        if post.scales() {
-            // Content is laid out larger or smaller than it shows; don't let tessellation
-            // cull parts that the scale brings back on screen. The painter clips the result.
+        let orig_clip = clipped.clip_rect;
+        let inner_clip = orig_clip != outer_clip
+            && orig_clip.min.x.is_finite()
+            && orig_clip.min.y.is_finite()
+            && orig_clip.max.x.is_finite()
+            && orig_clip.max.y.is_finite();
+        if inner_clip && !orig_clip.is_positive() {
+            continue;
+        }
+        if !inner_clip && moves_geometry {
+            // Content is laid out larger or smaller (or shifted/turned) than it shows;
+            // don't let tessellation cull parts that the transform brings back on screen.
+            // The painter clips the result.
             clipped.clip_rect = Rect::EVERYTHING;
         }
+        let clip_quad = inner_clip.then(|| {
+            vec![
+                orig_clip.left_top(),
+                orig_clip.right_top(),
+                orig_clip.right_bottom(),
+                orig_clip.left_bottom(),
+            ]
+        });
         for primitive in painter.ctx().tessellate(vec![clipped], ppp).into_iter() {
-            let egui::epaint::Primitive::Mesh(mesh) = primitive.primitive else {
+            let egui::epaint::Primitive::Mesh(mut mesh) = primitive.primitive else {
                 continue;
             };
+            if let Some(quad) = clip_quad.as_ref() {
+                mesh = crate::mesh_post::clip_mesh(&mesh, std::slice::from_ref(quad));
+                if mesh.is_empty() {
+                    continue;
+                }
+            }
             let mesh = post.apply(mesh);
             if !mesh.is_empty() {
                 painter.add(egui::Shape::mesh(mesh));
@@ -2593,217 +2621,714 @@ pub fn paint_items(
         .and_then(|th| crate::color::parse_color(&th.accent))
         .unwrap_or_else(|| Color32::from_rgb(0x2F, 0x6F, 0xEB));
 
-    for item in items {
-        if item.opacity <= 0.0 {
+    let mut used_fade_cache = false;
+    let mut i = 0;
+    while i < items.len() {
+        let Some(ga) = items[i].group_anim.as_ref() else {
+            paint_single_item(
+                painter,
+                &slide_painter,
+                slide_rect,
+                t,
+                scale,
+                &items[i],
+                &highlight,
+                media.as_mut().map(|(c, s)| (&mut **c, *s)),
+                slide_bg_rgba,
+                theme_text_color,
+                theme_accent_color,
+                offset,
+            );
+            i += 1;
             continue;
+        };
+        let mut end = i + 1;
+        while end < items.len()
+            && items[end]
+                .group_anim
+                .as_ref()
+                .is_some_and(|other| other.id == ga.id)
+        {
+            end += 1;
+        }
+        let run = &items[i..end];
+        if paint_group_run(
+            painter,
+            &slide_painter,
+            slide_rect,
+            t,
+            scale,
+            ga,
+            run,
+            &highlight,
+            &mut media,
+            theme,
+            slide_bg,
+            slide_bg_rgba,
+            theme_text_color,
+            theme_accent_color,
+            offset,
+        ) {
+            used_fade_cache = true;
+        }
+        i = end;
+    }
+
+    evict_stale_group_textures(painter.ctx(), used_fade_cache);
+}
+
+const GROUP_FADE_CACHE_ID: &str = "coursecraft-group-fade-cache";
+const GROUP_FADE_FLAG_ID: &str = "coursecraft-group-fade-active";
+
+#[derive(Clone, Hash, PartialEq, Eq)]
+struct GroupTextureKey {
+    id: String,
+    pixel_w: u32,
+    pixel_h: u32,
+    fingerprint: u64,
+}
+
+type GroupFadeCache = std::collections::HashMap<GroupTextureKey, (u64, egui::TextureHandle)>;
+
+fn evict_stale_group_textures(ctx: &egui::Context, used_fade_cache: bool) {
+    let flag_id = egui::Id::unique(GROUP_FADE_FLAG_ID);
+    let was_active = ctx.data(|d| d.get_temp::<bool>(flag_id).unwrap_or(false));
+    if !used_fade_cache && !was_active {
+        return;
+    }
+    let current_pass = ctx.cumulative_pass_nr();
+    let cache_id = egui::Id::unique(GROUP_FADE_CACHE_ID);
+    ctx.data_mut(|d| {
+        let cache = d.get_temp_mut_or_default::<GroupFadeCache>(cache_id);
+        cache.retain(|_, (pass, _)| *pass == current_pass);
+        let still_active = !cache.is_empty();
+        d.insert_temp(flag_id, still_active);
+    });
+}
+
+fn fnv1a_u64(mut hash: u64, bytes: &[u8]) -> u64 {
+    for &b in bytes {
+        hash ^= u64::from(b);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash
+}
+
+struct FnvWriter(u64);
+
+impl std::fmt::Write for FnvWriter {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        self.0 = fnv1a_u64(self.0, s.as_bytes());
+        Ok(())
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn group_run_fingerprint(
+    ga: &crate::compose::GroupAnim,
+    run: &[DrawItem],
+    bounds: Rect,
+    highlight: &Highlight,
+    scale: f32,
+    offset: (f32, f32),
+    slide_bg_rgba: Option<coursecraft_course::Rgba>,
+    theme_text_color: Color32,
+    theme_accent_color: Color32,
+) -> u64 {
+    use std::fmt::Write as _;
+
+    let mut h = 0xcbf2_9ce4_8422_2325_u64;
+    h = fnv1a_u64(h, ga.id.as_bytes());
+    h = fnv1a_u64(h, &(run.len() as u64).to_le_bytes());
+    h = fnv1a_u64(h, &scale.to_bits().to_le_bytes());
+    h = fnv1a_u64(h, &offset.0.to_bits().to_le_bytes());
+    h = fnv1a_u64(h, &offset.1.to_bits().to_le_bytes());
+    h = fnv1a_u64(h, &bounds.min.x.to_bits().to_le_bytes());
+    h = fnv1a_u64(h, &bounds.min.y.to_bits().to_le_bytes());
+    h = fnv1a_u64(h, &bounds.max.x.to_bits().to_le_bytes());
+    h = fnv1a_u64(h, &bounds.max.y.to_bits().to_le_bytes());
+    if let Some(bg) = slide_bg_rgba {
+        h = fnv1a_u64(h, &[1, bg.r, bg.g, bg.b, bg.a]);
+    } else {
+        h = fnv1a_u64(h, &[0]);
+    }
+    h = fnv1a_u64(h, &theme_text_color.to_array());
+    h = fnv1a_u64(h, &theme_accent_color.to_array());
+    for item in run {
+        h = fnv1a_u64(h, &item.rect.min.x.to_bits().to_le_bytes());
+        h = fnv1a_u64(h, &item.rect.min.y.to_bits().to_le_bytes());
+        h = fnv1a_u64(h, &item.rect.max.x.to_bits().to_le_bytes());
+        h = fnv1a_u64(h, &item.rect.max.y.to_bits().to_le_bytes());
+        h = fnv1a_u64(h, &item.opacity.to_bits().to_le_bytes());
+        h = fnv1a_u64(h, &item.rotation.to_bits().to_le_bytes());
+        h = fnv1a_u64(
+            h,
+            &[
+                u8::from(item.flip_h),
+                u8::from(item.flip_v),
+                u8::from(item.dimmed),
+            ],
+        );
+        h = fnv1a_u64(h, &item.anim.scale.0.to_bits().to_le_bytes());
+        h = fnv1a_u64(h, &item.anim.scale.1.to_bits().to_le_bytes());
+        if let Some(c) = item.clip {
+            h = fnv1a_u64(h, &[1]);
+            h = fnv1a_u64(h, &c.min_x.to_bits().to_le_bytes());
+            h = fnv1a_u64(h, &c.min_y.to_bits().to_le_bytes());
+            h = fnv1a_u64(h, &c.max_x.to_bits().to_le_bytes());
+            h = fnv1a_u64(h, &c.max_y.to_bits().to_le_bytes());
+        } else {
+            h = fnv1a_u64(h, &[0]);
+        }
+        if let Some(cr) = item.clip_rect {
+            h = fnv1a_u64(h, &[1]);
+            h = fnv1a_u64(h, &cr.min.x.to_bits().to_le_bytes());
+            h = fnv1a_u64(h, &cr.min.y.to_bits().to_le_bytes());
+            h = fnv1a_u64(h, &cr.max.x.to_bits().to_le_bytes());
+            h = fnv1a_u64(h, &cr.max.y.to_bits().to_le_bytes());
+        } else {
+            h = fnv1a_u64(h, &[0]);
+        }
+        if let Some(tint) = item.anim.tint {
+            h = fnv1a_u64(h, &[1]);
+            h = fnv1a_u64(h, &tint.rgb);
+            h = fnv1a_u64(h, &tint.amount.to_bits().to_le_bytes());
+        } else {
+            h = fnv1a_u64(h, &[0]);
+        }
+        if let Some(ms) = item.media_time_ms {
+            h = fnv1a_u64(h, &[1]);
+            h = fnv1a_u64(h, &ms.to_le_bytes());
+        } else {
+            h = fnv1a_u64(h, &[0]);
         }
         let is_pressed = item.hit != Hit::None && highlight.pressed.as_ref() == Some(&item.hit);
         let is_hovered = item.hit != Hit::None && highlight.hovered.as_ref() == Some(&item.hit);
+        h = fnv1a_u64(h, &[u8::from(is_pressed), u8::from(is_hovered)]);
+        let mut w = FnvWriter(h);
+        let _ = write!(
+            w,
+            "{:?}|{:?}|{:?}|{:?}|{:?}",
+            item.visual, item.anim.mask, item.shadow, item.glow, item.mark
+        );
+        h = w.0;
+    }
+    h
+}
 
-        let shifted_item_rect = Rect::from_min_size(
+fn run_has_volatile_media(run: &[DrawItem], media_source: Option<&dyn MediaSource>) -> bool {
+    let Some(src_provider) = media_source else {
+        return false;
+    };
+    run.iter().any(|item| match &item.visual {
+        Visual::Image { src, .. } | Visual::Lottie { src, .. } => {
+            matches!(src_provider.get(src), crate::media::MediaFetch::Pending)
+        }
+        Visual::Video {
+            poster, playing, ..
+        } => {
+            *playing
+                || poster.as_deref().is_some_and(|p| {
+                    matches!(src_provider.get(p), crate::media::MediaFetch::Pending)
+                })
+        }
+        _ => false,
+    })
+}
+
+fn outline_margin(item: &DrawItem, scale: f32) -> f32 {
+    let width = match &item.visual {
+        Visual::Shape {
+            outline: Some(o), ..
+        }
+        | Visual::Text {
+            outline: Some(o), ..
+        }
+        | Visual::Image {
+            outline: Some(o), ..
+        } => o.width,
+        Visual::Path(path) => path.outline.as_ref().map_or(0.0, |o| o.width),
+        _ => 0.0,
+    };
+    if width.is_finite() && width > 0.0 {
+        width * scale
+    } else {
+        0.0
+    }
+}
+
+fn group_run_bounds(
+    t: &SlideTransform,
+    slide_rect: Rect,
+    scale: f32,
+    run: &[DrawItem],
+    offset: (f32, f32),
+) -> Option<Rect> {
+    let mut bounds: Option<Rect> = None;
+    for item in run {
+        if item.opacity <= 0.0 {
+            continue;
+        }
+        let shifted = Rect::from_min_size(
             pos2(item.rect.min.x + offset.0, item.rect.min.y + offset.1),
             item.rect.size(),
         );
-        // `visual_rect` is where the item shows; `screen_rect` is where its content is laid
-        // out before the animation scale shrinks or grows the painted meshes onto it.
-        let visual_rect = t.to_screen_rect(shifted_item_rect);
-        let look = &item.anim;
-        let (anim_sx, anim_sy) = look.scale;
-        if !(anim_sx.is_finite() && anim_sy.is_finite()) || anim_sx < 1e-4 || anim_sy < 1e-4 {
-            continue;
-        }
-        let screen_rect = if look.scale == (1.0, 1.0) {
-            visual_rect
-        } else {
-            Rect::from_center_size(
-                visual_rect.center(),
-                vec2(
-                    visual_rect.width() / anim_sx,
-                    visual_rect.height() / anim_sy,
-                ),
-            )
-        };
-        let op = item.opacity;
-        let rotation = if item.rotation.is_finite() {
+        let visual = t.to_screen_rect(shifted);
+        let margin = effect_margin(item, scale).max(outline_margin(item, scale));
+        let rot = if item.rotation.is_finite() {
             item.rotation
         } else {
             0.0
         };
-        let animated = !look.is_identity();
-        let transformed = rotation != 0.0 || item.flip_h || item.flip_v || animated;
-        let mut mask_polys: Option<Vec<Vec<egui::Pos2>>> = look.mask.as_ref().map(|m| {
-            m.slide_polys(vec2(offset.0, offset.1))
-                .into_iter()
-                .map(|poly| poly.into_iter().map(|p| t.to_screen_pos(p)).collect())
-                .collect()
+        let item_bounds = transformed_bounds(visual.expand(margin), rot, item.flip_h, item.flip_v);
+        bounds = Some(match bounds {
+            None => item_bounds,
+            Some(b) => b.union(item_bounds),
         });
-        // The rectangular reveal clip, in screen space, when the item is rotated or
-        // flipped. A painter clip rect is axis-aligned and applies to the turned
-        // meshes, so it would cut the wrong region: the clip becomes a quad that is
-        // turned with the item and joins the mask instead.
-        let sub_screen = item.clip.map(|frac| {
-            let sub_x = shifted_item_rect.min.x + frac.min_x * shifted_item_rect.width();
-            let sub_y = shifted_item_rect.min.y + frac.min_y * shifted_item_rect.height();
-            let sub_w = (frac.max_x - frac.min_x) * shifted_item_rect.width();
-            let sub_h = (frac.max_y - frac.min_y) * shifted_item_rect.height();
-            t.to_screen_rect(Rect::from_min_size(pos2(sub_x, sub_y), vec2(sub_w, sub_h)))
-        });
-        let turned = rotation != 0.0 || item.flip_h || item.flip_v;
-        if let Some(sub) = sub_screen
-            && turned
-        {
-            let centre = visual_rect.center();
-            let quad: Vec<Pos2> = [
-                sub.left_top(),
-                sub.right_top(),
-                sub.right_bottom(),
-                sub.left_bottom(),
-            ]
+    }
+    let sane_limit = slide_rect.expand(slide_rect.width().max(slide_rect.height()));
+    let clipped = bounds?.expand(2.0).intersect(sane_limit);
+    clipped.is_positive().then_some(clipped)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn paint_group_run(
+    painter: &Painter,
+    slide_painter: &Painter,
+    slide_rect: Rect,
+    t: &SlideTransform,
+    scale: f32,
+    ga: &crate::compose::GroupAnim,
+    run: &[DrawItem],
+    highlight: &Highlight,
+    media: &mut Option<(&mut MediaCache, &dyn MediaSource)>,
+    theme: Option<&Theme>,
+    slide_bg: Option<&Color>,
+    slide_bg_rgba: Option<coursecraft_course::Rgba>,
+    theme_text_color: Color32,
+    theme_accent_color: Color32,
+    offset: (f32, f32),
+) -> bool {
+    let fin = |v: f32, d: f32| if v.is_finite() { v } else { d };
+    let sx = fin(ga.sample.scale.0, 1.0).max(0.0);
+    let sy = fin(ga.sample.scale.1, 1.0).max(0.0);
+    if sx < 1e-4 || sy < 1e-4 {
+        return false;
+    }
+    let opacity = fin(ga.sample.opacity, 1.0).clamp(0.0, 1.0);
+    if opacity <= 0.0 {
+        return false;
+    }
+    let rot = fin(ga.sample.rotation_deg, 0.0);
+    let slide_off = vec2(fin(ga.sample.offset.0, 0.0), fin(ga.sample.offset.1, 0.0));
+    let screen_off = slide_off * scale;
+
+    let shifted_group_frame = ga.frame.translate(vec2(offset.0, offset.1));
+    let group_screen_frame = t.to_screen_rect(shifted_group_frame);
+
+    let translated_frame = shifted_group_frame.translate(slide_off);
+    let anim_slide_frame = Rect::from_center_size(
+        translated_frame.center(),
+        vec2(
+            translated_frame.width() * sx,
+            translated_frame.height() * sy,
+        ),
+    );
+    let anim_screen_frame = t.to_screen_rect(anim_slide_frame);
+
+    let mut mask_polys: Option<Vec<Vec<Pos2>>> = ga.sample.mask.as_ref().map(|m| {
+        let placed = crate::compose::PlacedMask {
+            mask: m.clone(),
+            frame: anim_slide_frame,
+            rotation: rot,
+        };
+        placed
+            .slide_polys(egui::Vec2::ZERO)
             .into_iter()
-            .map(|corner| {
-                crate::compose::flip_point(
-                    crate::compose::rotate_point(corner, centre, rotation),
-                    centre,
-                    item.flip_h,
-                    item.flip_v,
-                )
-            })
-            .collect();
-            mask_polys = Some(match mask_polys {
-                Some(polys) => polys
-                    .iter()
-                    .map(|poly| crate::mesh_post::intersect_convex(poly, &quad))
-                    .filter(|poly| poly.len() >= 3)
-                    .collect(),
-                None => vec![quad],
-            });
+            .map(|poly| poly.into_iter().map(|p| t.to_screen_pos(p)).collect())
+            .collect()
+    });
+    if let Some(frac) = ga.sample.clip {
+        let sub = Rect::from_min_max(
+            pos2(
+                anim_screen_frame.min.x + frac.min_x * anim_screen_frame.width(),
+                anim_screen_frame.min.y + frac.min_y * anim_screen_frame.height(),
+            ),
+            pos2(
+                anim_screen_frame.min.x + frac.max_x * anim_screen_frame.width(),
+                anim_screen_frame.min.y + frac.max_y * anim_screen_frame.height(),
+            ),
+        );
+        let c = anim_screen_frame.center();
+        let quad: Vec<Pos2> = [
+            sub.left_top(),
+            sub.right_top(),
+            sub.right_bottom(),
+            sub.left_bottom(),
+        ]
+        .into_iter()
+        .map(|corner| crate::compose::rotate_point(corner, c, rot))
+        .collect();
+        mask_polys = Some(match mask_polys {
+            Some(polys) => polys
+                .iter()
+                .map(|poly| crate::mesh_post::intersect_convex(poly, &quad))
+                .filter(|poly| poly.len() >= 3)
+                .collect(),
+            None => vec![quad],
+        });
+    }
+
+    let visible_count = run.iter().filter(|it| it.opacity > 0.0).count();
+    let use_offscreen = opacity < 0.999 && visible_count >= 2;
+
+    let group_post = crate::mesh_post::MeshPost {
+        centre: group_screen_frame.center(),
+        scale: (sx, sy),
+        rotation: rot,
+        flip_h: false,
+        flip_v: false,
+        offset: screen_off,
+        mask: mask_polys.as_deref(),
+        tint: ga.sample.tint,
+        opacity: if use_offscreen { 1.0 } else { opacity },
+    };
+
+    if !use_offscreen {
+        let group_marker = slide_painter.add(egui::Shape::Noop);
+        for item in run {
+            paint_single_item(
+                painter,
+                slide_painter,
+                slide_rect,
+                t,
+                scale,
+                item,
+                highlight,
+                media.as_mut().map(|(c, s)| (&mut **c, *s)),
+                slide_bg_rgba,
+                theme_text_color,
+                theme_accent_color,
+                offset,
+            );
         }
-        let post = crate::mesh_post::MeshPost {
-            centre: screen_rect.center(),
-            scale: look.scale,
-            rotation,
-            flip_h: item.flip_h,
-            flip_v: item.flip_v,
-            mask: mask_polys.as_deref(),
-            tint: look.tint,
-            opacity: 1.0,
-        };
+        transform_painted_shapes(slide_painter, group_marker, &group_post);
+        return false;
+    }
 
-        let mut item_painter = if let Some(screen_sub) = sub_screen {
-            let clip = if transformed {
-                let effect_margin = effect_margin(item, scale);
-                let bounds = transformed_bounds(
-                    visual_rect.expand(effect_margin),
-                    rotation,
-                    item.flip_h,
-                    item.flip_v,
-                );
-                let bounds = bounds.intersect(slide_rect);
-                if turned {
-                    // The quad in the mask does the cutting.
-                    bounds
-                } else {
-                    bounds.intersect(screen_sub)
-                }
-            } else {
-                screen_sub.intersect(slide_rect)
-            };
-            slide_painter.with_clip_rect(clip)
-        } else {
-            slide_painter.clone()
-        };
+    let Some(bounds) = group_run_bounds(t, slide_rect, scale, run, offset) else {
+        return false;
+    };
+    let ppp = {
+        let p = painter.pixels_per_point();
+        if p.is_finite() && p > 0.0 { p } else { 1.0 }
+    };
+    let raw_w = (bounds.width() * ppp).ceil().max(1.0);
+    let raw_h = (bounds.height() * ppp).ceil().max(1.0);
+    let max_dim = raw_w.max(raw_h);
+    let eff_ppp = if max_dim > 2048.0 {
+        ppp * (2048.0 / max_dim)
+    } else {
+        ppp
+    };
+    let pixel_w = (bounds.width() * eff_ppp).ceil().clamp(1.0, 2048.0) as u32;
+    let pixel_h = (bounds.height() * eff_ppp).ceil().clamp(1.0, 2048.0) as u32;
 
-        if let Some(clip_rect) = item.clip_rect
-            && clip_rect.is_positive()
-        {
-            let screen_clip = t.to_screen_rect(clip_rect.translate(vec2(offset.0, offset.1)));
-            let current = item_painter.clip_rect();
-            item_painter = item_painter.with_clip_rect(current.intersect(screen_clip));
-        }
+    let media_source = media.as_ref().map(|(_, src)| *src);
+    let volatile_media = run_has_volatile_media(run, media_source);
+    let fingerprint = group_run_fingerprint(
+        ga,
+        run,
+        bounds,
+        highlight,
+        scale,
+        offset,
+        slide_bg_rgba,
+        theme_text_color,
+        theme_accent_color,
+    );
+    let key = GroupTextureKey {
+        id: ga.id.clone(),
+        pixel_w,
+        pixel_h,
+        fingerprint,
+    };
 
-        let mut marker = transformed.then(|| item_painter.add(egui::Shape::Noop));
+    let ctx = painter.ctx();
+    let current_pass = ctx.cumulative_pass_nr();
+    let cache_id = egui::Id::unique(GROUP_FADE_CACHE_ID);
+    let flag_id = egui::Id::unique(GROUP_FADE_FLAG_ID);
 
-        match &item.visual {
-            Visual::Text {
-                runs,
-                align,
-                valign,
-                paragraphs,
-                autofit,
-                outline,
-                wrap,
-                insets,
-                direction,
-            } => {
-                if let Some(outline) = outline {
-                    let resolved = ResolvedOutline {
-                        color: apply_dim(outline.color, item.dimmed, op),
-                        width: outline.width,
-                        dash: outline.dash,
-                        dash_pattern: outline.dash_pattern.clone(),
-                        join: outline.join,
-                        miter_limit: outline.miter_limit,
-                    };
-                    paint_outline(
-                        &item_painter,
-                        screen_rect,
-                        ShapeKind::Rectangle,
-                        &[],
-                        &resolved,
-                        scale,
-                    );
-                }
-                // A horizontally flipped text box mirrors its outline but not its glyphs, so
-                // the glyphs, their shadow and glow all go in the second group, which
-                // is turned to match the outline instead of being mirrored.
-                let text_marker = if item.flip_h
-                    && let Some(shape_marker) = marker.take()
-                {
-                    transform_painted_shapes(&item_painter, shape_marker, &post);
-                    (rotation != 0.0 || item.flip_v || animated)
-                        .then(|| item_painter.add(egui::Shape::Noop))
+    let cached_tex = if volatile_media {
+        None
+    } else {
+        ctx.data_mut(|d| {
+            let found = {
+                let cache = d.get_temp_mut_or_default::<GroupFadeCache>(cache_id);
+                if let Some((pass, tex)) = cache.get_mut(&key) {
+                    *pass = current_pass;
+                    Some(tex.clone())
                 } else {
                     None
+                }
+            };
+            if found.is_some() {
+                d.insert_temp(flag_id, true);
+            }
+            found
+        })
+    };
+
+    let tex = if let Some(tex) = cached_tex {
+        tex
+    } else {
+        let Some(img) = crate::offscreen::render_group_to_rgba(
+            ctx,
+            t,
+            bounds,
+            pixel_w,
+            pixel_h,
+            run,
+            highlight.clone(),
+            media_source,
+            theme,
+            slide_bg,
+            offset,
+        ) else {
+            return false;
+        };
+        let pixels: Vec<Color32> = img
+            .pixels
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|c| Color32::from_rgba_premultiplied(c[0], c[1], c[2], c[3]))
+            .collect();
+        let color_image = egui::ColorImage {
+            size: [img.width as usize, img.height as usize],
+            source_size: vec2(img.width as f32, img.height as f32),
+            pixels,
+        };
+        let handle = ctx.load_texture(
+            format!("coursecraft-group-{}", ga.id),
+            color_image,
+            egui::TextureOptions::LINEAR,
+        );
+        ctx.data_mut(|d| {
+            {
+                let cache = d.get_temp_mut_or_default::<GroupFadeCache>(cache_id);
+                cache.insert(key, (current_pass, handle.clone()));
+            }
+            d.insert_temp(flag_id, true);
+        });
+        handle
+    };
+
+    let zoom =
+        (pixel_w as f32 / bounds.width().max(1e-4)).min(pixel_h as f32 / bounds.height().max(1e-4));
+    let uv = Rect::from_min_max(
+        Pos2::ZERO,
+        pos2(
+            (bounds.width() * zoom / pixel_w as f32).clamp(0.0, 1.0),
+            (bounds.height() * zoom / pixel_h as f32).clamp(0.0, 1.0),
+        ),
+    );
+    let group_marker = slide_painter.add(egui::Shape::Noop);
+    let tint = Color32::WHITE.linear_multiply(opacity);
+    slide_painter.image(tex.id(), bounds, uv, tint);
+    transform_painted_shapes(slide_painter, group_marker, &group_post);
+    true
+}
+
+#[allow(clippy::cognitive_complexity, clippy::too_many_arguments)]
+fn paint_single_item(
+    painter: &Painter,
+    slide_painter: &Painter,
+    slide_rect: Rect,
+    t: &SlideTransform,
+    scale: f32,
+    item: &DrawItem,
+    highlight: &Highlight,
+    mut media: Option<(&mut MediaCache, &dyn MediaSource)>,
+    slide_bg_rgba: Option<coursecraft_course::Rgba>,
+    theme_text_color: Color32,
+    theme_accent_color: Color32,
+    offset: (f32, f32),
+) {
+    if item.opacity <= 0.0 {
+        return;
+    }
+    let is_pressed = item.hit != Hit::None && highlight.pressed.as_ref() == Some(&item.hit);
+    let is_hovered = item.hit != Hit::None && highlight.hovered.as_ref() == Some(&item.hit);
+
+    let shifted_item_rect = Rect::from_min_size(
+        pos2(item.rect.min.x + offset.0, item.rect.min.y + offset.1),
+        item.rect.size(),
+    );
+    // `visual_rect` is where the item shows; `screen_rect` is where its content is laid
+    // out before the animation scale shrinks or grows the painted meshes onto it.
+    let visual_rect = t.to_screen_rect(shifted_item_rect);
+    let look = &item.anim;
+    let (anim_sx, anim_sy) = look.scale;
+    if !(anim_sx.is_finite() && anim_sy.is_finite()) || anim_sx < 1e-4 || anim_sy < 1e-4 {
+        return;
+    }
+    let screen_rect = if look.scale == (1.0, 1.0) {
+        visual_rect
+    } else {
+        Rect::from_center_size(
+            visual_rect.center(),
+            vec2(
+                visual_rect.width() / anim_sx,
+                visual_rect.height() / anim_sy,
+            ),
+        )
+    };
+    let op = item.opacity;
+    let rotation = if item.rotation.is_finite() {
+        item.rotation
+    } else {
+        0.0
+    };
+    let animated = !look.is_identity();
+    let transformed = rotation != 0.0 || item.flip_h || item.flip_v || animated;
+    let mut mask_polys: Option<Vec<Vec<egui::Pos2>>> = look.mask.as_ref().map(|m| {
+        m.slide_polys(vec2(offset.0, offset.1))
+            .into_iter()
+            .map(|poly| poly.into_iter().map(|p| t.to_screen_pos(p)).collect())
+            .collect()
+    });
+    // The rectangular reveal clip, in screen space, when the item is rotated or
+    // flipped. A painter clip rect is axis-aligned and applies to the turned
+    // meshes, so it would cut the wrong region: the clip becomes a quad that is
+    // turned with the item and joins the mask instead.
+    let sub_screen = item.clip.map(|frac| {
+        let sub_x = shifted_item_rect.min.x + frac.min_x * shifted_item_rect.width();
+        let sub_y = shifted_item_rect.min.y + frac.min_y * shifted_item_rect.height();
+        let sub_w = (frac.max_x - frac.min_x) * shifted_item_rect.width();
+        let sub_h = (frac.max_y - frac.min_y) * shifted_item_rect.height();
+        t.to_screen_rect(Rect::from_min_size(pos2(sub_x, sub_y), vec2(sub_w, sub_h)))
+    });
+    let turned = rotation != 0.0 || item.flip_h || item.flip_v;
+    if let Some(sub) = sub_screen
+        && turned
+    {
+        let centre = visual_rect.center();
+        let quad: Vec<Pos2> = [
+            sub.left_top(),
+            sub.right_top(),
+            sub.right_bottom(),
+            sub.left_bottom(),
+        ]
+        .into_iter()
+        .map(|corner| {
+            crate::compose::flip_point(
+                crate::compose::rotate_point(corner, centre, rotation),
+                centre,
+                item.flip_h,
+                item.flip_v,
+            )
+        })
+        .collect();
+        mask_polys = Some(match mask_polys {
+            Some(polys) => polys
+                .iter()
+                .map(|poly| crate::mesh_post::intersect_convex(poly, &quad))
+                .filter(|poly| poly.len() >= 3)
+                .collect(),
+            None => vec![quad],
+        });
+    }
+    let post = crate::mesh_post::MeshPost {
+        centre: screen_rect.center(),
+        scale: look.scale,
+        rotation,
+        flip_h: item.flip_h,
+        flip_v: item.flip_v,
+        offset: egui::Vec2::ZERO,
+        mask: mask_polys.as_deref(),
+        tint: look.tint,
+        opacity: 1.0,
+    };
+
+    let mut item_painter = if let Some(screen_sub) = sub_screen {
+        let clip = if transformed {
+            let effect_margin = effect_margin(item, scale);
+            let bounds = transformed_bounds(
+                visual_rect.expand(effect_margin),
+                rotation,
+                item.flip_h,
+                item.flip_v,
+            );
+            let bounds = bounds.intersect(slide_rect);
+            if turned {
+                // The quad in the mask does the cutting.
+                bounds
+            } else {
+                bounds.intersect(screen_sub)
+            }
+        } else {
+            screen_sub.intersect(slide_rect)
+        };
+        slide_painter.with_clip_rect(clip)
+    } else {
+        slide_painter.clone()
+    };
+
+    if let Some(clip_rect) = item.clip_rect
+        && clip_rect.is_positive()
+    {
+        let screen_clip = t.to_screen_rect(clip_rect.translate(vec2(offset.0, offset.1)));
+        let current = item_painter.clip_rect();
+        item_painter = item_painter.with_clip_rect(current.intersect(screen_clip));
+    }
+
+    let mut marker = transformed.then(|| item_painter.add(egui::Shape::Noop));
+
+    match &item.visual {
+        Visual::Text {
+            runs,
+            align,
+            valign,
+            paragraphs,
+            autofit,
+            outline,
+            wrap,
+            insets,
+            direction,
+        } => {
+            if let Some(outline) = outline {
+                let resolved = ResolvedOutline {
+                    color: apply_dim(outline.color, item.dimmed, op),
+                    width: outline.width,
+                    dash: outline.dash,
+                    dash_pattern: outline.dash_pattern.clone(),
+                    join: outline.join,
+                    miter_limit: outline.miter_limit,
                 };
-                if let Some(shadow) = &item.shadow {
-                    paint_text_effect(
-                        &item_painter,
-                        screen_rect,
-                        scale,
-                        runs,
-                        paragraphs,
-                        align,
-                        valign,
-                        *autofit,
-                        shadow.color,
-                        (shadow.offset_x * scale, shadow.offset_y * scale),
-                        shadow.blur * scale,
-                        false,
-                        (*wrap, *insets, *direction),
-                        item.dimmed,
-                        op,
-                    );
-                }
-                if let Some(glow) = &item.glow {
-                    paint_text_effect(
-                        &item_painter,
-                        screen_rect,
-                        scale,
-                        runs,
-                        paragraphs,
-                        align,
-                        valign,
-                        *autofit,
-                        glow.color,
-                        (0.0, 0.0),
-                        glow.size * scale,
-                        true,
-                        (*wrap, *insets, *direction),
-                        item.dimmed,
-                        op,
-                    );
-                }
-                paint_text_with_options(
+                paint_outline(
+                    &item_painter,
+                    screen_rect,
+                    ShapeKind::Rectangle,
+                    &[],
+                    &resolved,
+                    scale,
+                );
+            }
+            // A horizontally flipped text box mirrors its outline but not its glyphs, so
+            // the glyphs, their shadow and glow all go in the second group, which
+            // is turned to match the outline instead of being mirrored.
+            let text_marker = if item.flip_h
+                && let Some(shape_marker) = marker.take()
+            {
+                transform_painted_shapes(&item_painter, shape_marker, &post);
+                (rotation != 0.0 || item.flip_v || animated)
+                    .then(|| item_painter.add(egui::Shape::Noop))
+            } else {
+                None
+            };
+            if let Some(shadow) = &item.shadow {
+                paint_text_effect(
                     &item_painter,
                     screen_rect,
                     scale,
@@ -2812,412 +3337,350 @@ pub fn paint_items(
                     align,
                     valign,
                     *autofit,
-                    *wrap,
-                    *insets,
-                    *direction,
+                    shadow.color,
+                    (shadow.offset_x * scale, shadow.offset_y * scale),
+                    shadow.blur * scale,
+                    false,
+                    (*wrap, *insets, *direction),
                     item.dimmed,
                     op,
-                    theme_text_color,
                 );
-                if let Some(tm) = text_marker {
-                    transform_painted_shapes(&item_painter, tm, &post.unmirrored_text());
-                }
             }
-            Visual::Button {
-                label,
-                fill,
-                fill_style,
-                hover_fill,
-                down_fill,
-                down_has_fill_style,
-                disabled,
-            } => {
-                let (effective_fill, solid_override) = resolve_pointer_fill(
-                    *fill,
-                    *hover_fill,
-                    *down_fill,
-                    *down_has_fill_style,
-                    *disabled,
-                    is_hovered,
-                    is_pressed,
-                    true,
-                );
-                let (button_kind, button_adjust) = button_shape(screen_rect, scale);
-                let has_fill = (!solid_override && fill_style.is_some()) || effective_fill.a() > 0;
-                if has_fill {
-                    if let Some(shadow) = &item.shadow {
-                        paint_shape_effect(
-                            &item_painter,
-                            screen_rect,
-                            button_kind,
-                            &button_adjust,
-                            shadow.color,
-                            (shadow.offset_x * scale, shadow.offset_y * scale),
-                            shadow.blur * scale,
-                            false,
-                            item.dimmed,
-                            op,
-                        );
-                    }
-                    if let Some(glow) = &item.glow {
-                        paint_shape_effect(
-                            &item_painter,
-                            screen_rect,
-                            button_kind,
-                            &button_adjust,
-                            glow.color,
-                            (0.0, 0.0),
-                            glow.size * scale,
-                            true,
-                            item.dimmed,
-                            op,
-                        );
-                    }
-                }
-
-                let fill_color = apply_dim(effective_fill, item.dimmed, op);
-                let mut drawn = false;
-                if !solid_override {
-                    match fill_style {
-                        Some(ResolvedFill::Picture {
-                            src,
-                            tile,
-                            cover,
-                            tile_scale,
-                        }) => {
-                            drawn = paint_picture_fill(
-                                &item_painter,
-                                screen_rect,
-                                button_kind,
-                                &button_adjust,
-                                src,
-                                *tile,
-                                *cover,
-                                FULL_UV,
-                                *tile_scale,
-                                scale,
-                                item.dimmed,
-                                op,
-                                &mut media,
-                            );
-                        }
-                        Some(style) => {
-                            paint_gradient_fill(
-                                &item_painter,
-                                screen_rect,
-                                button_kind,
-                                &button_adjust,
-                                style,
-                                item.dimmed,
-                                op,
-                            );
-                            drawn = true;
-                        }
-                        None => {}
-                    }
-                }
-                if !drawn {
-                    let radius = (6.0 * scale).clamp(0.0, 255.0).round() as u8;
-                    item_painter.rect_filled(screen_rect, CornerRadius::same(radius), fill_color);
-                }
-
-                let font_size = (20.0 * scale).max(1.0);
-                let font_id = crate::font::slide_font(item_painter.ctx(), false, false, font_size);
-                let [r, g, b, a] = effective_fill.to_srgba_unmultiplied();
-                let label_rgba = coursecraft_course::button_label_color(
-                    coursecraft_course::Rgba { r, g, b, a },
-                    slide_bg_rgba,
-                );
-                let label_color = Color32::from_rgba_unmultiplied(
-                    label_rgba.r,
-                    label_rgba.g,
-                    label_rgba.b,
-                    label_rgba.a,
-                );
-                let text_color = apply_dim(label_color, item.dimmed, op);
-                let galley = item_painter.layout(
-                    label.clone(),
-                    font_id,
-                    text_color,
-                    screen_rect.width().max(0.0),
-                );
-                let text_pos = pos2(
-                    screen_rect.center().x - galley.size().x * 0.5,
-                    screen_rect.center().y - galley.size().y * 0.5,
-                );
-                item_painter.galley(text_pos, galley, text_color);
-            }
-            Visual::Shape {
-                shape,
-                adjust,
-                fill,
-                fill_style,
-                outline,
-                text,
-                hover_fill,
-                down_fill,
-                down_has_fill_style,
-                disabled,
-            } => {
-                let (effective_fill, solid_override) = resolve_pointer_fill(
-                    *fill,
-                    *hover_fill,
-                    *down_fill,
-                    *down_has_fill_style,
-                    *disabled,
-                    is_hovered,
-                    is_pressed,
-                    false,
-                );
-                let has_fill = (!solid_override && fill_style.is_some()) || effective_fill.a() > 0;
-                let visible_outline = outline
-                    .as_ref()
-                    .filter(|o| o.color.a() > 0 && o.width.is_finite() && o.width > 0.0);
-                if let Some(shadow) = &item.shadow {
-                    if has_fill {
-                        paint_shape_effect(
-                            &item_painter,
-                            screen_rect,
-                            *shape,
-                            adjust,
-                            shadow.color,
-                            (shadow.offset_x * scale, shadow.offset_y * scale),
-                            shadow.blur * scale,
-                            false,
-                            item.dimmed,
-                            op,
-                        );
-                    } else if let Some(out) = visible_outline {
-                        paint_shape_outline_effect(
-                            &item_painter,
-                            screen_rect,
-                            *shape,
-                            adjust,
-                            out,
-                            scale,
-                            shadow.color,
-                            (shadow.offset_x * scale, shadow.offset_y * scale),
-                            shadow.blur * scale,
-                            false,
-                            item.dimmed,
-                            op,
-                        );
-                    }
-                }
-                if let Some(glow) = &item.glow {
-                    if has_fill {
-                        paint_shape_effect(
-                            &item_painter,
-                            screen_rect,
-                            *shape,
-                            adjust,
-                            glow.color,
-                            (0.0, 0.0),
-                            glow.size * scale,
-                            true,
-                            item.dimmed,
-                            op,
-                        );
-                    } else if let Some(out) = visible_outline {
-                        paint_shape_outline_effect(
-                            &item_painter,
-                            screen_rect,
-                            *shape,
-                            adjust,
-                            out,
-                            scale,
-                            glow.color,
-                            (0.0, 0.0),
-                            glow.size * scale,
-                            true,
-                            item.dimmed,
-                            op,
-                        );
-                    }
-                }
-
-                let fill_color = apply_dim(effective_fill, item.dimmed, op);
-                let mut drawn = false;
-                if !solid_override {
-                    match fill_style {
-                        Some(ResolvedFill::Picture {
-                            src,
-                            tile,
-                            cover,
-                            tile_scale,
-                        }) => {
-                            drawn = paint_picture_fill(
-                                &item_painter,
-                                screen_rect,
-                                *shape,
-                                adjust,
-                                src,
-                                *tile,
-                                *cover,
-                                FULL_UV,
-                                *tile_scale,
-                                scale,
-                                item.dimmed,
-                                op,
-                                &mut media,
-                            );
-                        }
-                        Some(style) => {
-                            paint_gradient_fill(
-                                &item_painter,
-                                screen_rect,
-                                *shape,
-                                adjust,
-                                style,
-                                item.dimmed,
-                                op,
-                            );
-                            drawn = true;
-                        }
-                        None => {}
-                    }
-                }
-                if !drawn {
-                    paint_shape(&item_painter, screen_rect, *shape, adjust, fill_color);
-                }
-                if let Some(outline) = outline {
-                    let resolved = ResolvedOutline {
-                        color: apply_dim(outline.color, item.dimmed, op),
-                        width: outline.width,
-                        dash: outline.dash,
-                        dash_pattern: outline.dash_pattern.clone(),
-                        join: outline.join,
-                        miter_limit: outline.miter_limit,
-                    };
-                    paint_outline(&item_painter, screen_rect, *shape, adjust, &resolved, scale);
-                }
-                if let Some(text) = text
-                    && !text.runs.is_empty()
-                {
-                    if item.flip_h
-                        && let Some(shape_marker) = marker.take()
-                    {
-                        transform_painted_shapes(&item_painter, shape_marker, &post);
-                    }
-                    let text_marker = (item.flip_h && (rotation != 0.0 || item.flip_v || animated))
-                        .then(|| item_painter.add(egui::Shape::Noop));
-                    let (tx, ty, tw, th) = shape_text_rect(
-                        *shape,
-                        screen_rect.width() / scale,
-                        screen_rect.height() / scale,
-                        adjust,
-                    );
-                    let text_rect = Rect::from_min_size(
-                        pos2(
-                            screen_rect.min.x + tx * scale,
-                            screen_rect.min.y + ty * scale,
-                        ),
-                        vec2(tw * scale, th * scale),
-                    );
-                    if text_rect.width() > 0.0 && text_rect.height() > 0.0 {
-                        // Text may overflow its shape, as it does in PowerPoint.
-                        paint_text_with_options(
-                            &item_painter,
-                            text_rect,
-                            scale,
-                            &text.runs,
-                            &text.paragraphs,
-                            &text.align,
-                            &text.valign,
-                            text.autofit,
-                            text.wrap,
-                            text.insets,
-                            text.direction,
-                            item.dimmed,
-                            op,
-                            theme_text_color,
-                        );
-                    }
-                    if let Some(tm) = text_marker {
-                        transform_painted_shapes(&item_painter, tm, &post.unmirrored_text());
-                    }
-                }
-            }
-            Visual::Path(path) => {
-                let has_fill = path.closed
-                    && (path.fill_style.is_some() || path.fill.is_some_and(|c| c.a() > 0));
-                let has_outline = path
-                    .outline
-                    .as_ref()
-                    .is_some_and(|o| o.color.a() > 0 && o.width.is_finite() && o.width > 0.0);
-                if has_fill || has_outline {
-                    let max_layers = active_max_effect_layers(item_painter.ctx());
-                    if let Some(shadow) = &item.shadow {
-                        for (dx, dy, expansion, alpha) in effect_copies(
-                            (shadow.offset_x * scale, shadow.offset_y * scale),
-                            shadow.blur * scale,
-                            false,
-                            max_layers,
-                        ) {
-                            let color = apply_dim(shadow.color, item.dimmed, op)
-                                .gamma_multiply(alpha.clamp(0.0, 1.0));
-                            let translated = screen_rect.translate(vec2(dx, dy));
-                            let (rect, extra_width) = if has_fill {
-                                (expand_clamped(translated, expansion), expansion.max(0.0))
-                            } else {
-                                (translated, expansion)
-                            };
-                            paint_path_silhouette(
-                                &item_painter,
-                                rect,
-                                scale,
-                                path,
-                                color,
-                                extra_width,
-                                has_fill,
-                            );
-                        }
-                    }
-                    if let Some(glow) = &item.glow {
-                        for (_, _, expansion, alpha) in
-                            effect_copies((0.0, 0.0), glow.size * scale, true, max_layers)
-                        {
-                            let color = apply_dim(glow.color, item.dimmed, op)
-                                .gamma_multiply(alpha.clamp(0.0, 1.0));
-                            let rect = if has_fill {
-                                screen_rect.expand(expansion)
-                            } else {
-                                screen_rect
-                            };
-                            paint_path_silhouette(
-                                &item_painter,
-                                rect,
-                                scale,
-                                path,
-                                color,
-                                expansion,
-                                has_fill,
-                            );
-                        }
-                    }
-                }
-                paint_path(
+            if let Some(glow) = &item.glow {
+                paint_text_effect(
                     &item_painter,
                     screen_rect,
                     scale,
-                    path,
+                    runs,
+                    paragraphs,
+                    align,
+                    valign,
+                    *autofit,
+                    glow.color,
+                    (0.0, 0.0),
+                    glow.size * scale,
+                    true,
+                    (*wrap, *insets, *direction),
                     item.dimmed,
                     op,
-                    &mut media,
                 );
-                if let Some(text) = &path.text
-                    && !text.runs.is_empty()
-                {
-                    if item.flip_h
-                        && let Some(shape_marker) = marker.take()
-                    {
-                        transform_painted_shapes(&item_painter, shape_marker, &post);
+            }
+            paint_text_with_options(
+                &item_painter,
+                screen_rect,
+                scale,
+                runs,
+                paragraphs,
+                align,
+                valign,
+                *autofit,
+                *wrap,
+                *insets,
+                *direction,
+                item.dimmed,
+                op,
+                theme_text_color,
+            );
+            if let Some(tm) = text_marker {
+                transform_painted_shapes(&item_painter, tm, &post.unmirrored_text());
+            }
+        }
+        Visual::Button {
+            label,
+            fill,
+            fill_style,
+            hover_fill,
+            down_fill,
+            down_has_fill_style,
+            disabled,
+        } => {
+            let (effective_fill, solid_override) = resolve_pointer_fill(
+                *fill,
+                *hover_fill,
+                *down_fill,
+                *down_has_fill_style,
+                *disabled,
+                is_hovered,
+                is_pressed,
+                true,
+            );
+            let (button_kind, button_adjust) = button_shape(screen_rect, scale);
+            let has_fill = (!solid_override && fill_style.is_some()) || effective_fill.a() > 0;
+            if has_fill {
+                if let Some(shadow) = &item.shadow {
+                    paint_shape_effect(
+                        &item_painter,
+                        screen_rect,
+                        button_kind,
+                        &button_adjust,
+                        shadow.color,
+                        (shadow.offset_x * scale, shadow.offset_y * scale),
+                        shadow.blur * scale,
+                        false,
+                        item.dimmed,
+                        op,
+                    );
+                }
+                if let Some(glow) = &item.glow {
+                    paint_shape_effect(
+                        &item_painter,
+                        screen_rect,
+                        button_kind,
+                        &button_adjust,
+                        glow.color,
+                        (0.0, 0.0),
+                        glow.size * scale,
+                        true,
+                        item.dimmed,
+                        op,
+                    );
+                }
+            }
+
+            let fill_color = apply_dim(effective_fill, item.dimmed, op);
+            let mut drawn = false;
+            if !solid_override {
+                match fill_style {
+                    Some(ResolvedFill::Picture {
+                        src,
+                        tile,
+                        cover,
+                        tile_scale,
+                    }) => {
+                        drawn = paint_picture_fill(
+                            &item_painter,
+                            screen_rect,
+                            button_kind,
+                            &button_adjust,
+                            src,
+                            *tile,
+                            *cover,
+                            FULL_UV,
+                            *tile_scale,
+                            scale,
+                            item.dimmed,
+                            op,
+                            &mut media,
+                        );
                     }
-                    let text_marker = (item.flip_h && (rotation != 0.0 || item.flip_v || animated))
-                        .then(|| item_painter.add(egui::Shape::Noop));
+                    Some(style) => {
+                        paint_gradient_fill(
+                            &item_painter,
+                            screen_rect,
+                            button_kind,
+                            &button_adjust,
+                            style,
+                            item.dimmed,
+                            op,
+                        );
+                        drawn = true;
+                    }
+                    None => {}
+                }
+            }
+            if !drawn {
+                let radius = (6.0 * scale).clamp(0.0, 255.0).round() as u8;
+                item_painter.rect_filled(screen_rect, CornerRadius::same(radius), fill_color);
+            }
+
+            let font_size = (20.0 * scale).max(1.0);
+            let font_id = crate::font::slide_font(item_painter.ctx(), false, false, font_size);
+            let [r, g, b, a] = effective_fill.to_srgba_unmultiplied();
+            let label_rgba = coursecraft_course::button_label_color(
+                coursecraft_course::Rgba { r, g, b, a },
+                slide_bg_rgba,
+            );
+            let label_color = Color32::from_rgba_unmultiplied(
+                label_rgba.r,
+                label_rgba.g,
+                label_rgba.b,
+                label_rgba.a,
+            );
+            let text_color = apply_dim(label_color, item.dimmed, op);
+            let galley = item_painter.layout(
+                label.clone(),
+                font_id,
+                text_color,
+                screen_rect.width().max(0.0),
+            );
+            let text_pos = pos2(
+                screen_rect.center().x - galley.size().x * 0.5,
+                screen_rect.center().y - galley.size().y * 0.5,
+            );
+            item_painter.galley(text_pos, galley, text_color);
+        }
+        Visual::Shape {
+            shape,
+            adjust,
+            fill,
+            fill_style,
+            outline,
+            text,
+            hover_fill,
+            down_fill,
+            down_has_fill_style,
+            disabled,
+        } => {
+            let (effective_fill, solid_override) = resolve_pointer_fill(
+                *fill,
+                *hover_fill,
+                *down_fill,
+                *down_has_fill_style,
+                *disabled,
+                is_hovered,
+                is_pressed,
+                false,
+            );
+            let has_fill = (!solid_override && fill_style.is_some()) || effective_fill.a() > 0;
+            let visible_outline = outline
+                .as_ref()
+                .filter(|o| o.color.a() > 0 && o.width.is_finite() && o.width > 0.0);
+            if let Some(shadow) = &item.shadow {
+                if has_fill {
+                    paint_shape_effect(
+                        &item_painter,
+                        screen_rect,
+                        *shape,
+                        adjust,
+                        shadow.color,
+                        (shadow.offset_x * scale, shadow.offset_y * scale),
+                        shadow.blur * scale,
+                        false,
+                        item.dimmed,
+                        op,
+                    );
+                } else if let Some(out) = visible_outline {
+                    paint_shape_outline_effect(
+                        &item_painter,
+                        screen_rect,
+                        *shape,
+                        adjust,
+                        out,
+                        scale,
+                        shadow.color,
+                        (shadow.offset_x * scale, shadow.offset_y * scale),
+                        shadow.blur * scale,
+                        false,
+                        item.dimmed,
+                        op,
+                    );
+                }
+            }
+            if let Some(glow) = &item.glow {
+                if has_fill {
+                    paint_shape_effect(
+                        &item_painter,
+                        screen_rect,
+                        *shape,
+                        adjust,
+                        glow.color,
+                        (0.0, 0.0),
+                        glow.size * scale,
+                        true,
+                        item.dimmed,
+                        op,
+                    );
+                } else if let Some(out) = visible_outline {
+                    paint_shape_outline_effect(
+                        &item_painter,
+                        screen_rect,
+                        *shape,
+                        adjust,
+                        out,
+                        scale,
+                        glow.color,
+                        (0.0, 0.0),
+                        glow.size * scale,
+                        true,
+                        item.dimmed,
+                        op,
+                    );
+                }
+            }
+
+            let fill_color = apply_dim(effective_fill, item.dimmed, op);
+            let mut drawn = false;
+            if !solid_override {
+                match fill_style {
+                    Some(ResolvedFill::Picture {
+                        src,
+                        tile,
+                        cover,
+                        tile_scale,
+                    }) => {
+                        drawn = paint_picture_fill(
+                            &item_painter,
+                            screen_rect,
+                            *shape,
+                            adjust,
+                            src,
+                            *tile,
+                            *cover,
+                            FULL_UV,
+                            *tile_scale,
+                            scale,
+                            item.dimmed,
+                            op,
+                            &mut media,
+                        );
+                    }
+                    Some(style) => {
+                        paint_gradient_fill(
+                            &item_painter,
+                            screen_rect,
+                            *shape,
+                            adjust,
+                            style,
+                            item.dimmed,
+                            op,
+                        );
+                        drawn = true;
+                    }
+                    None => {}
+                }
+            }
+            if !drawn {
+                paint_shape(&item_painter, screen_rect, *shape, adjust, fill_color);
+            }
+            if let Some(outline) = outline {
+                let resolved = ResolvedOutline {
+                    color: apply_dim(outline.color, item.dimmed, op),
+                    width: outline.width,
+                    dash: outline.dash,
+                    dash_pattern: outline.dash_pattern.clone(),
+                    join: outline.join,
+                    miter_limit: outline.miter_limit,
+                };
+                paint_outline(&item_painter, screen_rect, *shape, adjust, &resolved, scale);
+            }
+            if let Some(text) = text
+                && !text.runs.is_empty()
+            {
+                if item.flip_h
+                    && let Some(shape_marker) = marker.take()
+                {
+                    transform_painted_shapes(&item_painter, shape_marker, &post);
+                }
+                let text_marker = (item.flip_h && (rotation != 0.0 || item.flip_v || animated))
+                    .then(|| item_painter.add(egui::Shape::Noop));
+                let (tx, ty, tw, th) = shape_text_rect(
+                    *shape,
+                    screen_rect.width() / scale,
+                    screen_rect.height() / scale,
+                    adjust,
+                );
+                let text_rect = Rect::from_min_size(
+                    pos2(
+                        screen_rect.min.x + tx * scale,
+                        screen_rect.min.y + ty * scale,
+                    ),
+                    vec2(tw * scale, th * scale),
+                );
+                if text_rect.width() > 0.0 && text_rect.height() > 0.0 {
+                    // Text may overflow its shape, as it does in PowerPoint.
                     paint_text_with_options(
                         &item_painter,
-                        screen_rect.shrink((4.0 * scale).min(screen_rect.width() * 0.25)),
+                        text_rect,
                         scale,
                         &text.runs,
                         &text.paragraphs,
@@ -3231,186 +3694,290 @@ pub fn paint_items(
                         op,
                         theme_text_color,
                     );
-                    if let Some(tm) = text_marker {
-                        transform_painted_shapes(&item_painter, tm, &post.unmirrored_text());
-                    }
+                }
+                if let Some(tm) = text_marker {
+                    transform_painted_shapes(&item_painter, tm, &post.unmirrored_text());
                 }
             }
-            Visual::Table(table) => {
+        }
+        Visual::Path(path) => {
+            let has_fill =
+                path.closed && (path.fill_style.is_some() || path.fill.is_some_and(|c| c.a() > 0));
+            let has_outline = path
+                .outline
+                .as_ref()
+                .is_some_and(|o| o.color.a() > 0 && o.width.is_finite() && o.width > 0.0);
+            if has_fill || has_outline {
+                let max_layers = active_max_effect_layers(item_painter.ctx());
                 if let Some(shadow) = &item.shadow {
-                    paint_shape_effect(
-                        &item_painter,
-                        screen_rect,
-                        ShapeKind::Rectangle,
-                        &[],
-                        shadow.color,
+                    for (dx, dy, expansion, alpha) in effect_copies(
                         (shadow.offset_x * scale, shadow.offset_y * scale),
                         shadow.blur * scale,
                         false,
-                        item.dimmed,
-                        op,
-                    );
+                        max_layers,
+                    ) {
+                        let color = apply_dim(shadow.color, item.dimmed, op)
+                            .gamma_multiply(alpha.clamp(0.0, 1.0));
+                        let translated = screen_rect.translate(vec2(dx, dy));
+                        let (rect, extra_width) = if has_fill {
+                            (expand_clamped(translated, expansion), expansion.max(0.0))
+                        } else {
+                            (translated, expansion)
+                        };
+                        paint_path_silhouette(
+                            &item_painter,
+                            rect,
+                            scale,
+                            path,
+                            color,
+                            extra_width,
+                            has_fill,
+                        );
+                    }
                 }
                 if let Some(glow) = &item.glow {
-                    paint_shape_effect(
-                        &item_painter,
-                        screen_rect,
-                        ShapeKind::Rectangle,
-                        &[],
-                        glow.color,
-                        (0.0, 0.0),
-                        glow.size * scale,
-                        true,
-                        item.dimmed,
-                        op,
-                    );
+                    for (_, _, expansion, alpha) in
+                        effect_copies((0.0, 0.0), glow.size * scale, true, max_layers)
+                    {
+                        let color = apply_dim(glow.color, item.dimmed, op)
+                            .gamma_multiply(alpha.clamp(0.0, 1.0));
+                        let rect = if has_fill {
+                            screen_rect.expand(expansion)
+                        } else {
+                            screen_rect
+                        };
+                        paint_path_silhouette(
+                            &item_painter,
+                            rect,
+                            scale,
+                            path,
+                            color,
+                            expansion,
+                            has_fill,
+                        );
+                    }
                 }
-                paint_table(
+            }
+            paint_path(
+                &item_painter,
+                screen_rect,
+                scale,
+                path,
+                item.dimmed,
+                op,
+                &mut media,
+            );
+            if let Some(text) = &path.text
+                && !text.runs.is_empty()
+            {
+                if item.flip_h
+                    && let Some(shape_marker) = marker.take()
+                {
+                    transform_painted_shapes(&item_painter, shape_marker, &post);
+                }
+                let text_marker = (item.flip_h && (rotation != 0.0 || item.flip_v || animated))
+                    .then(|| item_painter.add(egui::Shape::Noop));
+                paint_text_with_options(
                     &item_painter,
-                    screen_rect,
+                    screen_rect.shrink((4.0 * scale).min(screen_rect.width() * 0.25)),
                     scale,
-                    table,
+                    &text.runs,
+                    &text.paragraphs,
+                    &text.align,
+                    &text.valign,
+                    text.autofit,
+                    text.wrap,
+                    text.insets,
+                    text.direction,
                     item.dimmed,
                     op,
                     theme_text_color,
-                    item.show_table_overflow,
+                );
+                if let Some(tm) = text_marker {
+                    transform_painted_shapes(&item_painter, tm, &post.unmirrored_text());
+                }
+            }
+        }
+        Visual::Table(table) => {
+            if let Some(shadow) = &item.shadow {
+                paint_shape_effect(
+                    &item_painter,
+                    screen_rect,
+                    ShapeKind::Rectangle,
+                    &[],
+                    shadow.color,
+                    (shadow.offset_x * scale, shadow.offset_y * scale),
+                    shadow.blur * scale,
+                    false,
+                    item.dimmed,
+                    op,
                 );
             }
-            Visual::Image {
-                src,
-                alt,
-                crop,
-                outline,
-                shape,
-            } => {
-                let shape_kind = shape.unwrap_or(ShapeKind::Rectangle);
-                if let Some(shadow) = &item.shadow {
-                    paint_shape_effect(
-                        &item_painter,
-                        screen_rect,
-                        shape_kind,
-                        &[],
-                        shadow.color,
-                        (shadow.offset_x * scale, shadow.offset_y * scale),
-                        shadow.blur * scale,
-                        false,
-                        item.dimmed,
-                        op,
-                    );
-                }
-                if let Some(glow) = &item.glow {
-                    paint_shape_effect(
-                        &item_painter,
-                        screen_rect,
-                        shape_kind,
-                        &[],
-                        glow.color,
-                        (0.0, 0.0),
-                        glow.size * scale,
-                        true,
-                        item.dimmed,
-                        op,
-                    );
-                }
-                let mut drawn_texture = false;
-                let mut failure_msg = None;
-                if let Some(mask_shape) = shape {
-                    drawn_texture = paint_picture_fill(
-                        &item_painter,
-                        screen_rect,
-                        *mask_shape,
-                        &[],
-                        src,
-                        false,
-                        false,
-                        crop.unwrap_or(FULL_UV),
-                        [1.0, 1.0],
-                        scale,
-                        item.dimmed,
-                        op,
-                        &mut media,
-                    );
-                } else if let Some((ref mut cache, source)) = media {
-                    let target_px = image_target_px(screen_rect, painter.pixels_per_point());
-                    match cache.texture_for(painter.ctx(), src, source, target_px) {
-                        MediaView::Ready { texture, size } => {
-                            let tex_size = (size[0] as f32, size[1] as f32);
-                            if let Some(dest_rect) = image_dest_rect(screen_rect, tex_size, *crop) {
-                                let window = crop.unwrap_or(FULL_UV);
-                                let tint = apply_dim(Color32::WHITE, item.dimmed, op);
-                                item_painter.image(texture.id(), dest_rect, window, tint);
-                                drawn_texture = true;
-                            }
-                        }
-                        MediaView::Pending => {}
-                        MediaView::Failed(msg) => {
-                            failure_msg = Some(msg);
+            if let Some(glow) = &item.glow {
+                paint_shape_effect(
+                    &item_painter,
+                    screen_rect,
+                    ShapeKind::Rectangle,
+                    &[],
+                    glow.color,
+                    (0.0, 0.0),
+                    glow.size * scale,
+                    true,
+                    item.dimmed,
+                    op,
+                );
+            }
+            paint_table(
+                &item_painter,
+                screen_rect,
+                scale,
+                table,
+                item.dimmed,
+                op,
+                theme_text_color,
+                item.show_table_overflow,
+            );
+        }
+        Visual::Image {
+            src,
+            alt,
+            crop,
+            outline,
+            shape,
+        } => {
+            let shape_kind = shape.unwrap_or(ShapeKind::Rectangle);
+            if let Some(shadow) = &item.shadow {
+                paint_shape_effect(
+                    &item_painter,
+                    screen_rect,
+                    shape_kind,
+                    &[],
+                    shadow.color,
+                    (shadow.offset_x * scale, shadow.offset_y * scale),
+                    shadow.blur * scale,
+                    false,
+                    item.dimmed,
+                    op,
+                );
+            }
+            if let Some(glow) = &item.glow {
+                paint_shape_effect(
+                    &item_painter,
+                    screen_rect,
+                    shape_kind,
+                    &[],
+                    glow.color,
+                    (0.0, 0.0),
+                    glow.size * scale,
+                    true,
+                    item.dimmed,
+                    op,
+                );
+            }
+            let mut drawn_texture = false;
+            let mut failure_msg = None;
+            if let Some(mask_shape) = shape {
+                drawn_texture = paint_picture_fill(
+                    &item_painter,
+                    screen_rect,
+                    *mask_shape,
+                    &[],
+                    src,
+                    false,
+                    false,
+                    crop.unwrap_or(FULL_UV),
+                    [1.0, 1.0],
+                    scale,
+                    item.dimmed,
+                    op,
+                    &mut media,
+                );
+            } else if let Some((ref mut cache, source)) = media {
+                let target_px = image_target_px(screen_rect, painter.pixels_per_point());
+                match cache.texture_for(painter.ctx(), src, source, target_px) {
+                    MediaView::Ready { texture, size } => {
+                        let tex_size = (size[0] as f32, size[1] as f32);
+                        if let Some(dest_rect) = image_dest_rect(screen_rect, tex_size, *crop) {
+                            let window = crop.unwrap_or(FULL_UV);
+                            let tint = apply_dim(Color32::WHITE, item.dimmed, op);
+                            item_painter.image(texture.id(), dest_rect, window, tint);
+                            drawn_texture = true;
                         }
                     }
+                    MediaView::Pending => {}
+                    MediaView::Failed(msg) => {
+                        failure_msg = Some(msg);
+                    }
                 }
+            }
 
-                if !drawn_texture {
-                    let label = if failure_msg.is_some() {
-                        if !alt.is_empty() {
-                            format!("{alt}\nimage failed to load")
-                        } else {
-                            "image failed to load".to_string()
-                        }
-                    } else if !alt.is_empty() {
-                        alt.clone()
+            if !drawn_texture {
+                let label = if failure_msg.is_some() {
+                    if !alt.is_empty() {
+                        format!("{alt}\nimage failed to load")
                     } else {
-                        src.clone()
-                    };
+                        "image failed to load".to_string()
+                    }
+                } else if !alt.is_empty() {
+                    alt.clone()
+                } else {
+                    src.clone()
+                };
 
-                    draw_image_placeholder(
-                        &item_painter,
-                        screen_rect,
-                        scale,
-                        &label,
-                        item.dimmed,
-                        op,
-                    );
-                }
-                if let Some(outline) = outline {
-                    let resolved = ResolvedOutline {
-                        color: apply_dim(outline.color, item.dimmed, op),
-                        width: outline.width,
-                        dash: outline.dash,
-                        dash_pattern: outline.dash_pattern.clone(),
-                        join: outline.join,
-                        miter_limit: outline.miter_limit,
-                    };
-                    paint_outline(
-                        &item_painter,
-                        screen_rect,
-                        shape_kind,
-                        &[],
-                        &resolved,
-                        scale,
-                    );
-                }
+                draw_image_placeholder(&item_painter, screen_rect, scale, &label, item.dimmed, op);
             }
-            Visual::ImagePlaceholder { label } => {
-                draw_image_placeholder(&item_painter, screen_rect, scale, label, item.dimmed, op);
+            if let Some(outline) = outline {
+                let resolved = ResolvedOutline {
+                    color: apply_dim(outline.color, item.dimmed, op),
+                    width: outline.width,
+                    dash: outline.dash,
+                    dash_pattern: outline.dash_pattern.clone(),
+                    join: outline.join,
+                    miter_limit: outline.miter_limit,
+                };
+                paint_outline(
+                    &item_painter,
+                    screen_rect,
+                    shape_kind,
+                    &[],
+                    &resolved,
+                    scale,
+                );
             }
-            Visual::Video {
-                src: _,
-                poster,
-                playing,
-                show_placeholder,
-            } => {
-                // Desktop playback: draw the newest decoded frame as a texture
-                // when one exists, with the poster as the fallback.
-                let mut drawn_frame = false;
-                if let Some((cache, source)) = media.as_mut() {
-                    let object = match &item.hit {
-                        Hit::Object(id) => Some(id.clone()),
-                        _ => None,
-                    };
-                    if let Some(object) = object
-                        && let Some(frame) = source.video_frame(&object)
-                        && let Some(view) = cache.video_texture(painter.ctx(), &object, &frame)
-                        && let MediaView::Ready { texture, size } = view
+        }
+        Visual::ImagePlaceholder { label } => {
+            draw_image_placeholder(&item_painter, screen_rect, scale, label, item.dimmed, op);
+        }
+        Visual::Video {
+            src: _,
+            poster,
+            playing,
+            show_placeholder,
+        } => {
+            // Desktop playback: draw the newest decoded frame as a texture
+            // when one exists, with the poster as the fallback.
+            let mut drawn_frame = false;
+            if let Some((cache, source)) = media.as_mut() {
+                let object = match &item.hit {
+                    Hit::Object(id) => Some(id.clone()),
+                    _ => None,
+                };
+                if let Some(object) = object
+                    && let Some(frame) = source.video_frame(&object)
+                    && let Some(view) = cache.video_texture(painter.ctx(), &object, &frame)
+                    && let MediaView::Ready { texture, size } = view
+                {
+                    let tex_size = (size[0] as f32, size[1] as f32);
+                    if let Some(dest_rect) = image_dest_rect(screen_rect, tex_size, None) {
+                        let tint = apply_dim(Color32::WHITE, item.dimmed, op);
+                        item_painter.image(texture.id(), dest_rect, FULL_UV, tint);
+                        drawn_frame = true;
+                    }
+                }
+                if !drawn_frame && let Some(poster_src) = poster {
+                    let target_px = image_target_px(screen_rect, painter.pixels_per_point());
+                    if let MediaView::Ready { texture, size } =
+                        cache.texture_for(painter.ctx(), poster_src, *source, target_px)
                     {
                         let tex_size = (size[0] as f32, size[1] as f32);
                         if let Some(dest_rect) = image_dest_rect(screen_rect, tex_size, None) {
@@ -3419,444 +3986,413 @@ pub fn paint_items(
                             drawn_frame = true;
                         }
                     }
-                    if !drawn_frame && let Some(poster_src) = poster {
-                        let target_px = image_target_px(screen_rect, painter.pixels_per_point());
-                        if let MediaView::Ready { texture, size } =
-                            cache.texture_for(painter.ctx(), poster_src, *source, target_px)
-                        {
-                            let tex_size = (size[0] as f32, size[1] as f32);
-                            if let Some(dest_rect) = image_dest_rect(screen_rect, tex_size, None) {
-                                let tint = apply_dim(Color32::WHITE, item.dimmed, op);
-                                item_painter.image(texture.id(), dest_rect, FULL_UV, tint);
-                                drawn_frame = true;
-                            }
-                        }
-                    }
-                }
-                if !drawn_frame {
-                    let bg = apply_dim(Color32::from_rgb(0x1A, 0x1A, 0x1A), item.dimmed, op);
-                    item_painter.rect_filled(screen_rect, CornerRadius::ZERO, bg);
-                    let border = apply_dim(Color32::from_rgb(0x33, 0x33, 0x33), item.dimmed, op);
-                    let stroke_w = (1.0 * scale).max(1.0);
-                    item_painter.rect_stroke(
-                        screen_rect,
-                        CornerRadius::ZERO,
-                        Stroke::new(stroke_w, border),
-                        StrokeKind::Inside,
-                    );
-                }
-
-                // Poster text (on editor canvas) or plain error message if preview decode failed.
-                let error_text = if drawn_frame {
-                    None
-                } else {
-                    media.as_ref().and_then(|(_, source)| {
-                        if let Hit::Object(id) = &item.hit {
-                            source.video_error(id)
-                        } else {
-                            None
-                        }
-                    })
-                };
-                let label = if let Some(err) = error_text {
-                    Some(err.to_owned())
-                } else if !drawn_frame && *show_placeholder {
-                    Some("Video plays in the published course".to_owned())
-                } else {
-                    None
-                };
-
-                let center = screen_rect.center();
-                let play_radius = (24.0 * scale).min(screen_rect.height() * 0.25).max(4.0);
-                let icon_offset_y = if label.is_some() { 12.0 * scale } else { 0.0 };
-                if !*playing {
-                    let icon_center = pos2(center.x, center.y - icon_offset_y);
-                    let circle_color = apply_dim(
-                        Color32::from_rgba_unmultiplied(0, 0, 0, 140),
-                        item.dimmed,
-                        op,
-                    );
-                    item_painter.circle_filled(icon_center, play_radius, circle_color);
-
-                    let tri_size = play_radius * 0.5;
-                    let tri_points = vec![
-                        pos2(center.x - tri_size * 0.5, icon_center.y - tri_size * 0.7),
-                        pos2(center.x + tri_size * 0.8, icon_center.y),
-                        pos2(center.x - tri_size * 0.5, icon_center.y + tri_size * 0.7),
-                    ];
-                    let tri_color = apply_dim(Color32::WHITE, item.dimmed, op);
-                    item_painter.add(PathShape::convex_polygon(
-                        tri_points,
-                        tri_color,
-                        Stroke::NONE,
-                    ));
-                }
-
-                if let Some(label) = label {
-                    let font_size = (14.0 * scale).max(1.0);
-                    let font_id =
-                        crate::font::slide_font(item_painter.ctx(), false, false, font_size);
-                    let text_color =
-                        apply_dim(Color32::from_rgb(0xAA, 0xAA, 0xAA), item.dimmed, op);
-                    let galley = item_painter.layout(
-                        label,
-                        font_id,
-                        text_color,
-                        screen_rect.width().max(0.0),
-                    );
-                    let text_pos = pos2(
-                        center.x - galley.size().x * 0.5,
-                        center.y + play_radius + 4.0 * scale - icon_offset_y,
-                    );
-                    item_painter.galley(text_pos, galley, text_color);
                 }
             }
-            Visual::Web { label } => {
-                draw_web_placeholder(&item_painter, screen_rect, scale, label, item.dimmed, op);
-            }
-            Visual::DrawCard { text } => {
-                draw_draw_card(&item_painter, screen_rect, scale, text, item.dimmed, op);
-            }
-            Visual::Audio { src: _ } => {
-                if item.rect.width() <= 0.0 || item.rect.height() <= 0.0 {
-                    continue;
-                }
-                let bg = apply_dim(Color32::from_rgb(0xE8, 0xEA, 0xED), item.dimmed, op);
-                let border = apply_dim(Color32::from_rgb(0xBD, 0xC1, 0xC6), item.dimmed, op);
-                let stroke_w = (1.5 * scale).max(1.0);
-                let radius = CornerRadius::same((4.0 * scale).clamp(0.0, 255.0).round() as u8);
-                item_painter.rect_filled(screen_rect, radius, bg);
+            if !drawn_frame {
+                let bg = apply_dim(Color32::from_rgb(0x1A, 0x1A, 0x1A), item.dimmed, op);
+                item_painter.rect_filled(screen_rect, CornerRadius::ZERO, bg);
+                let border = apply_dim(Color32::from_rgb(0x33, 0x33, 0x33), item.dimmed, op);
+                let stroke_w = (1.0 * scale).max(1.0);
                 item_painter.rect_stroke(
                     screen_rect,
-                    radius,
+                    CornerRadius::ZERO,
                     Stroke::new(stroke_w, border),
                     StrokeKind::Inside,
                 );
-
-                let center = screen_rect.center();
-                let icon_color = apply_dim(Color32::from_rgb(0x3C, 0x40, 0x43), item.dimmed, op);
-                let sz = (16.0 * scale).max(2.0);
-
-                let body_w = (4.0 * scale).max(1.0);
-                let body_h = (6.0 * scale).max(1.0);
-                let body_rect = Rect::from_min_size(
-                    pos2(center.x - sz * 0.4, center.y - body_h * 0.5),
-                    vec2(body_w, body_h),
-                );
-                item_painter.rect_filled(body_rect, CornerRadius::ZERO, icon_color);
-
-                let cone_left = center.x - sz * 0.4 + body_w;
-                let cone_right = center.x + sz * 0.1;
-                let cone_top = center.y - sz * 0.4;
-                let cone_bottom = center.y + sz * 0.4;
-                let cone_points = vec![
-                    pos2(cone_left, center.y - body_h * 0.5),
-                    pos2(cone_right, cone_top),
-                    pos2(cone_right, cone_bottom),
-                    pos2(cone_left, center.y + body_h * 0.5),
-                ];
-                item_painter.add(PathShape::convex_polygon(
-                    cone_points,
-                    icon_color,
-                    Stroke::NONE,
-                ));
-
-                let wave_stroke = Stroke::new((1.5 * scale).max(1.0), icon_color);
-                let w1_x = center.x + sz * 0.25;
-                let w2_x = center.x + sz * 0.45;
-                let wave1 = vec![
-                    pos2(w1_x, center.y - sz * 0.2),
-                    pos2(w1_x + sz * 0.08, center.y),
-                    pos2(w1_x, center.y + sz * 0.2),
-                ];
-                let wave2 = vec![
-                    pos2(w2_x, center.y - sz * 0.35),
-                    pos2(w2_x + sz * 0.12, center.y),
-                    pos2(w2_x, center.y + sz * 0.35),
-                ];
-                item_painter.add(PathShape::line(wave1, wave_stroke));
-                item_painter.add(PathShape::line(wave2, wave_stroke));
             }
-            Visual::Lottie {
-                src,
-                loop_playback,
-                speed,
-            } => {
-                let mut failure: Option<String> = None;
-                let mut drawn = false;
-                if let Some((ref mut cache, source)) = media {
-                    match cache.lottie_view(src, source) {
-                        LottieView::Ready { composition, info } => {
-                            let frame = item.media_time_ms.map_or(info.start_frame, |ms| {
-                                crate::lottie::frame_at(&info, ms, *speed, *loop_playback)
-                            });
-                            let alpha = if item.dimmed { DIM_FACTOR } else { 1.0 } * op;
-                            crate::lottie::paint_composition(
-                                &item_painter,
-                                screen_rect,
-                                composition,
-                                frame,
-                                alpha,
-                                painter.pixels_per_point(),
-                            );
-                            drawn = true;
-                        }
-                        LottieView::Pending => {}
-                        LottieView::Failed(message) => failure = Some(message.to_owned()),
-                    }
-                }
-                if !drawn {
-                    let label = match failure {
-                        Some(message) => format!("Lottie failed to load\n{message}"),
-                        None => format!("Lottie\n{src}"),
-                    };
-                    draw_image_placeholder(
-                        &item_painter,
-                        screen_rect,
-                        scale,
-                        &label,
-                        item.dimmed,
-                        op,
-                    );
-                }
-            }
-            Visual::Prompt { text } => {
-                let font_size = (28.0 * scale).max(1.0);
-                let font_id = crate::font::slide_font(item_painter.ctx(), true, false, font_size);
-                let text_color = apply_dim(theme_text_color, item.dimmed, op);
-                let galley = item_painter.layout(
-                    text.clone(),
-                    font_id,
-                    text_color,
-                    screen_rect.width().max(0.0),
-                );
-                let pos = screen_rect.min;
-                item_painter.galley(pos, galley, text_color);
-            }
-            Visual::ChoiceRow {
-                text,
-                multiple,
-                selected,
-                mark,
-            } => {
-                let marker_size = 20.0 * scale;
-                let marker_x = screen_rect.min.x + 12.0 * scale;
-                let marker_center = pos2(marker_x + marker_size * 0.5, screen_rect.center().y);
-                let active_color = apply_dim(theme_accent_color, item.dimmed, op);
-                let border_color = apply_dim(Color32::from_rgb(0x5A, 0x5A, 0x5A), item.dimmed, op);
-                let unselected_bg = apply_dim(Color32::WHITE, item.dimmed, op);
-                let stroke_w = (2.0 * scale).max(1.0);
 
-                if *multiple {
-                    let marker_rect =
-                        Rect::from_center_size(marker_center, vec2(marker_size, marker_size));
-                    let radius = (2.0 * scale).clamp(0.0, 255.0).round() as u8;
-                    if *selected {
-                        item_painter.rect_filled(
-                            marker_rect,
-                            CornerRadius::same(radius),
-                            active_color,
-                        );
+            // Poster text (on editor canvas) or plain error message if preview decode failed.
+            let error_text = if drawn_frame {
+                None
+            } else {
+                media.as_ref().and_then(|(_, source)| {
+                    if let Hit::Object(id) = &item.hit {
+                        source.video_error(id)
                     } else {
-                        item_painter.rect_filled(
-                            marker_rect,
-                            CornerRadius::same(radius),
-                            unselected_bg,
-                        );
-                        item_painter.rect_stroke(
-                            marker_rect,
-                            CornerRadius::same(radius),
-                            Stroke::new(stroke_w, border_color),
-                            StrokeKind::Inside,
-                        );
+                        None
                     }
-                } else {
-                    let radius = marker_size * 0.5;
-                    if *selected {
-                        item_painter.circle_filled(marker_center, radius, active_color);
-                    } else {
-                        item_painter.circle_filled(marker_center, radius, unselected_bg);
-                        item_painter.circle_stroke(
-                            marker_center,
-                            radius,
-                            Stroke::new(stroke_w, border_color),
-                        );
-                    }
-                }
+                })
+            };
+            let label = if let Some(err) = error_text {
+                Some(err.to_owned())
+            } else if !drawn_frame && *show_placeholder {
+                Some("Video plays in the published course".to_owned())
+            } else {
+                None
+            };
 
-                let text_start_x = screen_rect.min.x + 44.0 * scale;
-                let available_text_w = (screen_rect.max.x - text_start_x).max(0.0);
-                let font_size = (22.0 * scale).max(1.0);
-                let text_color = apply_dim(theme_text_color, item.dimmed, op);
-                let font_id = crate::font::slide_font(item_painter.ctx(), false, false, font_size);
-                let galley =
-                    item_painter.layout(text.clone(), font_id, text_color, available_text_w);
-                let text_pos = pos2(text_start_x, screen_rect.center().y - galley.size().y * 0.5);
-                item_painter.galley(text_pos, galley, text_color);
-                paint_review_outline(&item_painter, screen_rect, scale, *mark, item.dimmed, op);
-                paint_review_mark(&item_painter, screen_rect, scale, *mark, item.dimmed, op);
-            }
-            Visual::RegionOutline { ellipse } => {
-                let color = apply_dim(
-                    crate::design::palette(item_painter.ctx()).success,
+            let center = screen_rect.center();
+            let play_radius = (24.0 * scale).min(screen_rect.height() * 0.25).max(4.0);
+            let icon_offset_y = if label.is_some() { 12.0 * scale } else { 0.0 };
+            if !*playing {
+                let icon_center = pos2(center.x, center.y - icon_offset_y);
+                let circle_color = apply_dim(
+                    Color32::from_rgba_unmultiplied(0, 0, 0, 140),
                     item.dimmed,
                     op,
                 );
-                let stroke = Stroke::new((3.0 * scale).max(1.0), color);
-                if *ellipse {
-                    item_painter.add(egui::Shape::ellipse_stroke(
-                        screen_rect.center(),
-                        screen_rect.size() * 0.5,
-                        stroke,
-                    ));
+                item_painter.circle_filled(icon_center, play_radius, circle_color);
+
+                let tri_size = play_radius * 0.5;
+                let tri_points = vec![
+                    pos2(center.x - tri_size * 0.5, icon_center.y - tri_size * 0.7),
+                    pos2(center.x + tri_size * 0.8, icon_center.y),
+                    pos2(center.x - tri_size * 0.5, icon_center.y + tri_size * 0.7),
+                ];
+                let tri_color = apply_dim(Color32::WHITE, item.dimmed, op);
+                item_painter.add(PathShape::convex_polygon(
+                    tri_points,
+                    tri_color,
+                    Stroke::NONE,
+                ));
+            }
+
+            if let Some(label) = label {
+                let font_size = (14.0 * scale).max(1.0);
+                let font_id = crate::font::slide_font(item_painter.ctx(), false, false, font_size);
+                let text_color = apply_dim(Color32::from_rgb(0xAA, 0xAA, 0xAA), item.dimmed, op);
+                let galley =
+                    item_painter.layout(label, font_id, text_color, screen_rect.width().max(0.0));
+                let text_pos = pos2(
+                    center.x - galley.size().x * 0.5,
+                    center.y + play_radius + 4.0 * scale - icon_offset_y,
+                );
+                item_painter.galley(text_pos, galley, text_color);
+            }
+        }
+        Visual::Web { label } => {
+            draw_web_placeholder(&item_painter, screen_rect, scale, label, item.dimmed, op);
+        }
+        Visual::DrawCard { text } => {
+            draw_draw_card(&item_painter, screen_rect, scale, text, item.dimmed, op);
+        }
+        Visual::Audio { src: _ } => {
+            if item.rect.width() <= 0.0 || item.rect.height() <= 0.0 {
+                return;
+            }
+            let bg = apply_dim(Color32::from_rgb(0xE8, 0xEA, 0xED), item.dimmed, op);
+            let border = apply_dim(Color32::from_rgb(0xBD, 0xC1, 0xC6), item.dimmed, op);
+            let stroke_w = (1.5 * scale).max(1.0);
+            let radius = CornerRadius::same((4.0 * scale).clamp(0.0, 255.0).round() as u8);
+            item_painter.rect_filled(screen_rect, radius, bg);
+            item_painter.rect_stroke(
+                screen_rect,
+                radius,
+                Stroke::new(stroke_w, border),
+                StrokeKind::Inside,
+            );
+
+            let center = screen_rect.center();
+            let icon_color = apply_dim(Color32::from_rgb(0x3C, 0x40, 0x43), item.dimmed, op);
+            let sz = (16.0 * scale).max(2.0);
+
+            let body_w = (4.0 * scale).max(1.0);
+            let body_h = (6.0 * scale).max(1.0);
+            let body_rect = Rect::from_min_size(
+                pos2(center.x - sz * 0.4, center.y - body_h * 0.5),
+                vec2(body_w, body_h),
+            );
+            item_painter.rect_filled(body_rect, CornerRadius::ZERO, icon_color);
+
+            let cone_left = center.x - sz * 0.4 + body_w;
+            let cone_right = center.x + sz * 0.1;
+            let cone_top = center.y - sz * 0.4;
+            let cone_bottom = center.y + sz * 0.4;
+            let cone_points = vec![
+                pos2(cone_left, center.y - body_h * 0.5),
+                pos2(cone_right, cone_top),
+                pos2(cone_right, cone_bottom),
+                pos2(cone_left, center.y + body_h * 0.5),
+            ];
+            item_painter.add(PathShape::convex_polygon(
+                cone_points,
+                icon_color,
+                Stroke::NONE,
+            ));
+
+            let wave_stroke = Stroke::new((1.5 * scale).max(1.0), icon_color);
+            let w1_x = center.x + sz * 0.25;
+            let w2_x = center.x + sz * 0.45;
+            let wave1 = vec![
+                pos2(w1_x, center.y - sz * 0.2),
+                pos2(w1_x + sz * 0.08, center.y),
+                pos2(w1_x, center.y + sz * 0.2),
+            ];
+            let wave2 = vec![
+                pos2(w2_x, center.y - sz * 0.35),
+                pos2(w2_x + sz * 0.12, center.y),
+                pos2(w2_x, center.y + sz * 0.35),
+            ];
+            item_painter.add(PathShape::line(wave1, wave_stroke));
+            item_painter.add(PathShape::line(wave2, wave_stroke));
+        }
+        Visual::Lottie {
+            src,
+            loop_playback,
+            speed,
+        } => {
+            let mut failure: Option<String> = None;
+            let mut drawn = false;
+            if let Some((ref mut cache, source)) = media {
+                match cache.lottie_view(src, source) {
+                    LottieView::Ready { composition, info } => {
+                        let frame = item.media_time_ms.map_or(info.start_frame, |ms| {
+                            crate::lottie::frame_at(&info, ms, *speed, *loop_playback)
+                        });
+                        let alpha = if item.dimmed { DIM_FACTOR } else { 1.0 } * op;
+                        crate::lottie::paint_composition(
+                            &item_painter,
+                            screen_rect,
+                            composition,
+                            frame,
+                            alpha,
+                            painter.pixels_per_point(),
+                        );
+                        drawn = true;
+                    }
+                    LottieView::Pending => {}
+                    LottieView::Failed(message) => failure = Some(message.to_owned()),
+                }
+            }
+            if !drawn {
+                let label = match failure {
+                    Some(message) => format!("Lottie failed to load\n{message}"),
+                    None => format!("Lottie\n{src}"),
+                };
+                draw_image_placeholder(&item_painter, screen_rect, scale, &label, item.dimmed, op);
+            }
+        }
+        Visual::Prompt { text } => {
+            let font_size = (28.0 * scale).max(1.0);
+            let font_id = crate::font::slide_font(item_painter.ctx(), true, false, font_size);
+            let text_color = apply_dim(theme_text_color, item.dimmed, op);
+            let galley = item_painter.layout(
+                text.clone(),
+                font_id,
+                text_color,
+                screen_rect.width().max(0.0),
+            );
+            let pos = screen_rect.min;
+            item_painter.galley(pos, galley, text_color);
+        }
+        Visual::ChoiceRow {
+            text,
+            multiple,
+            selected,
+            mark,
+        } => {
+            let marker_size = 20.0 * scale;
+            let marker_x = screen_rect.min.x + 12.0 * scale;
+            let marker_center = pos2(marker_x + marker_size * 0.5, screen_rect.center().y);
+            let active_color = apply_dim(theme_accent_color, item.dimmed, op);
+            let border_color = apply_dim(Color32::from_rgb(0x5A, 0x5A, 0x5A), item.dimmed, op);
+            let unselected_bg = apply_dim(Color32::WHITE, item.dimmed, op);
+            let stroke_w = (2.0 * scale).max(1.0);
+
+            if *multiple {
+                let marker_rect =
+                    Rect::from_center_size(marker_center, vec2(marker_size, marker_size));
+                let radius = (2.0 * scale).clamp(0.0, 255.0).round() as u8;
+                if *selected {
+                    item_painter.rect_filled(marker_rect, CornerRadius::same(radius), active_color);
                 } else {
+                    item_painter.rect_filled(
+                        marker_rect,
+                        CornerRadius::same(radius),
+                        unselected_bg,
+                    );
                     item_painter.rect_stroke(
-                        screen_rect,
-                        CornerRadius::ZERO,
-                        stroke,
+                        marker_rect,
+                        CornerRadius::same(radius),
+                        Stroke::new(stroke_w, border_color),
                         StrokeKind::Inside,
                     );
                 }
+            } else {
+                let radius = marker_size * 0.5;
+                if *selected {
+                    item_painter.circle_filled(marker_center, radius, active_color);
+                } else {
+                    item_painter.circle_filled(marker_center, radius, unselected_bg);
+                    item_painter.circle_stroke(
+                        marker_center,
+                        radius,
+                        Stroke::new(stroke_w, border_color),
+                    );
+                }
             }
-            Visual::HotspotMarker => {
-                let center = t.to_screen_pos(shifted_item_rect.center());
-                let radius = (12.0 * scale).max(1.0);
-                let ring = (2.0 * scale).max(1.0);
-                let fill = apply_dim(theme_accent_color, item.dimmed, op);
-                let ring_color = apply_dim(Color32::WHITE, item.dimmed, op);
-                item_painter.circle_filled(center, radius, fill);
-                item_painter.circle_stroke(center, radius, Stroke::new(ring, ring_color));
-            }
-            visual @ (Visual::FillIn { .. }
-            | Visual::SequenceRow { .. }
-            | Visual::SequenceButton { .. }
-            | Visual::MatchRow { .. }
-            | Visual::CorrectAnswer { .. }) => {
-                paint_answer_visual(
-                    &item_painter,
-                    visual,
+
+            let text_start_x = screen_rect.min.x + 44.0 * scale;
+            let available_text_w = (screen_rect.max.x - text_start_x).max(0.0);
+            let font_size = (22.0 * scale).max(1.0);
+            let text_color = apply_dim(theme_text_color, item.dimmed, op);
+            let font_id = crate::font::slide_font(item_painter.ctx(), false, false, font_size);
+            let galley = item_painter.layout(text.clone(), font_id, text_color, available_text_w);
+            let text_pos = pos2(text_start_x, screen_rect.center().y - galley.size().y * 0.5);
+            item_painter.galley(text_pos, galley, text_color);
+            paint_review_outline(&item_painter, screen_rect, scale, *mark, item.dimmed, op);
+            paint_review_mark(&item_painter, screen_rect, scale, *mark, item.dimmed, op);
+        }
+        Visual::RegionOutline { ellipse } => {
+            let color = apply_dim(
+                crate::design::palette(item_painter.ctx()).success,
+                item.dimmed,
+                op,
+            );
+            let stroke = Stroke::new((3.0 * scale).max(1.0), color);
+            if *ellipse {
+                item_painter.add(egui::Shape::ellipse_stroke(
+                    screen_rect.center(),
+                    screen_rect.size() * 0.5,
+                    stroke,
+                ));
+            } else {
+                item_painter.rect_stroke(
                     screen_rect,
-                    scale,
-                    item.dimmed,
-                    op,
-                    (theme_text_color, theme_accent_color),
+                    CornerRadius::ZERO,
+                    stroke,
+                    StrokeKind::Inside,
                 );
             }
-            visual @ (Visual::TextEntry { .. }
-            | Visual::Slider { .. }
-            | Visual::Dial { .. }
-            | Visual::Checkbox { .. }
-            | Visual::RadioGroup { .. }) => {
-                paint_input_visual(
-                    &item_painter,
-                    visual,
-                    screen_rect,
-                    scale,
-                    item.dimmed,
-                    op,
-                    (theme_text_color, theme_accent_color),
-                );
-            }
-            Visual::Marker {
+        }
+        Visual::HotspotMarker => {
+            let center = t.to_screen_pos(shifted_item_rect.center());
+            let radius = (12.0 * scale).max(1.0);
+            let ring = (2.0 * scale).max(1.0);
+            let fill = apply_dim(theme_accent_color, item.dimmed, op);
+            let ring_color = apply_dim(Color32::WHITE, item.dimmed, op);
+            item_painter.circle_filled(center, radius, fill);
+            item_painter.circle_stroke(center, radius, Stroke::new(ring, ring_color));
+        }
+        visual @ (Visual::FillIn { .. }
+        | Visual::SequenceRow { .. }
+        | Visual::SequenceButton { .. }
+        | Visual::MatchRow { .. }
+        | Visual::CorrectAnswer { .. }) => {
+            paint_answer_visual(
+                &item_painter,
+                visual,
+                screen_rect,
+                scale,
+                item.dimmed,
+                op,
+                (theme_text_color, theme_accent_color),
+            );
+        }
+        visual @ (Visual::TextEntry { .. }
+        | Visual::Slider { .. }
+        | Visual::Dial { .. }
+        | Visual::Checkbox { .. }
+        | Visual::RadioGroup { .. }) => {
+            paint_input_visual(
+                &item_painter,
+                visual,
+                screen_rect,
+                scale,
+                item.dimmed,
+                op,
+                (theme_text_color, theme_accent_color),
+            );
+        }
+        Visual::Marker {
+            title,
+            body,
+            paragraphs,
+            icon,
+            color,
+            open,
+            pulse,
+        } => {
+            paint_marker(
+                &item_painter,
+                screen_rect,
+                scale,
                 title,
                 body,
                 paragraphs,
-                icon,
-                color,
-                open,
-                pulse,
-            } => {
-                paint_marker(
-                    &item_painter,
-                    screen_rect,
-                    scale,
-                    title,
-                    body,
-                    paragraphs,
-                    *icon,
-                    *color,
-                    *open,
-                    *pulse,
-                    item.dimmed,
-                    op,
-                    theme_text_color,
-                    slide_rect,
-                );
-            }
-            Visual::ScrollPanel {
-                content_height,
-                bar,
-                authoring,
-                thumb,
-                ..
-            } => {
-                paint_scroll_panel(
-                    &item_painter,
-                    screen_rect,
-                    scale,
-                    *content_height,
-                    *bar,
-                    *authoring,
-                    // The panel item takes the wheel and drag; its scrollbar copy (no hit)
-                    // draws the thumb, so the thumb is painted once and above its children.
-                    thumb
-                        .filter(|_| item.hit == Hit::None)
-                        .map(|thumb| t.to_screen_rect(thumb.translate(vec2(offset.0, offset.1)))),
-                    item.dimmed,
-                    op,
-                    theme_text_color,
-                );
-            }
-            Visual::Timer {
+                *icon,
+                *color,
+                *open,
+                *pulse,
+                item.dimmed,
+                op,
+                theme_text_color,
+                slide_rect,
+            );
+        }
+        Visual::ScrollPanel {
+            content_height,
+            bar,
+            authoring,
+            thumb,
+            ..
+        } => {
+            paint_scroll_panel(
+                &item_painter,
+                screen_rect,
+                scale,
+                *content_height,
+                *bar,
+                *authoring,
+                // The panel item takes the wheel and drag; its scrollbar copy (no hit)
+                // draws the thumb, so the thumb is painted once and above its children.
+                thumb
+                    .filter(|_| item.hit == Hit::None)
+                    .map(|thumb| t.to_screen_rect(thumb.translate(vec2(offset.0, offset.1)))),
+                item.dimmed,
+                op,
+                theme_text_color,
+            );
+        }
+        Visual::Timer {
+            runs,
+            align,
+            valign,
+            format,
+            authoring,
+        } => {
+            paint_timer(
+                &item_painter,
+                screen_rect,
+                scale,
                 runs,
                 align,
                 valign,
-                format,
-                authoring,
-            } => {
-                paint_timer(
-                    &item_painter,
-                    screen_rect,
-                    scale,
-                    runs,
-                    align,
-                    valign,
-                    *format,
-                    *authoring,
-                    item.dimmed,
-                    op,
-                    theme_text_color,
-                );
-            }
-            Visual::ProgressMeter {
-                fraction,
-                style,
-                show_value,
-                percent,
-            } => {
-                paint_progress_meter(
-                    &item_painter,
-                    screen_rect,
-                    scale,
-                    *fraction,
-                    *style,
-                    *show_value,
-                    *percent,
-                    item.dimmed,
-                    op,
-                    theme_accent_color,
-                    theme_text_color,
-                );
-            }
+                *format,
+                *authoring,
+                item.dimmed,
+                op,
+                theme_text_color,
+            );
         }
+        Visual::ProgressMeter {
+            fraction,
+            style,
+            show_value,
+            percent,
+        } => {
+            paint_progress_meter(
+                &item_painter,
+                screen_rect,
+                scale,
+                *fraction,
+                *style,
+                *show_value,
+                *percent,
+                item.dimmed,
+                op,
+                theme_accent_color,
+                theme_text_color,
+            );
+        }
+    }
 
-        if let Some(mark) = item.mark {
-            paint_drag_mark(&item_painter, screen_rect, scale, mark, item.dimmed, op);
-        }
+    if let Some(mark) = item.mark {
+        paint_drag_mark(&item_painter, screen_rect, scale, mark, item.dimmed, op);
+    }
 
-        if let Some(marker) = marker {
-            transform_painted_shapes(&item_painter, marker, &post);
-        }
+    if let Some(marker) = marker {
+        transform_painted_shapes(&item_painter, marker, &post);
     }
 }
 

@@ -2308,6 +2308,20 @@ fn push_master_nodes(player: &Player<'_>, slide: &Slide, nodes: &mut Vec<AccessN
         if object.initial_state == "hidden" {
             continue;
         }
+        if player
+            .sample_master_object(&object.id)
+            .is_none_or(|sample| sample.opacity <= 0.0)
+        {
+            continue;
+        }
+        if let Some((group, _)) = master.group_of_object(&object.id)
+            && group.has_animation()
+            && player
+                .sample_master_group(&group.id)
+                .is_none_or(|sample| sample.opacity <= 0.0)
+        {
+            continue;
+        }
         if let Some(node) = master_content_node(player, master, object) {
             nodes.push(node);
         }

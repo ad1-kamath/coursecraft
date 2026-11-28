@@ -6921,6 +6921,9 @@ fn gb_01_plain_group_and_interactive_group_serde() {
         initial_state: "normal".into(),
         focus_order: None,
         description: None,
+        entrance: None,
+        exit: None,
+        emphasis: Vec::new(),
     };
     let full_group = crate::Group {
         id: "g-full".into(),
@@ -6929,6 +6932,9 @@ fn gb_01_plain_group_and_interactive_group_serde() {
         initial_state: "disabled".into(),
         focus_order: Some(3),
         description: Some("Returns to previous slide".into()),
+        entrance: None,
+        exit: None,
+        emphasis: Vec::new(),
     };
     course.scenes[0].slides[0]
         .groups
@@ -6995,6 +7001,9 @@ fn make_group(id: &str, interactive: bool, initial_state: &str) -> crate::Group 
         initial_state: initial_state.into(),
         focus_order: None,
         description: None,
+        entrance: None,
+        exit: None,
+        emphasis: Vec::new(),
     }
 }
 
@@ -7596,6 +7605,9 @@ fn gb_02_validation_accepts_valid_interactive_group_and_triggers() {
         initial_state: "normal".into(),
         focus_order: Some(1),
         description: Some("Continue to next section".into()),
+        entrance: None,
+        exit: None,
+        emphasis: Vec::new(),
     });
 
     // Interactive group on a Layer as well.
@@ -8468,4 +8480,214 @@ fn m47_s1_state_extra_path_table_bank_and_pairs_refs_are_found_without_run_dupli
             "missing warning for {expected_var} at {expected_path}; got: {var_warnings:#?}"
         );
     }
+}
+
+#[test]
+fn m49_s1_group_animation_roundtrips_and_omits_when_unset() {
+    let mut course = Course::from_json(HELLO).expect("parse hello");
+    let minimal = make_group("g-min", false, "normal");
+    assert!(!minimal.has_animation());
+    assert!(minimal.is_plain_empty());
+
+    let animated = crate::Group {
+        id: "g-anim".into(),
+        name: String::new(),
+        interactive: false,
+        initial_state: "normal".into(),
+        focus_order: None,
+        description: None,
+        entrance: Some(crate::Animation {
+            effect: crate::AnimEffect::new("fade"),
+            duration_ms: 400,
+            easing: crate::Easing::EaseOut,
+            sequence: Default::default(),
+        }),
+        exit: Some(crate::Animation {
+            effect: crate::AnimEffect::new("zoom"),
+            duration_ms: 300,
+            easing: crate::Easing::EaseIn,
+            sequence: Default::default(),
+        }),
+        emphasis: vec![crate::Emphasis::new("pulse", 500)],
+    };
+    assert!(animated.has_animation());
+    assert!(!animated.is_plain_empty());
+
+    course.scenes[0].slides[0].groups = vec![minimal.clone(), animated.clone()];
+    let json = course.to_json().expect("serialize");
+    let value: serde_json::Value = serde_json::from_str(&json).expect("json");
+    let arr = value["scenes"][0]["slides"][0]["groups"]
+        .as_array()
+        .expect("groups array");
+    let min_obj = arr[0].as_object().expect("min group");
+    assert!(!min_obj.contains_key("entrance"));
+    assert!(!min_obj.contains_key("exit"));
+    assert!(!min_obj.contains_key("emphasis"));
+
+    let reparsed = Course::from_json(&json).expect("reparse");
+    assert_eq!(reparsed.scenes[0].slides[0].groups, vec![minimal, animated]);
+}
+
+#[test]
+fn m49_s1_group_animation_validation_checks_durations_and_windows() {
+    let mut course = Course::from_json(HELLO).expect("parse hello");
+    let slide = &mut course.scenes[0].slides[0];
+    slide.duration_ms = 2000;
+    for i in 0..2 {
+        let mut o = slide.objects[0].clone();
+        o.id = format!("m{i}");
+        o.group = Some("g-anim".into());
+        o.timing = crate::Timing {
+            start_ms: 100,
+            end_ms: Some(400),
+        };
+        slide.objects.push(o);
+    }
+
+    // Duration 0 and 60001 errors + window overflow warning.
+    let mut bad_emp = crate::Emphasis::new("pulse", 1500);
+    bad_emp.duration_ms = 60_001;
+    slide.groups.push(crate::Group {
+        id: "g-anim".into(),
+        name: String::new(),
+        interactive: false,
+        initial_state: "normal".into(),
+        focus_order: None,
+        description: None,
+        entrance: Some(crate::Animation {
+            effect: crate::AnimEffect::new("fade"),
+            duration_ms: 0,
+            easing: crate::Easing::EaseOut,
+            sequence: Default::default(),
+        }),
+        exit: Some(crate::Animation {
+            effect: crate::AnimEffect::new("fade"),
+            duration_ms: 500,
+            easing: crate::Easing::EaseIn,
+            sequence: Default::default(),
+        }),
+        emphasis: vec![bad_emp],
+    });
+    let report = course.validate();
+    assert!(
+        report
+            .iter()
+            .any(|e| e.severity == Severity::Error && e.path.ends_with("entrance/duration_ms"))
+    );
+    assert!(
+        report
+            .iter()
+            .any(|e| e.severity == Severity::Error && e.path.ends_with("emphasis/0/duration_ms"))
+    );
+    assert!(
+        report
+            .iter()
+            .any(|w| w.severity == Severity::Warning && w.message.contains("group \"g-anim\""))
+    );
+
+    // Valid non-interactive animated group on a master is allowed; interactive is rejected.
+    let mut master = course.scenes[0].slides[0].clone();
+    master.id = "master1".into();
+    master.triggers.clear();
+    master.layers.clear();
+    master.question = None;
+    master.groups[0].entrance = Some(crate::Animation {
+        effect: crate::AnimEffect::new("fade"),
+        duration_ms: 200,
+        easing: crate::Easing::EaseOut,
+        sequence: Default::default(),
+    });
+    master.groups[0].exit = None;
+    master.groups[0].emphasis.clear();
+
+    let mut clean_course = Course::from_json(HELLO).expect("parse hello");
+    clean_course.masters.push(master);
+    let master_errors: Vec<_> = clean_course
+        .validate()
+        .into_iter()
+        .filter(|e| e.severity == Severity::Error)
+        .collect();
+    assert!(
+        master_errors.is_empty(),
+        "non-interactive animated group on master should be valid: {master_errors:?}"
+    );
+
+    clean_course.masters[0].groups[0].interactive = true;
+    let interactive_master_report = clean_course.validate();
+    assert!(interactive_master_report.iter().any(|e| {
+        e.severity == Severity::Error && e.message.contains("must not have interactive group")
+    }));
+}
+
+#[test]
+fn m49_s1_group_frame_and_timing_handle_hostile_bounds() {
+    let mut course = Course::from_json(HELLO).expect("parse hello");
+    let slide = &mut course.scenes[0].slides[0];
+
+    let mut o1 = slide.objects[0].clone();
+    o1.id = "gm1".into();
+    o1.group = Some("g-bounds".into());
+    o1.frame = crate::Rect {
+        x: 10.0,
+        y: 20.0,
+        w: 30.0,
+        h: 40.0,
+    };
+    o1.timing = crate::Timing {
+        start_ms: 500,
+        end_ms: Some(1500),
+    };
+
+    let mut o2 = o1.clone();
+    o2.id = "gm2".into();
+    o2.frame = crate::Rect {
+        x: f32::MAX,
+        y: 0.0,
+        w: f32::MAX,
+        h: 10.0,
+    };
+    o2.timing = crate::Timing {
+        start_ms: 200,
+        end_ms: None,
+    };
+
+    slide.objects.push(o1);
+    slide.objects.push(o2);
+
+    // Overflowing member frame is skipped; valid member frame is preserved.
+    let frame = slide.group_frame("g-bounds", None).expect("finite frame");
+    assert_eq!(
+        frame,
+        crate::Rect {
+            x: 10.0,
+            y: 20.0,
+            w: 30.0,
+            h: 40.0,
+        }
+    );
+    let timing = slide.group_timing("g-bounds", None).expect("group timing");
+    assert_eq!(timing.start_ms, 200);
+    assert_eq!(timing.end_ms, None);
+
+    // Two finite frames whose span overflows f32 return None rather than inf width.
+    let mut o3 = slide.objects[0].clone();
+    o3.id = "gm3".into();
+    o3.group = Some("g-span".into());
+    o3.frame = crate::Rect {
+        x: -2.0e38,
+        y: 0.0,
+        w: 10.0,
+        h: 10.0,
+    };
+    let mut o4 = o3.clone();
+    o4.id = "gm4".into();
+    o4.frame = crate::Rect {
+        x: 2.0e38,
+        y: 0.0,
+        w: 10.0,
+        h: 10.0,
+    };
+    slide.objects.push(o3);
+    slide.objects.push(o4);
+    assert_eq!(slide.group_frame("g-span", None), None);
 }

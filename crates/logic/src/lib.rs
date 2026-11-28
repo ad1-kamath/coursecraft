@@ -135,31 +135,107 @@ fn sample_timed_part(
     part: (usize, usize),
     reduced: bool,
 ) -> Option<ObjectSample> {
-    if clock_ms < obj.timing.start_ms {
+    sample_timed_anim_fields(
+        obj.timing,
+        obj.frame,
+        obj.entrance.as_ref(),
+        obj.exit.as_ref(),
+        &obj.emphasis,
+        clock_ms,
+        duration_ms,
+        slide_size,
+        part,
+        reduced,
+    )
+}
+
+/// Sample a group's entrance, exit, and emphasis animations at `clock_ms` on a
+/// timeline of `duration_ms`, using `timing` (its members' union timing window)
+/// and `frame` (its members' union bounding box).
+#[must_use]
+pub fn sample_group_animation(
+    group: &coursecraft_course::Group,
+    timing: coursecraft_course::Timing,
+    frame: coursecraft_course::Rect,
+    clock_ms: u32,
+    duration_ms: u32,
+    slide_size: coursecraft_course::Size,
+) -> Option<ObjectSample> {
+    sample_group_animation_reduced(
+        group,
+        timing,
+        frame,
+        clock_ms,
+        duration_ms,
+        slide_size,
+        false,
+    )
+}
+
+/// [`sample_group_animation`] with the reduced-motion switch of
+/// [`sample_timed_animation_reduced`].
+#[must_use]
+pub fn sample_group_animation_reduced(
+    group: &coursecraft_course::Group,
+    timing: coursecraft_course::Timing,
+    frame: coursecraft_course::Rect,
+    clock_ms: u32,
+    duration_ms: u32,
+    slide_size: coursecraft_course::Size,
+    reduced: bool,
+) -> Option<ObjectSample> {
+    sample_timed_anim_fields(
+        timing,
+        frame,
+        group.entrance.as_ref(),
+        group.exit.as_ref(),
+        &group.emphasis,
+        clock_ms,
+        duration_ms,
+        slide_size,
+        (0, 1),
+        reduced,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_timed_anim_fields(
+    timing: coursecraft_course::Timing,
+    frame: coursecraft_course::Rect,
+    entrance: Option<&coursecraft_course::Animation>,
+    exit: Option<&coursecraft_course::Animation>,
+    emphasis: &[coursecraft_course::Emphasis],
+    clock_ms: u32,
+    duration_ms: u32,
+    slide_size: coursecraft_course::Size,
+    part: (usize, usize),
+    reduced: bool,
+) -> Option<ObjectSample> {
+    if clock_ms < timing.start_ms {
         return None;
     }
 
     // A clock clamped at the timeline's duration means the timeline is over: an entrance or
     // exit that did not fit has completed at once (entrance: fully shown, exit: hidden).
     let timeline_over = clock_ms >= duration_ms;
-    let end_ms = obj.timing.end_ms.unwrap_or(duration_ms);
-    if let Some(end) = obj.timing.end_ms
+    let end_ms = timing.end_ms.unwrap_or(duration_ms);
+    if let Some(end) = timing.end_ms
         && clock_ms >= end
     {
         return None;
     }
-    if obj.exit.is_some() && (clock_ms >= end_ms || timeline_over) {
+    if exit.is_some() && (clock_ms >= end_ms || timeline_over) {
         return None;
     }
 
     let mut anim_sample = ObjectSample::IDENTITY;
 
-    let exit_running = if let Some(ref exit_anim) = obj.exit {
-        // The exit never starts before the object does; a longer exit is squeezed into the
-        // object's window.
+    let exit_running = if let Some(exit_anim) = exit {
+        // The exit never starts before the object/group does; a longer exit is squeezed into
+        // its window.
         let start = end_ms
             .saturating_sub(exit_anim.duration_ms)
-            .max(obj.timing.start_ms);
+            .max(timing.start_ms);
         if clock_ms >= start && clock_ms < end_ms {
             let window = end_ms.saturating_sub(start);
             let progress = if window == 0 {
@@ -171,7 +247,7 @@ fn sample_timed_part(
                 &motion_safe(exit_anim, reduced),
                 AnimationPhase::Exiting,
                 part_progress(exit_anim.sequence, part, progress),
-                obj.frame,
+                frame,
                 slide_size,
             );
             true
@@ -184,10 +260,10 @@ fn sample_timed_part(
 
     if !exit_running
         && !timeline_over
-        && let Some(ref ent_anim) = obj.entrance
+        && let Some(ent_anim) = entrance
     {
         let dur = ent_anim.duration_ms;
-        let start = obj.timing.start_ms;
+        let start = timing.start_ms;
         let end = start.saturating_add(dur);
         if clock_ms >= start && clock_ms < end {
             let progress = if dur == 0 {
@@ -199,13 +275,13 @@ fn sample_timed_part(
                 &motion_safe(ent_anim, reduced),
                 AnimationPhase::Entering,
                 part_progress(ent_anim.sequence, part, progress),
-                obj.frame,
+                frame,
                 slide_size,
             );
         }
     }
     // Emphasis plays over whatever the entrance or exit is doing.
-    for e in &obj.emphasis {
+    for e in emphasis {
         let dur = e.duration_ms.max(1);
         let end = if reduced {
             // One pass only, and only effects that change colour or opacity alone.
@@ -221,7 +297,7 @@ fn sample_timed_part(
         }
         let into_pass = clock_ms.saturating_sub(e.start_ms) % dur;
         let raw = into_pass as f32 / dur as f32;
-        let over = effects::sample_emphasis_eased(&e.effect, raw, ease(e.easing, raw), obj.frame);
+        let over = effects::sample_emphasis_eased(&e.effect, raw, ease(e.easing, raw), frame);
         anim_sample = anim_sample.then(&over);
     }
     Some(anim_sample)
@@ -1395,11 +1471,16 @@ impl<'c> Player<'c> {
 
         if !base_held {
             let base_has_seekbar = show_seekbar && matches!(seek_target, SeekTarget::Base);
+            let master = slide
+                .master
+                .as_deref()
+                .and_then(|id| self.course.master(id));
             if let Some(delta) = clock_next_wake(
                 self.st.base,
                 slide.duration_ms,
                 &slide.objects,
                 slide,
+                master,
                 &slide.cue_points,
                 None,
                 base_has_seekbar,
@@ -1423,6 +1504,7 @@ impl<'c> Player<'c> {
                 layer.duration_ms,
                 &layer.objects,
                 slide,
+                None,
                 &layer.cue_points,
                 Some(lid.as_str()),
                 layer_has_seekbar,
@@ -2220,6 +2302,108 @@ impl<'c> Player<'c> {
         })
     }
 
+    /// Sample a group's own entrance, exit, and emphasis animations at the
+    /// current slide or layer clock.
+    ///
+    /// Returns `None` if the group is unknown, has no members, is on a hidden
+    /// layer, or is outside its timing window / after its exit completes.
+    #[must_use]
+    pub fn sample_group(&self, group_id: &str) -> Option<ObjectSample> {
+        let slide = self.current_slide()?;
+        let (group, layer_id) = slide.group(group_id)?;
+        let (clock_ms, duration_ms) = match layer_id {
+            None => {
+                if self.base_objects_hidden() {
+                    return None;
+                }
+                (self.st.base.ms, slide.duration_ms)
+            }
+            Some(l) => {
+                if !self.st.visible_layers.iter().any(|vl| vl == l) {
+                    return None;
+                }
+                let c = self.st.layer_clocks.get(l)?;
+                let layer = slide.layer(l)?;
+                (c.ms, layer.duration_ms)
+            }
+        };
+        let timing = slide.group_timing(group_id, layer_id)?;
+        let frame = slide.group_frame(group_id, layer_id)?;
+        sample_group_animation_reduced(
+            group,
+            timing,
+            frame,
+            clock_ms,
+            duration_ms,
+            self.course.slide_size,
+            self.reduced_motion(),
+        )
+    }
+
+    /// Sample a slide master object's entrance, exit, and emphasis animations
+    /// on the current slide's base timeline.
+    ///
+    /// Returns `None` if the current slide has no master, the object is unknown,
+    /// or the object is outside its timing window / after its exit completes.
+    /// Master objects stay visible even when a layer sets `hide_base_objects`.
+    #[must_use]
+    pub fn sample_master_object(&self, object_id: &str) -> Option<ObjectSample> {
+        let slide = self.current_slide()?;
+        let master = self.course.master(slide.master.as_deref()?)?;
+        let obj = master.objects.iter().find(|o| o.id == object_id)?;
+        sample_timed_animation_reduced(
+            obj,
+            self.st.base.ms,
+            slide.duration_ms,
+            self.course.slide_size,
+            self.reduced_motion(),
+        )
+    }
+
+    /// [`Self::sample_master_object`] for each of `parts` parts of a master
+    /// object's text (see [`sample_timed_parts`]).
+    #[must_use]
+    pub fn sample_master_object_parts(
+        &self,
+        object_id: &str,
+        parts: usize,
+    ) -> Option<Vec<ObjectSample>> {
+        let slide = self.current_slide()?;
+        let master = self.course.master(slide.master.as_deref()?)?;
+        let obj = master.objects.iter().find(|o| o.id == object_id)?;
+        sample_timed_parts_reduced(
+            obj,
+            self.st.base.ms,
+            slide.duration_ms,
+            self.course.slide_size,
+            parts,
+            self.reduced_motion(),
+        )
+    }
+
+    /// Sample a slide master group's entrance, exit, and emphasis animations
+    /// on the current slide's base timeline.
+    ///
+    /// Returns `None` if the current slide has no master, the group is unknown,
+    /// has no members, or is outside its timing window / after its exit completes.
+    #[must_use]
+    pub fn sample_master_group(&self, group_id: &str) -> Option<ObjectSample> {
+        let slide = self.current_slide()?;
+        let master = self.course.master(slide.master.as_deref()?)?;
+        let group = master.groups.iter().find(|g| g.id == group_id)?;
+        let timing = master.group_timing(group_id, None)?;
+        let frame = master.group_frame(group_id, None)?;
+        sample_group_animation_reduced(
+            group,
+            timing,
+            frame,
+            self.st.base.ms,
+            slide.duration_ms,
+            self.course.slide_size,
+            self.reduced_motion(),
+        )
+    }
+
     /// [`Self::sample_object`] for each of `parts` parts of the object's text (see
     /// [`sample_timed_parts`]).
     #[must_use]
@@ -2375,11 +2559,13 @@ fn scale_wake_delta_ms(delta: u32, speed_quarters: u8) -> u32 {
     u32::try_from(wall).unwrap_or(u32::MAX).max(1)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn clock_next_wake(
     clock: Clock,
     duration_ms: u32,
     objects: &[coursecraft_course::Object],
     slide: &Slide,
+    master: Option<&Slide>,
     cue_points: &[coursecraft_course::SlideCue],
     layer_id: Option<&str>,
     has_seekbar: bool,
@@ -2393,17 +2579,21 @@ fn clock_next_wake(
 
     let mut best = duration_ms - clock.ms;
 
-    for obj in objects {
-        if let Some(ref ent) = obj.entrance {
-            let start = obj.timing.start_ms;
+    let mut inspect_anim = |timing: coursecraft_course::Timing,
+                            entrance: Option<&coursecraft_course::Animation>,
+                            exit: Option<&coursecraft_course::Animation>,
+                            emphasis: &[coursecraft_course::Emphasis]|
+     -> Option<u32> {
+        if let Some(ent) = entrance {
+            let start = timing.start_ms;
             let finish = start.saturating_add(ent.duration_ms);
             if clock.ms >= start && clock.ms < finish {
                 return Some(0);
             }
         }
-        if let Some(ref exit) = obj.exit {
-            let end_ms = obj.timing.end_ms.unwrap_or(duration_ms);
-            let exit_start = end_ms.saturating_sub(exit.duration_ms);
+        if let Some(exit) = exit {
+            let end_ms = timing.end_ms.unwrap_or(duration_ms);
+            let exit_start = end_ms.saturating_sub(exit.duration_ms).max(timing.start_ms);
             if clock.ms >= exit_start && clock.ms < end_ms {
                 return Some(0);
             }
@@ -2414,22 +2604,94 @@ fn clock_next_wake(
                 best = best.min(end_ms - clock.ms);
             }
         }
-        for emphasis in &obj.emphasis {
-            let end = emphasis.end_ms();
-            if clock.ms >= emphasis.start_ms && clock.ms < end {
+        for emph in emphasis {
+            let end = emph.end_ms();
+            if clock.ms >= emph.start_ms && clock.ms < end {
                 return Some(0);
             }
-            if emphasis.start_ms > clock.ms {
-                best = best.min(emphasis.start_ms - clock.ms);
+            if emph.start_ms > clock.ms {
+                best = best.min(emph.start_ms - clock.ms);
             }
         }
-        if obj.timing.start_ms > clock.ms {
-            best = best.min(obj.timing.start_ms - clock.ms);
+        if timing.start_ms > clock.ms {
+            best = best.min(timing.start_ms - clock.ms);
         }
-        if let Some(end_ms) = obj.timing.end_ms
+        if let Some(end_ms) = timing.end_ms
             && end_ms > clock.ms
         {
             best = best.min(end_ms - clock.ms);
+        }
+        None
+    };
+
+    for obj in objects {
+        if let Some(wake) = inspect_anim(
+            obj.timing,
+            obj.entrance.as_ref(),
+            obj.exit.as_ref(),
+            &obj.emphasis,
+        ) {
+            return Some(wake);
+        }
+    }
+
+    let groups = match layer_id {
+        None => slide.groups.as_slice(),
+        Some(id) => slide.layer(id).map_or(&[][..], |l| l.groups.as_slice()),
+    };
+    for group in groups {
+        if !group.has_animation() {
+            continue;
+        }
+        let Some(timing) = slide.group_timing(&group.id, layer_id) else {
+            continue;
+        };
+        if let Some(wake) = inspect_anim(
+            timing,
+            group.entrance.as_ref(),
+            group.exit.as_ref(),
+            &group.emphasis,
+        ) {
+            return Some(wake);
+        }
+    }
+
+    if layer_id.is_none()
+        && let Some(master) = master
+    {
+        for obj in &master.objects {
+            if obj.initial_state == "hidden" {
+                continue;
+            }
+            if let Some(wake) = inspect_anim(
+                obj.timing,
+                obj.entrance.as_ref(),
+                obj.exit.as_ref(),
+                &obj.emphasis,
+            ) {
+                return Some(wake);
+            }
+        }
+        for group in &master.groups {
+            if !group.has_animation() {
+                continue;
+            }
+            if !master.objects.iter().any(|o| {
+                o.group.as_deref() == Some(group.id.as_str()) && o.initial_state != "hidden"
+            }) {
+                continue;
+            }
+            let Some(timing) = master.group_timing(&group.id, None) else {
+                continue;
+            };
+            if let Some(wake) = inspect_anim(
+                timing,
+                group.entrance.as_ref(),
+                group.exit.as_ref(),
+                &group.emphasis,
+            ) {
+                return Some(wake);
+            }
         }
     }
 

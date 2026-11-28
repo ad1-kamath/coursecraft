@@ -644,14 +644,7 @@ impl DockContent<Panel> for Content<'_> {
                 }
             }
             Panel::Notes => crate::properties::show_notes_panel(self.editor, ui),
-            Panel::Timeline => {
-                if self.editor.ui.master_view {
-                    ui.add_space(8.0);
-                    ui.label(tl!("Slide masters have no timeline."));
-                } else {
-                    self.editor.timeline_body(ui);
-                }
-            }
+            Panel::Timeline => self.editor.timeline_body(ui),
             Panel::States | Panel::Triggers | Panel::Variables | Panel::Question => {
                 if let Some(tab) = panel.bottom_tab() {
                     self.editor.bottom_tab_body(ui, tab);
@@ -731,11 +724,6 @@ pub fn apply(editor: &mut Editor, actions: Vec<Action<Panel>>) {
 /// Keep the timeline's rect and focus up to date, as its fixed panel does.
 fn record_timeline(editor: &mut Editor, ui: &Ui) {
     let rect = editor.ui.dock.rect(Panel::Timeline);
-    if editor.ui.master_view {
-        editor.ui.timeline.panel_rect = None;
-        editor.ui.timeline.tab_rects.clear();
-        return;
-    }
     editor.ui.timeline.panel_rect = rect;
     if let Some(rect) = rect {
         editor.ui.timeline.panel_height = rect.height();

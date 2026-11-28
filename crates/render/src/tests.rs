@@ -645,6 +645,7 @@ fn make_dummy_item(hit: Hit, rect: Rect) -> DrawItem {
         mark: None,
         is_state_extra: false,
         anim: crate::compose::AnimLook::IDENTITY,
+        group_anim: None,
     }
 }
 
@@ -1229,6 +1230,7 @@ fn paint_button_hover_down_and_disabled_fills() {
         mark: None,
         is_state_extra: false,
         anim: crate::compose::AnimLook::IDENTITY,
+        group_anim: None,
     };
     let item_btn_disabled = DrawItem {
         hit: Hit::Object("btn-dis".to_owned()),
@@ -1257,6 +1259,7 @@ fn paint_button_hover_down_and_disabled_fills() {
         mark: None,
         is_state_extra: false,
         anim: crate::compose::AnimLook::IDENTITY,
+        group_anim: None,
     };
 
     let screen = Rect::from_min_size(pos2(0.0, 0.0), vec2(1280.0, 720.0));
@@ -1745,6 +1748,7 @@ fn paint_smoke_dimmed_item_does_not_panic() {
         mark: None,
         is_state_extra: false,
         anim: crate::compose::AnimLook::IDENTITY,
+        group_anim: None,
     };
     let screen = Rect::from_min_size(pos2(0.0, 0.0), vec2(1280.0, 720.0));
     let t = SlideTransform::fit(screen, Size { w: 1280, h: 720 }).expect("fit");
@@ -2137,6 +2141,7 @@ fn painting_registers_texture_caches_failure_and_retain_drops() {
             mark: None,
             is_state_extra: false,
             anim: crate::compose::AnimLook::IDENTITY,
+            group_anim: None,
         },
         DrawItem {
             hit: Hit::Object("img-missing".to_string()),
@@ -2163,6 +2168,7 @@ fn painting_registers_texture_caches_failure_and_retain_drops() {
             mark: None,
             is_state_extra: false,
             anim: crate::compose::AnimLook::IDENTITY,
+            group_anim: None,
         },
     ];
 
@@ -2910,6 +2916,7 @@ fn paint_without_install_fonts_falls_back_without_panic() {
             mark: None,
             is_state_extra: false,
             anim: crate::compose::AnimLook::IDENTITY,
+            group_anim: None,
         },
         DrawItem {
             hit: Hit::None,
@@ -2938,6 +2945,7 @@ fn paint_without_install_fonts_falls_back_without_panic() {
             mark: None,
             is_state_extra: false,
             anim: crate::compose::AnimLook::IDENTITY,
+            group_anim: None,
         },
         DrawItem {
             hit: Hit::None,
@@ -2960,6 +2968,7 @@ fn paint_without_install_fonts_falls_back_without_panic() {
             mark: None,
             is_state_extra: false,
             anim: crate::compose::AnimLook::IDENTITY,
+            group_anim: None,
         },
         DrawItem {
             hit: Hit::None,
@@ -2985,6 +2994,7 @@ fn paint_without_install_fonts_falls_back_without_panic() {
             mark: None,
             is_state_extra: false,
             anim: crate::compose::AnimLook::IDENTITY,
+            group_anim: None,
         },
     ];
 
@@ -7233,6 +7243,7 @@ fn paint_slider_checkbox_and_radio_use_the_accent() {
         mark: None,
         is_state_extra: false,
         anim: crate::compose::AnimLook::IDENTITY,
+        group_anim: None,
     };
     let slider = make(
         Visual::Slider {
@@ -8141,6 +8152,7 @@ fn video_frame_draws_as_texture_instead_of_poster() {
             mark: None,
             is_state_extra: false,
             anim: crate::compose::AnimLook::IDENTITY,
+            group_anim: None,
         }
     }
 
@@ -10622,6 +10634,7 @@ fn m47_s2_paint_button_label_contrasts_with_fill_and_states() {
         mark: None,
         is_state_extra: false,
         anim: crate::compose::AnimLook::IDENTITY,
+        group_anim: None,
     };
 
     let paint_and_label_color = |item: &DrawItem,

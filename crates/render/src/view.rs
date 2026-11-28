@@ -2304,6 +2304,7 @@ fn paint_transition_slide(
         rotation: 0.0,
         flip_h: false,
         flip_v: false,
+        offset: egui::Vec2::ZERO,
         mask: polys.as_deref(),
         tint: None,
         opacity: look.alpha,

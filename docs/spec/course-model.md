@@ -443,7 +443,7 @@ Layer options beyond the basic flags are omitted from JSON when default, so exis
 
 ### Groups
 
-`Object.group: Option<String>` assigns an object to a group on its slide layer. It is omitted from JSON when the object is not grouped, so existing courses and golden files stay byte-identical. Plain authoring groups (without a `Group` record, or with `interactive: false`) are authoring-only: logic, render and publish ignore them, so `simulate` output does not change.
+`Object.group: Option<String>` assigns an object to a group on its slide layer. It is omitted from JSON when the object is not grouped, so existing courses and golden files stay byte-identical. Plain authoring groups (without a `Group` record, or with `interactive: false` and no animations) are authoring-only: logic, render and publish ignore them, so `simulate` output does not change.
 
 - All members of a group sit on the same slide layer, and their ids are contiguous in z-order.
 - Grouping an object that already belongs to a group pulls the whole group in and flattens it; nested groups are not supported.
@@ -451,7 +451,7 @@ Layer options beyond the basic flags are omitted from JSON when default, so exis
 - `object.paste` and `object.duplicate` give the copies fresh group ids shared by the copies. `slide.paste` and `slide.duplicate` give recorded `Group`s fresh `grp-N` ids and point their members and any trigger that names an interactive group at the new ids. `layer.duplicate` does the same for the group records of the layer.
 - Clicking any member selects the whole group. Double-clicking a member of a selected group focuses just that member for editing; clicking away clears the focus.
 
-`Slide.groups` (for base-layer groups) and `Layer.groups` (for slide-layer groups) hold optional `Vec<Group>` records carrying group-level metadata and interactive button behaviour. Both lists are omitted from JSON when empty so existing courses stay byte-identical.
+`Slide.groups` (for base-layer groups) and `Layer.groups` (for slide-layer groups) hold optional `Vec<Group>` records carrying group-level metadata, animations, and interactive button behaviour. Both lists are omitted from JSON when empty so existing courses stay byte-identical.
 
 ```json
 {
@@ -472,12 +472,18 @@ Layer options beyond the basic flags are omitted from JSON when default, so exis
 | `initial_state` | Initial runtime state for an interactive group. Default `"normal"`, omitted when `"normal"`. Must be `"normal"`, `"hidden"`, `"disabled"`, or a state defined on at least one member. |
 | `focus_order` | Optional author-set keyboard focus position (`Option<u32>`). Omitted when unset. |
 | `description` | Optional accessible description override (`Option<String>`). Omitted when unset. |
+| `entrance` | Optional entrance [`Animation`](#animation) for the whole group (`Option<Animation>`). Omitted when unset. |
+| `exit` | Optional exit [`Animation`](#animation) for the whole group (`Option<Animation>`). Omitted when unset. |
+| `emphasis` | Optional list of [`Emphasis`](#emphasis) animations played by the group (`Vec<Emphasis>`). Omitted when empty. |
+
+Group timing and bounding frame are derived from member objects: the group's timing window runs from the minimum member `start_ms` to the maximum member `end_ms` (or open-ended if any member has `end_ms: None`), and its frame is the union of member frames. Non-interactive animated groups (`interactive: false` with `entrance`, `exit`, or `emphasis`) are valid on slides, layers, and masters.
 
 Validation rules for `Group` records and interactive groups:
 
 - Every `Group.id` must be a valid non-empty ID, unique across all groups on the slide, and disjoint from all object and layer IDs on the slide.
 - Every `Group` record must have at least one member object on its owning layer (`Slide.objects` for `Slide.groups`, `Layer.objects` for `Layer.groups`); zero members is a validation error.
-- Interactive groups (`interactive: true`) are forbidden on master slides (masters carry no play-time behaviour).
+- Group `entrance`, `exit`, and `emphasis` follow the same effect, duration (`1..=60000`), repeat (`1..=10`), count (`<= 8`), and timing-window checks as object animations.
+- Interactive groups (`interactive: true`) are forbidden on master slides (masters carry no play-time behaviour). Non-interactive animated groups are allowed on masters.
 - Interactive group members must be visual objects (`shape`, `text`, `image`, `path`, `button`, `lottie`, `timer`, `progress_meter`). Input widgets (`text_entry`, `slider`, `dial`, `checkbox`, `radio_group`), `scroll_panel`, `web`, `audio`, `video`, `marker`, `table`, draggable objects (`drag`), and question hotspot images or drag items are rejected.
 - Triggers may target an interactive group ID in `Event::Click`, `Event::HoverStart`, `Event::HoverEnd`, `Event::KeyPressed { object: Some(..) }`, `Event::StateChanges`, `Action::ChangeState`, and `Condition::ObjectState`. Plain (non-interactive) group IDs are rejected by trigger validation.
 - For interactive group targets, `initial_state`, `Action::ChangeState`, and `Condition::ObjectState` accept `"normal"`, `"hidden"`, `"disabled"`, or any state defined on at least one member; `Event::StateChanges` also accepts any built-in state name.
@@ -486,8 +492,10 @@ Validation rules for `Group` records and interactive groups:
 
 `masters: Vec<Slide>` and `templates: Vec<Slide>` are omitted from JSON when empty, so existing courses and `simulate` output stay byte-identical. `Slide.master: Option<String>` names the master a slide draws under and is omitted when unset.
 
-- A master is a slide with objects and a background only. It must not have triggers, layers or a question, and it must not hold audio, video or Lottie objects. Validation reports these as errors.
-- A master is drawn under the slide's own objects, before the base layer. Master objects never take a press, are never in the keyboard focus list, ignore timing and animation, and are always shown except when their `initial_state` is `hidden`. They add no events and no states.
+- A master is a slide with objects, groups, and a background only. It must not have triggers, layers, a question, or `draw`, and it must not hold audio, video, Lottie objects, or interactive groups. Validation reports these as errors, and warns on object states.
+- A master is drawn under the slide's own objects, before the base layer, and stays drawn even when a slide layer sets `hide_base_objects: true`.
+- Master objects and master groups may carry entrance, exit, and emphasis animations and timing, just like slide objects. Each time a slide using the master starts (including when revisiting and resetting a slide, and when navigating between two slides that share the same master), master objects and master groups play on that slide's base timeline from time 0, using their own start times, end times, and durations (with an open `end_ms: None` running to the slide's duration). On a slide with `revisit: resume`, master objects follow the resumed base clock.
+- Master objects still never take a press, never join keyboard focus, carry no states (except `initial_state: "hidden"`, which hides them), add no triggers, and emit no events (including no `AnimationCompletes`). A master object's exit animation hides it once complete until the slide ends.
 - A slide's background is its own, else its master's, else `theme.background`. `Course::slide_background` is the one helper every drawing path uses.
 - A master is never reachable in play. `Course::play_slide` looks at scenes then bank slides, and `Course::slide_index` looks only at scenes; `Course::slide` and `Course::slide_mut` also find masters so object commands and canvas tools work on them unchanged. They never find templates.
 - Slide ids are unique across scenes, masters, templates and banks.

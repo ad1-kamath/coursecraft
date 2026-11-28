@@ -12037,6 +12037,9 @@ fn gb_03_course() -> Course {
                 initial_state: "normal".into(),
                 focus_order: None,
                 description: None,
+                entrance: None,
+                exit: None,
+                emphasis: Vec::new(),
             },
             Group {
                 id: "g-visit".into(),
@@ -12045,6 +12048,9 @@ fn gb_03_course() -> Course {
                 initial_state: "normal".into(),
                 focus_order: None,
                 description: None,
+                entrance: None,
+                exit: None,
+                emphasis: Vec::new(),
             },
         ],
         triggers: vec![
@@ -12498,6 +12504,9 @@ fn gb_04_interactive_group_keyboard_objects_and_focus() {
                     initial_state: "normal".into(),
                     focus_order: None,
                     description: None,
+                    entrance: None,
+                    exit: None,
+                    emphasis: Vec::new(),
                 }],
             },
         ],
@@ -12509,6 +12518,9 @@ fn gb_04_interactive_group_keyboard_objects_and_focus() {
                 initial_state: "normal".into(),
                 focus_order: None,
                 description: None,
+                entrance: None,
+                exit: None,
+                emphasis: Vec::new(),
             },
             Group {
                 id: "g-scrolled".into(),
@@ -12517,6 +12529,9 @@ fn gb_04_interactive_group_keyboard_objects_and_focus() {
                 initial_state: "normal".into(),
                 focus_order: None,
                 description: None,
+                entrance: None,
+                exit: None,
+                emphasis: Vec::new(),
             },
         ],
         triggers: vec![
@@ -12839,6 +12854,9 @@ fn gb_05_suspend_data_interactive_groups_and_golden_compat() {
                 initial_state: "normal".into(),
                 focus_order: None,
                 description: None,
+                entrance: None,
+                exit: None,
+                emphasis: Vec::new(),
             }],
         }],
         groups: vec![
@@ -12849,6 +12867,9 @@ fn gb_05_suspend_data_interactive_groups_and_golden_compat() {
                 initial_state: "normal".into(),
                 focus_order: None,
                 description: None,
+                entrance: None,
+                exit: None,
+                emphasis: Vec::new(),
             },
             Group {
                 id: "g-vis".into(),
@@ -12857,6 +12878,9 @@ fn gb_05_suspend_data_interactive_groups_and_golden_compat() {
                 initial_state: "normal".into(),
                 focus_order: None,
                 description: None,
+                entrance: None,
+                exit: None,
+                emphasis: Vec::new(),
             },
             Group {
                 id: "g-dis".into(),
@@ -12865,6 +12889,9 @@ fn gb_05_suspend_data_interactive_groups_and_golden_compat() {
                 initial_state: "normal".into(),
                 focus_order: None,
                 description: None,
+                entrance: None,
+                exit: None,
+                emphasis: Vec::new(),
             },
         ],
         triggers: vec![
@@ -14135,4 +14162,493 @@ fn m47_s1_display_text_and_validator_parser_agree() {
         coursecraft_course::variable_reference_spans("%Missing%"),
         vec![0..9]
     );
+}
+
+#[test]
+fn m49_s2_group_sample_uses_group_timing_and_bounding_box() {
+    let json = r##"{
+        "schema_version": 1,
+        "id": "m49-group-sample",
+        "title": "Group Sample",
+        "slide_size": { "w": 1280, "h": 720 },
+        "scenes": [{
+            "id": "sc0",
+            "title": "S",
+            "slides": [{
+                "id": "s0",
+                "title": "Slide",
+                "duration_ms": 5000,
+                "groups": [{
+                    "id": "g1",
+                    "entrance": { "effect": { "type": "fly_in", "from": "left" }, "duration_ms": 1000, "easing": "linear" },
+                    "exit": { "effect": { "type": "fade" }, "duration_ms": 1000, "easing": "linear" },
+                    "emphasis": [{ "effect": { "type": "pulse" }, "start_ms": 1500, "duration_ms": 1000, "repeat": 1, "easing": "linear" }]
+                }],
+                "objects": [
+                    { "id": "a", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 200, "y": 100, "w": 100, "h": 100 }, "timing": { "start_ms": 500, "end_ms": 4000 } },
+                    { "id": "b", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 400, "y": 100, "w": 200, "h": 100 }, "timing": { "start_ms": 1000, "end_ms": 4500 } }
+                ]
+            }]
+        }]
+    }"##;
+    let c = Course::from_json(json).expect("valid json");
+    let mut p = Player::new(&c).expect("player");
+    p.handle(&Input::Start);
+
+    // Before group union start_ms (500): hidden.
+    assert!(p.sample_group("g1").is_none());
+
+    // At t = 500 (start of entrance): fly_in from left uses union bounding box (x=200..600, w=400).
+    p.handle(&Input::Tick { ms: 500 });
+    let s_ent = p.sample_group("g1").expect("entering");
+    assert!(
+        s_ent.offset.0 < -500.0,
+        "group fly_in from left should start off-slide: {:?}",
+        s_ent
+    );
+
+    // At t = 2000 (midpoint of pulse emphasis): scaled > 1.0.
+    p.handle(&Input::Tick { ms: 1500 });
+    let s_emph = p.sample_group("g1").expect("emphasis");
+    assert!(s_emph.scale.0 > 1.01, "pulse should scale up: {:?}", s_emph);
+
+    // Reduced motion: fly_in becomes fade, pulse (motion) stays at rest.
+    p.set_reduced_motion(true);
+    let s_reduced = p.sample_group("g1").expect("reduced");
+    assert_eq!(s_reduced, crate::ObjectSample::IDENTITY);
+    p.set_reduced_motion(false);
+
+    // At t = 4000 (midpoint of exit [3500, 4500)): opacity ~ 0.5.
+    p.handle(&Input::Tick { ms: 2000 });
+    let s_exit = p.sample_group("g1").expect("exiting");
+    assert!(
+        (s_exit.opacity - 0.5).abs() < 0.05,
+        "exit opacity: {:?}",
+        s_exit
+    );
+
+    // At t = 4500 (exit finished): None.
+    p.handle(&Input::Tick { ms: 500 });
+    assert!(p.sample_group("g1").is_none());
+}
+
+#[test]
+fn m49_s2_group_exit_ends_interactive_group_liveness() {
+    // Members of g1 have no `end_ms` and no own `exit`, so without the group's exit they
+    // would stay live after the 2000 ms slide timeline finishes. Members of g2 have
+    // `end_ms` > `duration_ms`, so only the timeline-end check on group exit ends liveness.
+    let json = r##"{
+        "schema_version": 1,
+        "id": "m49-group-live",
+        "title": "Group Liveness",
+        "slide_size": { "w": 1280, "h": 720 },
+        "variables": [
+            { "name": "clicks", "value": 0 },
+            { "name": "plain_clicks", "value": 0 }
+        ],
+        "scenes": [{
+            "id": "sc0",
+            "title": "S",
+            "slides": [{
+                "id": "s0",
+                "title": "Slide",
+                "duration_ms": 2000,
+                "groups": [
+                    {
+                        "id": "g1",
+                        "interactive": true,
+                        "exit": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" }
+                    },
+                    {
+                        "id": "g2",
+                        "exit": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" }
+                    }
+                ],
+                "objects": [
+                    { "id": "a", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 100, "y": 100, "w": 100, "h": 100 } },
+                    { "id": "b", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 200, "y": 100, "w": 100, "h": 100 } },
+                    { "id": "c", "group": "g2", "kind": { "type": "shape", "shape": "rectangle", "fill": "#0000FF" }, "frame": { "x": 400, "y": 100, "w": 100, "h": 100 }, "timing": { "start_ms": 0, "end_ms": 5000 } },
+                    { "id": "d", "group": "g2", "kind": { "type": "shape", "shape": "rectangle", "fill": "#0000FF" }, "frame": { "x": 500, "y": 100, "w": 100, "h": 100 }, "timing": { "start_ms": 0, "end_ms": 5000 } }
+                ],
+                "triggers": [
+                    {
+                        "when": { "event": "click", "object": "g1" },
+                        "action": { "action": "set_variable", "variable": "clicks", "value": 1 }
+                    },
+                    {
+                        "when": { "event": "click", "object": "c" },
+                        "action": { "action": "set_variable", "variable": "plain_clicks", "value": 1 }
+                    }
+                ]
+            }]
+        }]
+    }"##;
+    let c = Course::from_json(json).expect("valid json");
+    let mut p = Player::new(&c).expect("player");
+    p.handle(&Input::Start);
+
+    // Before exit finishes (t = 1750): both interactive group and plain group member are live.
+    p.handle(&Input::Tick { ms: 1750 });
+    p.handle(&Input::Click {
+        object: "g1".into(),
+    });
+    assert_eq!(p.variable("clicks"), Some(&Value::Number(1.0)));
+    p.handle(&Input::Click { object: "c".into() });
+    assert_eq!(p.variable("plain_clicks"), Some(&Value::Number(1.0)));
+
+    // After timeline ends (t = 2000): group exit finished -> neither g1 nor member c is live.
+    p.handle(&Input::Tick { ms: 250 });
+    let out = p.handle(&Input::Click {
+        object: "g1".into(),
+    });
+    assert!(
+        out.iter().any(|e| matches!(e, Effect::Warning { .. })),
+        "clicking exited interactive group should warn: {out:?}"
+    );
+    let out_plain = p.handle(&Input::Click { object: "c".into() });
+    assert!(
+        out_plain
+            .iter()
+            .any(|e| matches!(e, Effect::Warning { .. })),
+        "clicking member of exited group (even with end_ms > duration_ms) should warn: {out_plain:?}"
+    );
+}
+
+#[test]
+fn m49_s2_next_wake_ms_wakes_for_group_animation() {
+    let json = r##"{
+        "schema_version": 1,
+        "id": "m49-group-wake",
+        "title": "Group Wake",
+        "slide_size": { "w": 1280, "h": 720 },
+        "scenes": [{
+            "id": "sc0",
+            "title": "S",
+            "slides": [{
+                "id": "s0",
+                "title": "Slide",
+                "duration_ms": 5000,
+                "groups": [{
+                    "id": "g1",
+                    "entrance": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" },
+                    "exit": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" }
+                }],
+                "objects": [
+                    { "id": "a", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 100, "y": 100, "w": 100, "h": 100 } },
+                    { "id": "b", "group": "g1", "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" }, "frame": { "x": 200, "y": 100, "w": 100, "h": 100 } }
+                ]
+            }]
+        }]
+    }"##;
+    let mut c = Course::from_json(json).expect("valid json");
+    c.player.show_seekbar = false;
+    let mut p = Player::new(&c).expect("player");
+    p.handle(&Input::Start);
+
+    // At t=0: group entrance is running -> next_wake_ms == Some(0).
+    assert_eq!(p.next_wake_ms(), Some(0));
+
+    // At t=1000: group entrance finished, exit starts at 4500 -> wake delta == 3500.
+    p.handle(&Input::Tick { ms: 1000 });
+    assert_eq!(p.next_wake_ms(), Some(3500));
+
+    // At t=4600: group exit is running -> next_wake_ms == Some(0).
+    p.handle(&Input::Tick { ms: 3600 });
+    assert_eq!(p.next_wake_ms(), Some(0));
+}
+
+#[test]
+fn m49_s4_master_object_animation_samples_on_every_slide_and_revisit() {
+    let json = r##"{
+        "schema_version": 1,
+        "id": "m49-master-anim",
+        "title": "Master Anim",
+        "slide_size": { "w": 1280, "h": 720 },
+        "masters": [{
+            "id": "m1",
+            "title": "Master",
+            "duration_ms": 5000,
+            "objects": [{
+                "id": "m_text",
+                "kind": { "type": "text", "text": "Header" },
+                "frame": { "x": 100, "y": 50, "w": 400, "h": 60 },
+                "entrance": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" }
+            }]
+        }],
+        "scenes": [{
+            "id": "sc0",
+            "title": "Scene",
+            "slides": [
+                {
+                    "id": "s1",
+                    "title": "Slide 1",
+                    "master": "m1",
+                    "duration_ms": 3000,
+                    "revisit": "reset"
+                },
+                {
+                    "id": "s2",
+                    "title": "Slide 2",
+                    "master": "m1",
+                    "duration_ms": 3000
+                }
+            ]
+        }]
+    }"##;
+    let c = Course::from_json(json).expect("valid json");
+    let mut p = Player::new(&c).expect("player");
+    p.handle(&Input::Start);
+
+    // Slide 1 at t=0: fade entrance starts at opacity 0.
+    let s0 = p.sample_master_object("m_text").expect("present at t=0");
+    assert!(
+        s0.opacity.abs() < 0.01,
+        "expected opacity 0 at t=0, got {:?}",
+        s0
+    );
+
+    // Slide 1 at t=600: entrance complete -> opacity 1.
+    p.handle(&Input::Tick { ms: 600 });
+    let s600 = p.sample_master_object("m_text").expect("present at t=600");
+    assert!(
+        (s600.opacity - 1.0).abs() < 0.01,
+        "expected opacity 1 at t=600, got {:?}",
+        s600
+    );
+
+    // Navigate to Slide 2 (same master): replays from t=0 -> opacity 0 at t=0, 1 at t=600.
+    p.handle(&Input::Jump { slide: "s2".into() });
+    let s2_0 = p
+        .sample_master_object("m_text")
+        .expect("present on s2 at t=0");
+    assert!(
+        s2_0.opacity.abs() < 0.01,
+        "expected replay on s2 at t=0, got {:?}",
+        s2_0
+    );
+    p.handle(&Input::Tick { ms: 600 });
+    let s2_600 = p
+        .sample_master_object("m_text")
+        .expect("present on s2 at t=600");
+    assert!(
+        (s2_600.opacity - 1.0).abs() < 0.01,
+        "expected opacity 1 on s2 at t=600, got {:?}",
+        s2_600
+    );
+
+    // Revisit Slide 1 (revisit: reset): replays from t=0 -> opacity 0.
+    p.handle(&Input::Jump { slide: "s1".into() });
+    let revisit_0 = p
+        .sample_master_object("m_text")
+        .expect("present on revisit at t=0");
+    assert!(
+        revisit_0.opacity.abs() < 0.01,
+        "expected replay on revisit at t=0, got {:?}",
+        revisit_0
+    );
+}
+
+#[test]
+fn m49_s4_master_object_exit_hides_until_slide_ends() {
+    let json = r##"{
+        "schema_version": 1,
+        "id": "m49-master-exit",
+        "title": "Master Exit",
+        "slide_size": { "w": 1280, "h": 720 },
+        "masters": [{
+            "id": "m1",
+            "title": "Master",
+            "duration_ms": 5000,
+            "objects": [{
+                "id": "m_shape",
+                "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" },
+                "frame": { "x": 100, "y": 100, "w": 100, "h": 100 },
+                "timing": { "start_ms": 0, "end_ms": 2000 },
+                "exit": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" }
+            }]
+        }],
+        "scenes": [{
+            "id": "sc0",
+            "title": "Scene",
+            "slides": [{
+                "id": "s1",
+                "title": "Slide 1",
+                "master": "m1",
+                "duration_ms": 4000
+            }]
+        }]
+    }"##;
+    let c = Course::from_json(json).expect("valid json");
+    let mut p = Player::new(&c).expect("player");
+    p.handle(&Input::Start);
+
+    // Before exit (t=1000): visible at opacity 1.
+    p.handle(&Input::Tick { ms: 1000 });
+    let before = p
+        .sample_master_object("m_shape")
+        .expect("visible before exit");
+    assert!((before.opacity - 1.0).abs() < 0.01);
+
+    // Mid-exit (t=1750): opacity ~ 0.5.
+    p.handle(&Input::Tick { ms: 750 });
+    let mid = p.sample_master_object("m_shape").expect("visible mid-exit");
+    assert!((mid.opacity - 0.5).abs() < 0.05);
+
+    // After exit (t=2000 and t=3000): None until slide ends.
+    p.handle(&Input::Tick { ms: 250 });
+    assert!(p.sample_master_object("m_shape").is_none());
+    p.handle(&Input::Tick { ms: 1000 });
+    assert!(p.sample_master_object("m_shape").is_none());
+}
+
+#[test]
+fn m49_s4_master_objects_stay_noninteractive_unfocusable_and_event_free() {
+    let json = r##"{
+        "schema_version": 1,
+        "id": "m49-master-static-behaviour",
+        "title": "Master Non-interactive",
+        "slide_size": { "w": 1280, "h": 720 },
+        "variables": [{ "name": "hits", "value": 0 }],
+        "masters": [{
+            "id": "m1",
+            "title": "Master",
+            "duration_ms": 5000,
+            "objects": [
+                {
+                    "id": "m_btn",
+                    "kind": { "type": "button", "label": "Master Button" },
+                    "frame": { "x": 100, "y": 100, "w": 140, "h": 50 },
+                    "entrance": { "effect": { "type": "fade" }, "duration_ms": 400, "easing": "linear" }
+                },
+                {
+                    "id": "shared_obj",
+                    "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" },
+                    "frame": { "x": 300, "y": 100, "w": 100, "h": 100 },
+                    "entrance": { "effect": { "type": "fade" }, "duration_ms": 400, "easing": "linear" }
+                }
+            ]
+        }],
+        "scenes": [{
+            "id": "sc0",
+            "title": "Scene",
+            "slides": [{
+                "id": "s1",
+                "title": "Slide 1",
+                "master": "m1",
+                "duration_ms": 3000,
+                "objects": [{
+                    "id": "shared_obj",
+                    "kind": { "type": "shape", "shape": "rectangle", "fill": "#0000FF" },
+                    "frame": { "x": 500, "y": 100, "w": 100, "h": 100 }
+                }],
+                "triggers": [{
+                    "when": { "event": "animation_completes", "object": "shared_obj" },
+                    "action": { "action": "set_variable", "variable": "hits", "op": "add", "value": 1 }
+                }]
+            }]
+        }]
+    }"##;
+    let c = Course::from_json(json).expect("valid json");
+    let mut p = Player::new(&c).expect("player");
+    p.handle(&Input::Start);
+
+    // Master button must never join keyboard focus order or accept FocusChanged.
+    assert!(
+        !p.keyboard_objects().iter().any(|id| id == "m_btn"),
+        "master button must not appear in keyboard_objects: {:?}",
+        p.keyboard_objects()
+    );
+    p.handle(&Input::FocusChanged {
+        object: Some("m_btn".into()),
+    });
+    assert_eq!(p.state().focused_object, None);
+
+    // Ticking past the master entrance on `shared_obj` must not fire AnimationCompletes
+    // (the slide's own `shared_obj` has no entrance, so `hits` stays 0).
+    let tick_effects = p.handle(&Input::Tick { ms: 600 });
+    assert_eq!(p.variable("hits"), Some(&Value::Number(0.0)));
+    assert!(
+        tick_effects.is_empty(),
+        "expected no effects from master entrance tick, got {tick_effects:?}"
+    );
+
+    // Clicking a master object produces a Warning (not on this slide) and no action effects.
+    let click_effects = p.handle(&Input::Click {
+        object: "m_btn".into(),
+    });
+    assert!(
+        click_effects
+            .iter()
+            .any(|e| matches!(e, Effect::Warning { .. })),
+        "expected warning when clicking master object, got {click_effects:?}"
+    );
+    assert_eq!(p.variable("hits"), Some(&Value::Number(0.0)));
+}
+
+#[test]
+fn m49_s4_next_wake_ms_wakes_for_master_animations() {
+    let json = r##"{
+        "schema_version": 1,
+        "id": "m49-master-wake",
+        "title": "Master Wake",
+        "slide_size": { "w": 1280, "h": 720 },
+        "masters": [{
+            "id": "m1",
+            "title": "Master",
+            "duration_ms": 5000,
+            "groups": [{
+                "id": "mg_hidden",
+                "entrance": { "effect": { "type": "fade" }, "duration_ms": 2000, "easing": "linear" }
+            }],
+            "objects": [
+                {
+                    "id": "m_rect",
+                    "kind": { "type": "shape", "shape": "rectangle", "fill": "#FF0000" },
+                    "frame": { "x": 100, "y": 100, "w": 100, "h": 100 },
+                    "entrance": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" },
+                    "exit": { "effect": { "type": "fade" }, "duration_ms": 500, "easing": "linear" }
+                },
+                {
+                    "id": "m_hid_a",
+                    "group": "mg_hidden",
+                    "initial_state": "hidden",
+                    "kind": { "type": "shape", "shape": "rectangle", "fill": "#00FF00" },
+                    "frame": { "x": 250, "y": 100, "w": 50, "h": 50 }
+                },
+                {
+                    "id": "m_hid_b",
+                    "group": "mg_hidden",
+                    "initial_state": "hidden",
+                    "kind": { "type": "shape", "shape": "rectangle", "fill": "#0000FF" },
+                    "frame": { "x": 310, "y": 100, "w": 50, "h": 50 }
+                }
+            ]
+        }],
+        "scenes": [{
+            "id": "sc0",
+            "title": "Scene",
+            "slides": [{
+                "id": "s1",
+                "title": "Slide 1",
+                "master": "m1",
+                "duration_ms": 5000
+            }]
+        }]
+    }"##;
+    let mut c = Course::from_json(json).expect("valid json");
+    c.player.show_seekbar = false;
+    let mut p = Player::new(&c).expect("player");
+    p.handle(&Input::Start);
+
+    // At t=0: master entrance is active -> Some(0).
+    assert_eq!(p.next_wake_ms(), Some(0));
+
+    // At t=1000: master entrance finished (hidden master group `mg_hidden` must not keep waking),
+    // exit starts at 4500 -> wake delta 3500.
+    p.handle(&Input::Tick { ms: 1000 });
+    assert_eq!(p.next_wake_ms(), Some(3500));
+
+    // At t=4600: master exit is active -> Some(0).
+    p.handle(&Input::Tick { ms: 3600 });
+    assert_eq!(p.next_wake_ms(), Some(0));
 }

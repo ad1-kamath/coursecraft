@@ -3,7 +3,8 @@
 use std::collections::BTreeSet;
 
 use coursecraft_course::{
-    Action, Animation, Condition, Easing, Event, MotionPath, ObjectKind, Point, StateDef, Trigger,
+    Action, Animation, Condition, Easing, Event, MotionPath, ObjectKind, Point, Slide, StateDef,
+    Trigger,
 };
 use serde_json::{Value as Json, json};
 
@@ -948,6 +949,69 @@ pub(super) fn remove_dangling_triggers(s: &mut Session, sid: &str, needles: &[St
     removed
 }
 
+/// Resolve `id` on `slide` as either an object or a group (returning `Some(owner)`
+/// where `owner` is `None` for the base layer or `Some(layer_id)` for a slide layer).
+fn resolve_group_owner(slide: &Slide, id: &str) -> Option<Option<String>> {
+    if let Some((_, owner)) = slide.group(id) {
+        return Some(owner.map(str::to_owned));
+    }
+    if slide.objects.iter().any(|o| o.group.as_deref() == Some(id)) {
+        return Some(None);
+    }
+    slide
+        .layers
+        .iter()
+        .find(|l| l.objects.iter().any(|o| o.group.as_deref() == Some(id)))
+        .map(|l| Some(l.id.clone()))
+}
+
+fn groups_list_mut<'a>(
+    slide: &'a mut Slide,
+    owner: Option<&str>,
+) -> Option<&'a mut Vec<coursecraft_course::Group>> {
+    match owner {
+        None => Some(&mut slide.groups),
+        Some(lid) => slide
+            .layers
+            .iter_mut()
+            .find(|l| l.id == lid)
+            .map(|l| &mut l.groups),
+    }
+}
+
+fn ensure_group_record_mut<'a>(
+    slide: &'a mut Slide,
+    id: &str,
+    owner: Option<&str>,
+) -> Result<&'a mut coursecraft_course::Group> {
+    let sid = slide.id.clone();
+    let groups = groups_list_mut(slide, owner).ok_or_else(|| {
+        crate::EngineError::NotFound(format!("layer {owner:?} is not on slide {sid:?}"))
+    })?;
+    if let Some(pos) = groups.iter().position(|g| g.id == id) {
+        return Ok(&mut groups[pos]);
+    }
+    groups.push(coursecraft_course::Group {
+        id: id.to_owned(),
+        name: String::new(),
+        interactive: false,
+        initial_state: "normal".to_owned(),
+        focus_order: None,
+        description: None,
+        entrance: None,
+        exit: None,
+        emphasis: Vec::new(),
+    });
+    let last = groups.len() - 1;
+    Ok(&mut groups[last])
+}
+
+fn prune_plain_empty_group(slide: &mut Slide, id: &str, owner: Option<&str>) {
+    if let Some(groups) = groups_list_mut(slide, owner) {
+        groups.retain(|g| g.id != id || !g.is_plain_empty());
+    }
+}
+
 pub(super) fn object_set_animation(s: &mut Session, p: &Json) -> Result<Json> {
     const C: &str = "object.set_animation";
     let was_valid = s.is_playable();
@@ -977,11 +1041,35 @@ pub(super) fn object_set_animation(s: &mut Session, p: &Json) -> Result<Json> {
         }
     };
     let slide = slide_mut(s, &sid)?;
-    let target = find_object_mut(slide, &oid)?;
-    if which == "entrance" {
-        target.entrance = anim;
+    if slide.object(&oid).is_some() {
+        let target = find_object_mut(slide, &oid)?;
+        if which == "entrance" {
+            target.entrance = anim;
+        } else {
+            target.exit = anim;
+        }
+    } else if let Some(owner) = resolve_group_owner(slide, &oid) {
+        if let Some(a) = anim {
+            let g = ensure_group_record_mut(slide, &oid, owner.as_deref())?;
+            if which == "entrance" {
+                g.entrance = Some(a);
+            } else {
+                g.exit = Some(a);
+            }
+        } else {
+            if let Some(groups) = groups_list_mut(slide, owner.as_deref())
+                && let Some(g) = groups.iter_mut().find(|g| g.id == oid)
+            {
+                if which == "entrance" {
+                    g.entrance = None;
+                } else {
+                    g.exit = None;
+                }
+            }
+            prune_plain_empty_group(slide, &oid, owner.as_deref());
+        }
     } else {
-        target.exit = anim;
+        find_object_mut(slide, &oid)?;
     }
     keep_valid(s, was_valid)?;
     Ok(Json::Null)
@@ -1059,35 +1147,68 @@ pub(super) fn object_add_emphasis(s: &mut Session, p: &Json) -> Result<Json> {
     let easing: Option<Easing> = opt(C, p, "easing")?;
     let repeat: Option<u8> = opt(C, p, "repeat")?;
     let slide = slide_mut(s, &sid)?;
-    let target = find_object_mut(slide, &oid)?;
-    if target.emphasis.len() >= coursecraft_course::MAX_EMPHASIS_PER_OBJECT {
-        return Err(bad(
-            C,
-            format!(
-                "an object has at most {} emphasis animations",
-                coursecraft_course::MAX_EMPHASIS_PER_OBJECT
-            ),
-        ));
-    }
-    let mut e =
-        coursecraft_course::Emphasis::new(&effect, start_ms.unwrap_or(target.timing.start_ms));
-    if let Some(d) = duration_ms {
-        e.duration_ms = d;
-    }
-    if let Some(easing) = easing {
-        e.easing = easing;
-    }
-    if let Some(r) = repeat {
-        e.repeat = r;
-    }
-    check_emphasis(C, &e)?;
-    target.emphasis.push(e);
-    let index = target.emphasis.len() - 1;
+    let index = if slide.object(&oid).is_some() {
+        let target = find_object_mut(slide, &oid)?;
+        if target.emphasis.len() >= coursecraft_course::MAX_EMPHASIS_PER_OBJECT {
+            return Err(bad(
+                C,
+                format!(
+                    "an object has at most {} emphasis animations",
+                    coursecraft_course::MAX_EMPHASIS_PER_OBJECT
+                ),
+            ));
+        }
+        let mut e =
+            coursecraft_course::Emphasis::new(&effect, start_ms.unwrap_or(target.timing.start_ms));
+        if let Some(d) = duration_ms {
+            e.duration_ms = d;
+        }
+        if let Some(easing) = easing {
+            e.easing = easing;
+        }
+        if let Some(r) = repeat {
+            e.repeat = r;
+        }
+        check_emphasis(C, &e)?;
+        target.emphasis.push(e);
+        target.emphasis.len() - 1
+    } else if let Some(owner) = resolve_group_owner(slide, &oid) {
+        let existing_len = slide.group(&oid).map_or(0, |(g, _)| g.emphasis.len());
+        if existing_len >= coursecraft_course::MAX_EMPHASIS_PER_OBJECT {
+            return Err(bad(
+                C,
+                format!(
+                    "a group has at most {} emphasis animations",
+                    coursecraft_course::MAX_EMPHASIS_PER_OBJECT
+                ),
+            ));
+        }
+        let default_start = slide
+            .group_timing(&oid, owner.as_deref())
+            .map_or(0, |t| t.start_ms);
+        let mut e = coursecraft_course::Emphasis::new(&effect, start_ms.unwrap_or(default_start));
+        if let Some(d) = duration_ms {
+            e.duration_ms = d;
+        }
+        if let Some(easing) = easing {
+            e.easing = easing;
+        }
+        if let Some(r) = repeat {
+            e.repeat = r;
+        }
+        check_emphasis(C, &e)?;
+        let g = ensure_group_record_mut(slide, &oid, owner.as_deref())?;
+        g.emphasis.push(e);
+        g.emphasis.len() - 1
+    } else {
+        find_object_mut(slide, &oid)?;
+        0
+    };
     keep_valid(s, was_valid)?;
     Ok(json!({ "index": index }))
 }
 
-/// `object.set_emphasis`: replace emphasis `index` of an object.
+/// `object.set_emphasis`: replace emphasis `index` of an object or group.
 pub(super) fn object_set_emphasis(s: &mut Session, p: &Json) -> Result<Json> {
     const C: &str = "object.set_emphasis";
     let was_valid = s.is_playable();
@@ -1097,17 +1218,27 @@ pub(super) fn object_set_emphasis(s: &mut Session, p: &Json) -> Result<Json> {
     let e: coursecraft_course::Emphasis = req(C, p, "emphasis")?;
     check_emphasis(C, &e)?;
     let slide = slide_mut(s, &sid)?;
-    let target = find_object_mut(slide, &oid)?;
-    let slot = target
-        .emphasis
-        .get_mut(index)
-        .ok_or_else(|| bad(C, format!("object {oid:?} has no emphasis {index}")))?;
-    *slot = e;
+    if slide.object(&oid).is_some() {
+        let target = find_object_mut(slide, &oid)?;
+        let slot = target
+            .emphasis
+            .get_mut(index)
+            .ok_or_else(|| bad(C, format!("object {oid:?} has no emphasis {index}")))?;
+        *slot = e;
+    } else if let Some(owner) = resolve_group_owner(slide, &oid) {
+        let slot = groups_list_mut(slide, owner.as_deref())
+            .and_then(|groups| groups.iter_mut().find(|g| g.id == oid))
+            .and_then(|g| g.emphasis.get_mut(index))
+            .ok_or_else(|| bad(C, format!("group {oid:?} has no emphasis {index}")))?;
+        *slot = e;
+    } else {
+        find_object_mut(slide, &oid)?;
+    }
     keep_valid(s, was_valid)?;
     Ok(Json::Null)
 }
 
-/// `object.remove_emphasis`: remove emphasis `index` of an object.
+/// `object.remove_emphasis`: remove emphasis `index` of an object or group.
 pub(super) fn object_remove_emphasis(s: &mut Session, p: &Json) -> Result<Json> {
     const C: &str = "object.remove_emphasis";
     let was_valid = s.is_playable();
@@ -1115,11 +1246,24 @@ pub(super) fn object_remove_emphasis(s: &mut Session, p: &Json) -> Result<Json> 
     let oid: String = req(C, p, "object")?;
     let index: usize = req(C, p, "index")?;
     let slide = slide_mut(s, &sid)?;
-    let target = find_object_mut(slide, &oid)?;
-    if index >= target.emphasis.len() {
-        return Err(bad(C, format!("object {oid:?} has no emphasis {index}")));
+    if slide.object(&oid).is_some() {
+        let target = find_object_mut(slide, &oid)?;
+        if index >= target.emphasis.len() {
+            return Err(bad(C, format!("object {oid:?} has no emphasis {index}")));
+        }
+        target.emphasis.remove(index);
+    } else if let Some(owner) = resolve_group_owner(slide, &oid) {
+        let g = groups_list_mut(slide, owner.as_deref())
+            .and_then(|groups| groups.iter_mut().find(|g| g.id == oid))
+            .ok_or_else(|| bad(C, format!("group {oid:?} has no emphasis {index}")))?;
+        if index >= g.emphasis.len() {
+            return Err(bad(C, format!("group {oid:?} has no emphasis {index}")));
+        }
+        g.emphasis.remove(index);
+        prune_plain_empty_group(slide, &oid, owner.as_deref());
+    } else {
+        find_object_mut(slide, &oid)?;
     }
-    target.emphasis.remove(index);
     keep_valid(s, was_valid)?;
     Ok(Json::Null)
 }
@@ -1160,13 +1304,32 @@ pub(super) fn object_copy_animation(s: &mut Session, p: &Json) -> Result<Json> {
     let source_slide = from_slide.unwrap_or_else(|| sid.clone());
     let (entrance, exit, emphasis, start) = {
         let slide = slide_mut(s, &source_slide)?;
-        let o = find_object_mut(slide, &from)?;
-        (
-            o.entrance.clone(),
-            o.exit.clone(),
-            o.emphasis.clone(),
-            o.timing.start_ms,
-        )
+        if slide.object(&from).is_some() {
+            let o = find_object_mut(slide, &from)?;
+            (
+                o.entrance.clone(),
+                o.exit.clone(),
+                o.emphasis.clone(),
+                o.timing.start_ms,
+            )
+        } else if let Some(owner) = resolve_group_owner(slide, &from) {
+            let start = slide
+                .group_timing(&from, owner.as_deref())
+                .map_or(0, |t| t.start_ms);
+            if let Some((g, _)) = slide.group(&from) {
+                (
+                    g.entrance.clone(),
+                    g.exit.clone(),
+                    g.emphasis.clone(),
+                    start,
+                )
+            } else {
+                (None, None, Vec::new(), start)
+            }
+        } else {
+            find_object_mut(slide, &from)?;
+            (None, None, Vec::new(), 0)
+        }
     };
     let slide = slide_mut(s, &sid)?;
     let mut copied = 0;
@@ -1174,17 +1337,51 @@ pub(super) fn object_copy_animation(s: &mut Session, p: &Json) -> Result<Json> {
         if *id == from && source_slide == sid {
             continue;
         }
-        let o = find_object_mut(slide, id)?;
-        o.entrance = entrance.clone();
-        o.exit = exit.clone();
-        let (t_start, t_end) = (o.timing.start_ms, o.timing.end_ms);
-        o.emphasis = emphasis
-            .iter()
-            .map(|e| coursecraft_course::Emphasis {
-                start_ms: copied_emphasis_start(e, start, t_start, t_end),
-                ..e.clone()
-            })
-            .collect();
+        if slide.object(id).is_some() {
+            let o = find_object_mut(slide, id)?;
+            o.entrance = entrance.clone();
+            o.exit = exit.clone();
+            let (t_start, t_end) = (o.timing.start_ms, o.timing.end_ms);
+            o.emphasis = emphasis
+                .iter()
+                .map(|e| coursecraft_course::Emphasis {
+                    start_ms: copied_emphasis_start(e, start, t_start, t_end),
+                    ..e.clone()
+                })
+                .collect();
+        } else if let Some(owner) = resolve_group_owner(slide, id) {
+            let timing =
+                slide
+                    .group_timing(id, owner.as_deref())
+                    .unwrap_or(coursecraft_course::Timing {
+                        start_ms: 0,
+                        end_ms: None,
+                    });
+            let new_emphasis: Vec<coursecraft_course::Emphasis> = emphasis
+                .iter()
+                .map(|e| coursecraft_course::Emphasis {
+                    start_ms: copied_emphasis_start(e, start, timing.start_ms, timing.end_ms),
+                    ..e.clone()
+                })
+                .collect();
+            if entrance.is_some() || exit.is_some() || !new_emphasis.is_empty() {
+                let g = ensure_group_record_mut(slide, id, owner.as_deref())?;
+                g.entrance = entrance.clone();
+                g.exit = exit.clone();
+                g.emphasis = new_emphasis;
+            } else {
+                if let Some(groups) = groups_list_mut(slide, owner.as_deref())
+                    && let Some(g) = groups.iter_mut().find(|g| g.id == *id)
+                {
+                    g.entrance = None;
+                    g.exit = None;
+                    g.emphasis.clear();
+                }
+                prune_plain_empty_group(slide, id, owner.as_deref());
+            }
+        } else {
+            find_object_mut(slide, id)?;
+        }
         copied += 1;
     }
     keep_valid(s, was_valid)?;

@@ -320,12 +320,10 @@ fn t4_4_master_view_banner_has_high_contrast_exit_and_restores_slide_selection()
                 "Master View exit button contrast {c_rest:.2} < 4.5 in {mode:?}"
             );
 
-            // Bottom timeline panel should be hidden in Master View.
-            let bottom_area =
-                Rect::from_min_max(pos2(0.0, h.bottom_panel_top()), pos2(size.0, size.1));
+            // Bottom timeline panel is visible in Master View (for master animations and timing).
             assert!(
-                h.find_text_in("Timeline", bottom_area).is_none(),
-                "timeline panel should be hidden in Master View"
+                h.editor.ui.timeline.panel_rect.is_some(),
+                "timeline panel should be visible in Master View"
             );
 
             h.click_at(exit_pos);

@@ -563,20 +563,90 @@ impl Slide {
         self.group(id).filter(|(g, _)| g.interactive)
     }
 
-    /// If `obj_id` belongs to an interactive group on its own layer, return
-    /// that group and its owning layer id (`None` = base layer).
+    /// If `obj_id` belongs to a recorded [`Group`] on its own layer (interactive
+    /// or not), return that group and its owning layer id (`None` = base layer).
     #[must_use]
-    pub fn interactive_group_of_object(&self, obj_id: &str) -> Option<(&Group, Option<&str>)> {
+    pub fn group_of_object(&self, obj_id: &str) -> Option<(&Group, Option<&str>)> {
         let (obj, owner) = self.object(obj_id)?;
         let group_id = obj.group.as_deref()?;
         let groups = match owner {
             None => self.groups.as_slice(),
             Some(layer_id) => self.layer(layer_id)?.groups.as_slice(),
         };
-        groups
+        groups.iter().find(|g| g.id == group_id).map(|g| (g, owner))
+    }
+
+    /// If `obj_id` belongs to an interactive group on its own layer, return
+    /// that group and its owning layer id (`None` = base layer).
+    #[must_use]
+    pub fn interactive_group_of_object(&self, obj_id: &str) -> Option<(&Group, Option<&str>)> {
+        self.group_of_object(obj_id).filter(|(g, _)| g.interactive)
+    }
+
+    /// Compute the union timing window of all member objects of `group_id` on
+    /// `owner` (`None` = base layer). Returns `None` if the group has no members.
+    #[must_use]
+    pub fn group_timing(&self, group_id: &str, owner: Option<&str>) -> Option<Timing> {
+        let objects = match owner {
+            None => self.objects.as_slice(),
+            Some(layer_id) => self.layer(layer_id)?.objects.as_slice(),
+        };
+        let mut start_ms: Option<u32> = None;
+        let mut end_ms: Option<u32> = Some(0);
+        for o in objects
             .iter()
-            .find(|g| g.id == group_id && g.interactive)
-            .map(|g| (g, owner))
+            .filter(|o| o.group.as_deref() == Some(group_id))
+        {
+            start_ms = Some(start_ms.map_or(o.timing.start_ms, |s| s.min(o.timing.start_ms)));
+            end_ms = match (end_ms, o.timing.end_ms) {
+                (Some(cur), Some(e)) => Some(cur.max(e)),
+                _ => None,
+            };
+        }
+        start_ms.map(|start_ms| Timing { start_ms, end_ms })
+    }
+
+    /// Compute the union bounding [`Rect`] of all member objects of `group_id` on
+    /// `owner` (`None` = base layer), skipping non-finite or negative-size frames.
+    /// Returns `None` if no valid member frames exist.
+    #[must_use]
+    pub fn group_frame(&self, group_id: &str, owner: Option<&str>) -> Option<Rect> {
+        let objects = match owner {
+            None => self.objects.as_slice(),
+            Some(layer_id) => self.layer(layer_id)?.objects.as_slice(),
+        };
+        let mut bounds: Option<(f32, f32, f32, f32)> = None;
+        for o in objects
+            .iter()
+            .filter(|o| o.group.as_deref() == Some(group_id))
+        {
+            let f = &o.frame;
+            if !f.x.is_finite()
+                || !f.y.is_finite()
+                || !f.w.is_finite()
+                || !f.h.is_finite()
+                || f.w < 0.0
+                || f.h < 0.0
+            {
+                continue;
+            }
+            let x2 = f.x + f.w;
+            let y2 = f.y + f.h;
+            if !x2.is_finite() || !y2.is_finite() {
+                continue;
+            }
+            bounds = Some(match bounds {
+                None => (f.x, f.y, x2, y2),
+                Some((min_x, min_y, max_x, max_y)) => {
+                    (min_x.min(f.x), min_y.min(f.y), max_x.max(x2), max_y.max(y2))
+                }
+            });
+        }
+        bounds.and_then(|(x, y, x2, y2)| {
+            let w = x2 - x;
+            let h = y2 - y;
+            (w.is_finite() && h.is_finite()).then_some(Rect { x, y, w, h })
+        })
     }
 
     /// Return the member objects of `group_id`. When a [`Group`] record exists,

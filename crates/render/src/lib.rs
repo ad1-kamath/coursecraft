@@ -55,6 +55,10 @@ mod m46_anim_render_tests;
 #[cfg(test)]
 mod m48_nofill_effects_tests;
 #[cfg(test)]
+mod m49_group_anim_tests;
+#[cfg(test)]
+mod m49_master_anim_tests;
+#[cfg(test)]
 mod neon_render_tests;
 #[cfg(test)]
 mod outline_tests;
@@ -84,7 +88,7 @@ pub use chrome::{
 };
 pub use color::parse_color;
 pub use compose::{
-    AnimLook, DEFAULT_BUTTON_COLOR, DEFAULT_TEXT_COLOR, DrawItem, Hit, PlacedMask,
+    AnimLook, DEFAULT_BUTTON_COLOR, DEFAULT_TEXT_COLOR, DrawItem, GroupAnim, Hit, PlacedMask,
     ResolvedCellText, ResolvedLinkRect, ResolvedOutline, ResolvedPath, ResolvedShapeText,
     ResolvedTable, ResolvedTableCell, ResolvedTableRow, ResolvedTextRun, ReviewMark, Visual,
     apply_sample_to_items, compose, compose_authoring, compose_authoring_layers,
