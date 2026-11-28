@@ -10,11 +10,11 @@ Triggers belong to an **owner**: the slide's base layer (`slide.triggers`) or a 
 
 ## Slide masters
 
-A slide may name a **master** (`slide.master`). At play time the master is drawn under the slide's own objects, before the base layer. Master objects:
+A slide may name a **master** (`slide.master`). At play time the master is drawn under the slide's own objects, before the base layer, and stays drawn even when a slide layer sets `hide_base_objects: true`. Master objects and master groups:
 
 - never take a press: they are not clickable and never become a keyboard focus target;
-- ignore timing and animation: they are always shown, except an object whose `initial_state` is `hidden`;
-- add no events and no states. A master has no triggers, no layers and no question, and validation rejects one that does.
+- play entrance, exit, and emphasis animations and timing on each slide's base timeline from time 0 (including when revisiting and resetting a slide, and when navigating between two slides that share the same master), using their own start times, end times, and durations (with an open `end_ms: None` running to the slide's duration). On a slide with `revisit: resume`, master objects follow the resumed base clock. A master object's exit animation hides it once complete until the slide ends;
+- carry no states (except `initial_state: "hidden"`, which hides them), add no triggers, and emit no events (including no `AnimationCompletes`). A master has no triggers, no layers, no question, no `draw`, no audio/video/Lottie objects, and no interactive groups, and validation rejects one that does.
 
 Question-bank slides take a master like scene slides, and a drawn bank slide draws under it. A master's background applies when the slide has none of its own. Masters are authoring and drawing only: `coursecraft-logic` never reaches one, jump targets naming a master are invalid, and a saved suspend state never resumes on one.
 

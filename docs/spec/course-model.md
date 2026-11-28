@@ -492,8 +492,10 @@ Validation rules for `Group` records and interactive groups:
 
 `masters: Vec<Slide>` and `templates: Vec<Slide>` are omitted from JSON when empty, so existing courses and `simulate` output stay byte-identical. `Slide.master: Option<String>` names the master a slide draws under and is omitted when unset.
 
-- A master is a slide with objects and a background only. It must not have triggers, layers or a question, and it must not hold audio, video or Lottie objects. Validation reports these as errors.
-- A master is drawn under the slide's own objects, before the base layer. Master objects never take a press, are never in the keyboard focus list, ignore timing and animation, and are always shown except when their `initial_state` is `hidden`. They add no events and no states.
+- A master is a slide with objects, groups, and a background only. It must not have triggers, layers, a question, or `draw`, and it must not hold audio, video, Lottie objects, or interactive groups. Validation reports these as errors, and warns on object states.
+- A master is drawn under the slide's own objects, before the base layer, and stays drawn even when a slide layer sets `hide_base_objects: true`.
+- Master objects and master groups may carry entrance, exit, and emphasis animations and timing, just like slide objects. Each time a slide using the master starts (including when revisiting and resetting a slide, and when navigating between two slides that share the same master), master objects and master groups play on that slide's base timeline from time 0, using their own start times, end times, and durations (with an open `end_ms: None` running to the slide's duration). On a slide with `revisit: resume`, master objects follow the resumed base clock.
+- Master objects still never take a press, never join keyboard focus, carry no states (except `initial_state: "hidden"`, which hides them), add no triggers, and emit no events (including no `AnimationCompletes`). A master object's exit animation hides it once complete until the slide ends.
 - A slide's background is its own, else its master's, else `theme.background`. `Course::slide_background` is the one helper every drawing path uses.
 - A master is never reachable in play. `Course::play_slide` looks at scenes then bank slides, and `Course::slide_index` looks only at scenes; `Course::slide` and `Course::slide_mut` also find masters so object commands and canvas tools work on them unchanged. They never find templates.
 - Slide ids are unique across scenes, masters, templates and banks.

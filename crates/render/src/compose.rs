@@ -2865,8 +2865,10 @@ fn course_input_value<'a>(course: &'a Course, obj: &Object) -> Option<&'a Value>
 }
 
 /// Push a slide's master objects, under everything. Master objects never take
-/// a press. In authoring they dim with the base objects; in play they ignore
-/// timing and animation and are shown unless their initial state is hidden.
+/// a press. In authoring they dim with the base objects; in play they animate on
+/// the current slide's base timeline and are hidden when `initial_state == "hidden"`
+/// or outside their timing window / after exit.
+#[allow(clippy::too_many_arguments)]
 fn push_master_items(
     course: &Course,
     player: Option<&Player<'_>>,
@@ -2875,38 +2877,143 @@ fn push_master_items(
     authoring: bool,
     dimmed: bool,
     items: &mut Vec<DrawItem>,
+    mut filled: Option<&mut Vec<std::ops::Range<usize>>>,
 ) {
     let Some(master) = slide.master.as_deref().and_then(|id| course.master(id)) else {
         return;
     };
-    for obj in &master.objects {
-        if !authoring && obj.initial_state == "hidden" {
-            continue;
-        }
-        let Some(mut item) = (if authoring {
-            compose_object_with_value(
+    if authoring {
+        for obj in &master.objects {
+            let Some(mut item) = compose_object_with_value(
                 obj,
                 &obj.initial_state,
                 theme,
                 course_input_value(course, obj),
-            )
-        } else {
-            // At play time read the live variable, not its authored default.
-            let value = match player {
-                Some(player) => player_input_value(player, obj),
-                None => course_input_value(course, obj),
+            ) else {
+                continue;
             };
-            compose_object_with_runtime(obj, &obj.initial_state, theme, value, false)
-        }) else {
+            if matches!(item.visual, Visual::Audio { .. }) {
+                continue;
+            }
+            item.hit = Hit::None;
+            item.dimmed = dimmed || obj.initial_state == "hidden";
+            items.push(item);
+        }
+        return;
+    }
+
+    let mut group_cache: std::collections::HashMap<
+        String,
+        Option<Option<std::sync::Arc<GroupAnim>>>,
+    > = std::collections::HashMap::new();
+
+    for obj in &master.objects {
+        if obj.initial_state == "hidden" {
+            continue;
+        }
+        let Some(player) = player else {
+            let Some(mut item) = compose_object_with_runtime(
+                obj,
+                &obj.initial_state,
+                theme,
+                course_input_value(course, obj),
+                false,
+            ) else {
+                continue;
+            };
+            if matches!(item.visual, Visual::Audio { .. }) {
+                continue;
+            }
+            item.hit = Hit::None;
+            item.dimmed = dimmed;
+            items.push(item);
+            continue;
+        };
+
+        let Some(ga) = active_master_group_anim(player, master, obj, &mut group_cache) else {
+            continue;
+        };
+        let Some(sample) = player.sample_master_object(&obj.id) else {
+            continue;
+        };
+        if sample.opacity <= 0.0 {
+            continue;
+        }
+        // At play time read the live variable, not its authored default.
+        let value = player_input_value(player, obj);
+        let Some(item) = compose_object_with_runtime(obj, &obj.initial_state, theme, value, false)
+        else {
             continue;
         };
         if matches!(item.visual, Visual::Audio { .. }) {
             continue;
         }
-        item.hit = Hit::None;
-        item.dimmed = dimmed || (authoring && obj.initial_state == "hidden");
-        items.push(item);
+        let mut obj_items = vec![item];
+        // Fill %variables% first before sequence splitting.
+        for item in &mut obj_items {
+            fill_item_variables(player, item);
+        }
+        crate::sequence::apply_object_samples(
+            &mut obj_items,
+            coursecraft_logic::plays_in_parts(obj),
+            &sample,
+            |n| player.sample_master_object_parts(&obj.id, n),
+        );
+        for item in &mut obj_items {
+            if let Some(ref g) = ga {
+                item.group_anim = Some(g.clone());
+            }
+            item.hit = Hit::None;
+            item.dimmed = dimmed;
+        }
+        if let Some(filled_vec) = filled.as_deref_mut() {
+            filled_vec.push(items.len()..items.len() + obj_items.len());
+        }
+        items.extend(obj_items);
     }
+}
+
+fn active_master_group_anim(
+    player: &Player<'_>,
+    master: &Slide,
+    obj: &Object,
+    cache: &mut std::collections::HashMap<String, Option<Option<std::sync::Arc<GroupAnim>>>>,
+) -> Option<Option<std::sync::Arc<GroupAnim>>> {
+    let Some((group, _)) = master.group_of_object(&obj.id) else {
+        return Some(None);
+    };
+    if !group.has_animation() {
+        return Some(None);
+    }
+    if let Some(cached) = cache.get(&group.id) {
+        return cached.clone();
+    }
+    let Some(sample) = player.sample_master_group(&group.id) else {
+        cache.insert(group.id.clone(), None);
+        return None;
+    };
+    if sample.opacity <= 0.0 {
+        cache.insert(group.id.clone(), None);
+        return None;
+    }
+    if sample == coursecraft_logic::ObjectSample::IDENTITY {
+        cache.insert(group.id.clone(), Some(None));
+        return Some(None);
+    }
+    let Some(frame) = master.group_frame(&group.id, None) else {
+        cache.insert(group.id.clone(), Some(None));
+        return Some(None);
+    };
+    let ga = std::sync::Arc::new(GroupAnim {
+        id: format!("master:{}", group.id),
+        frame: egui::Rect::from_min_size(
+            egui::pos2(frame.x, frame.y),
+            egui::vec2(frame.w, frame.h),
+        ),
+        sample,
+    });
+    cache.insert(group.id.clone(), Some(Some(ga.clone())));
+    Some(Some(ga))
 }
 
 /// Push the base layer's objects, unless a visible layer hides them.
@@ -3150,11 +3257,12 @@ pub fn compose_with_pointer(
     let pressed = pressed.map(|id| player.interactive_group_of(id).unwrap_or(id));
 
     let mut items = Vec::new();
+    let mut filled: Vec<std::ops::Range<usize>> = Vec::new();
     let base_hidden = player.base_objects_hidden();
 
-    // 1. Master objects, under everything. They ignore timing and animation,
-    // are always shown except when their initial state is `hidden`, and never
-    // take a press.
+    // 1. Master objects, under everything. They animate on the slide's base
+    // timeline, are hidden when `initial_state` is `hidden` or after exit,
+    // and never take a press.
     let theme = Some(&player.course().theme);
     push_master_items(
         player.course(),
@@ -3164,10 +3272,10 @@ pub fn compose_with_pointer(
         false,
         false,
         &mut items,
+        Some(&mut filled),
     );
 
     // 2. Base objects
-    let mut filled: Vec<std::ops::Range<usize>> = Vec::new();
     let mut group_cache = std::collections::HashMap::new();
     push_base_items(
         player,
@@ -3742,7 +3850,7 @@ pub fn compose_authoring_layers_opts(
     // 1. Master objects, under everything. They dim with the base objects when
     // a layer is focused and never take a press.
     if show_base {
-        push_master_items(course, None, slide, theme, true, dim_base, &mut items);
+        push_master_items(course, None, slide, theme, true, dim_base, &mut items, None);
     }
 
     // 2. Base objects

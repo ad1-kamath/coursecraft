@@ -57,6 +57,8 @@ mod m48_nofill_effects_tests;
 #[cfg(test)]
 mod m49_group_anim_tests;
 #[cfg(test)]
+mod m49_master_anim_tests;
+#[cfg(test)]
 mod neon_render_tests;
 #[cfg(test)]
 mod outline_tests;

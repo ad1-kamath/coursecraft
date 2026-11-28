@@ -1471,11 +1471,16 @@ impl<'c> Player<'c> {
 
         if !base_held {
             let base_has_seekbar = show_seekbar && matches!(seek_target, SeekTarget::Base);
+            let master = slide
+                .master
+                .as_deref()
+                .and_then(|id| self.course.master(id));
             if let Some(delta) = clock_next_wake(
                 self.st.base,
                 slide.duration_ms,
                 &slide.objects,
                 slide,
+                master,
                 &slide.cue_points,
                 None,
                 base_has_seekbar,
@@ -1499,6 +1504,7 @@ impl<'c> Player<'c> {
                 layer.duration_ms,
                 &layer.objects,
                 slide,
+                None,
                 &layer.cue_points,
                 Some(lid.as_str()),
                 layer_has_seekbar,
@@ -2334,6 +2340,70 @@ impl<'c> Player<'c> {
         )
     }
 
+    /// Sample a slide master object's entrance, exit, and emphasis animations
+    /// on the current slide's base timeline.
+    ///
+    /// Returns `None` if the current slide has no master, the object is unknown,
+    /// or the object is outside its timing window / after its exit completes.
+    /// Master objects stay visible even when a layer sets `hide_base_objects`.
+    #[must_use]
+    pub fn sample_master_object(&self, object_id: &str) -> Option<ObjectSample> {
+        let slide = self.current_slide()?;
+        let master = self.course.master(slide.master.as_deref()?)?;
+        let obj = master.objects.iter().find(|o| o.id == object_id)?;
+        sample_timed_animation_reduced(
+            obj,
+            self.st.base.ms,
+            slide.duration_ms,
+            self.course.slide_size,
+            self.reduced_motion(),
+        )
+    }
+
+    /// [`Self::sample_master_object`] for each of `parts` parts of a master
+    /// object's text (see [`sample_timed_parts`]).
+    #[must_use]
+    pub fn sample_master_object_parts(
+        &self,
+        object_id: &str,
+        parts: usize,
+    ) -> Option<Vec<ObjectSample>> {
+        let slide = self.current_slide()?;
+        let master = self.course.master(slide.master.as_deref()?)?;
+        let obj = master.objects.iter().find(|o| o.id == object_id)?;
+        sample_timed_parts_reduced(
+            obj,
+            self.st.base.ms,
+            slide.duration_ms,
+            self.course.slide_size,
+            parts,
+            self.reduced_motion(),
+        )
+    }
+
+    /// Sample a slide master group's entrance, exit, and emphasis animations
+    /// on the current slide's base timeline.
+    ///
+    /// Returns `None` if the current slide has no master, the group is unknown,
+    /// has no members, or is outside its timing window / after its exit completes.
+    #[must_use]
+    pub fn sample_master_group(&self, group_id: &str) -> Option<ObjectSample> {
+        let slide = self.current_slide()?;
+        let master = self.course.master(slide.master.as_deref()?)?;
+        let group = master.groups.iter().find(|g| g.id == group_id)?;
+        let timing = master.group_timing(group_id, None)?;
+        let frame = master.group_frame(group_id, None)?;
+        sample_group_animation_reduced(
+            group,
+            timing,
+            frame,
+            self.st.base.ms,
+            slide.duration_ms,
+            self.course.slide_size,
+            self.reduced_motion(),
+        )
+    }
+
     /// [`Self::sample_object`] for each of `parts` parts of the object's text (see
     /// [`sample_timed_parts`]).
     #[must_use]
@@ -2489,11 +2559,13 @@ fn scale_wake_delta_ms(delta: u32, speed_quarters: u8) -> u32 {
     u32::try_from(wall).unwrap_or(u32::MAX).max(1)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn clock_next_wake(
     clock: Clock,
     duration_ms: u32,
     objects: &[coursecraft_course::Object],
     slide: &Slide,
+    master: Option<&Slide>,
     cue_points: &[coursecraft_course::SlideCue],
     layer_id: Option<&str>,
     has_seekbar: bool,
@@ -2581,6 +2653,40 @@ fn clock_next_wake(
             &group.emphasis,
         ) {
             return Some(wake);
+        }
+    }
+
+    if layer_id.is_none()
+        && let Some(master) = master
+    {
+        for obj in &master.objects {
+            if obj.initial_state == "hidden" {
+                continue;
+            }
+            if let Some(wake) = inspect_anim(
+                obj.timing,
+                obj.entrance.as_ref(),
+                obj.exit.as_ref(),
+                &obj.emphasis,
+            ) {
+                return Some(wake);
+            }
+        }
+        for group in &master.groups {
+            if !group.has_animation() {
+                continue;
+            }
+            let Some(timing) = master.group_timing(&group.id, None) else {
+                continue;
+            };
+            if let Some(wake) = inspect_anim(
+                timing,
+                group.entrance.as_ref(),
+                group.exit.as_ref(),
+                &group.emphasis,
+            ) {
+                return Some(wake);
+            }
         }
     }
 
