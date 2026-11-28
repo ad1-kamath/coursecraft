@@ -911,28 +911,42 @@ impl Preview {
             self.non_fullscreen_rect.unwrap_or(bounds)
         };
 
-        let backdrop = egui::Area::new(Id::unique("preview_backdrop"))
+        let popup_was_open = egui::Popup::is_any_open(ctx);
+        let modal_area = egui::Area::new(Id::unique("preview_window"))
+            .kind(egui::UiKind::Modal)
             .order(egui::Order::Foreground)
+            .sense(egui::Sense::hover())
             .fixed_pos(screen_rect.min)
             .interactable(true)
             .show(ctx, |ui| {
-                let (rect, response) =
-                    ui.allocate_exact_size(screen_rect.size(), egui::Sense::click());
-                ui.painter()
-                    .rect_filled(rect, egui::CornerRadius::ZERO, PREVIEW_BACKDROP_COLOR);
-                response
-            });
+                let mut backdrop_ui = ui.new_child(
+                    egui::UiBuilder::new()
+                        .max_rect(screen_rect)
+                        .sense(egui::Sense::click_and_drag())
+                        .id_salt("preview_backdrop"),
+                );
+                backdrop_ui.set_min_size(screen_rect.size());
+                ui.painter().rect_filled(
+                    screen_rect,
+                    egui::CornerRadius::ZERO,
+                    PREVIEW_BACKDROP_COLOR,
+                );
+                let backdrop_response = backdrop_ui.response();
+                if backdrop_response.has_focus() {
+                    ui.memory_mut(|m| m.surrender_focus(backdrop_response.id));
+                }
 
-        let window_area = egui::Area::new(Id::unique("preview_window"))
-            .order(egui::Order::Foreground)
-            .fixed_pos(target_rect.min)
-            .interactable(true)
-            .show(ctx, |ui| {
+                let mut window_ui = ui.new_child(
+                    egui::UiBuilder::new()
+                        .max_rect(target_rect)
+                        .sense(egui::Sense::click_and_drag())
+                        .id_salt("preview_window_frame"),
+                );
                 let mut frame = if self.fullscreen {
-                    egui::Frame::central_panel(ui.style())
+                    egui::Frame::central_panel(window_ui.style())
                         .inner_margin(egui::Margin::same(PREVIEW_FRAME_PAD))
                 } else {
-                    egui::Frame::window(ui.style())
+                    egui::Frame::window(window_ui.style())
                         .inner_margin(egui::Margin::same(PREVIEW_FRAME_PAD))
                 };
                 if self.fullscreen {
@@ -943,279 +957,348 @@ impl Preview {
                     (target_rect.width() - margin_sum.x).max(1.0),
                     (target_rect.height() - margin_sum.y).max(1.0),
                 );
-                frame.show(ui, |ui| {
-                    ui.set_min_size(inner_size);
-                    ui.set_max_size(inner_size);
-                    ui.allocate_ui_with_layout(inner_size, Layout::top_down(Align::Min), |ui| {
-                        if !self.errors.is_empty() {
-                            ui.horizontal(|ui| {
-                                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                let frame_response = frame
+                    .show(&mut window_ui, |ui| {
+                        ui.set_min_size(inner_size);
+                        ui.set_max_size(inner_size);
+                        ui.allocate_ui_with_layout(
+                            inner_size,
+                            Layout::top_down(Align::Min),
+                            |ui| {
+                                if !self.errors.is_empty() {
+                                    ui.horizontal(|ui| {
+                                        ui.with_layout(
+                                            Layout::right_to_left(Align::Center),
+                                            |ui| {
+                                                if crate::widgets::icon_button(
+                                                    ui,
+                                                    coursecraft_render::Icon::X,
+                                                    "Close preview",
+                                                )
+                                                .clicked()
+                                                {
+                                                    close_requested = true;
+                                                }
+                                            },
+                                        );
+                                    });
+                                    ui.separator();
+                                    self.show_errors(ui);
+                                    self.state = current_state.take();
+                                    return;
+                                }
+
+                                let Some(state) = current_state.take() else {
+                                    self.show_errors(ui);
+                                    return;
+                                };
+
+                                let course = &self.course;
+                                let view = &mut self.view;
+                                let frame = &mut self.frame;
+                                let ticker = &mut self.ticker;
+                                let media_driver = &mut self.media;
+                                let log = &mut self.log;
+                                let show_log = &mut self.show_log;
+                                let show_variables = &mut self.show_variables;
+                                let fullscreen = &mut self.fullscreen;
+                                let referenced_vars = &self.referenced_vars;
+                                let last_var_values = &mut self.last_var_values;
+                                let var_changed_at = &mut self.var_changed_at;
+                                let ended = &mut self.ended;
+                                let partial_count = self.preview_subset.as_ref().map(Vec::len);
+
+                                let mut player = match resume_with_plan(
+                                    course,
+                                    state,
+                                    self.play_plan.as_ref(),
+                                ) {
+                                    Ok(p) => p,
+                                    Err(issues) => {
+                                        self.errors = issues;
+                                        should_show_errors = true;
+                                        return;
+                                    }
+                                };
+
+                                // Advance clock ticker
+                                if let Some(tick) = ticker.advance(dt) {
+                                    let effects = player.handle(&tick);
+                                    record_effects(&effects, log, ended, Some(ctx));
+                                    frame_effects.extend(effects);
+                                    if player.take_preview_boundary() {
+                                        boundary_hit = true;
+                                    }
+                                }
+
+                                // Keyboard shortcut: F2 toggles effect log
+                                if ctx.input(|i| i.key_pressed(egui::Key::F2)) {
+                                    *show_log = !*show_log;
+                                }
+                                // Keyboard shortcut: F3 toggles live variables
+                                if ctx.input(|i| i.key_pressed(egui::Key::F3)) {
+                                    *show_variables = !*show_variables;
+                                }
+
+                                // Top controls bar
+                                let mut should_restart = false;
+                                ui.horizontal(|ui| {
                                     if crate::widgets::icon_button(
                                         ui,
-                                        coursecraft_render::Icon::X,
-                                        "Close preview",
+                                        coursecraft_render::Icon::ArrowClockwise,
+                                        "Restart preview from the first slide",
                                     )
                                     .clicked()
                                     {
-                                        close_requested = true;
+                                        should_restart = true;
                                     }
+                                    if crate::widgets::icon_toggle(
+                                        ui,
+                                        coursecraft_render::Icon::Notepad,
+                                        *show_log,
+                                        "Effect log (F2)",
+                                    )
+                                    .clicked()
+                                    {
+                                        *show_log = !*show_log;
+                                    }
+                                    if crate::widgets::icon_toggle(
+                                        ui,
+                                        coursecraft_render::Icon::BracketsCurly,
+                                        *show_variables,
+                                        "Variables (F3)",
+                                    )
+                                    .clicked()
+                                    {
+                                        *show_variables = !*show_variables;
+                                    }
+                                    if let Some(count) = partial_count {
+                                        let label = if count == 1 {
+                                            "Partial preview (1 slide)".to_owned()
+                                        } else {
+                                            format!("Partial preview ({count} slides)")
+                                        };
+                                        ui.add_space(6.0);
+                                        ui.label(egui::RichText::new(label).small().color(
+                                            coursecraft_render::palette(ui.ctx()).text_secondary,
+                                        ));
+                                    }
+                                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                        if crate::widgets::icon_button(
+                                            ui,
+                                            coursecraft_render::Icon::X,
+                                            "Close preview",
+                                        )
+                                        .clicked()
+                                        {
+                                            close_requested = true;
+                                        }
+                                        let (fs_icon, fs_tip) = if *fullscreen {
+                                            (
+                                                coursecraft_render::Icon::CornersIn,
+                                                "Exit full screen (F11)",
+                                            )
+                                        } else {
+                                            (
+                                                coursecraft_render::Icon::CornersOut,
+                                                "Full screen (F11)",
+                                            )
+                                        };
+                                        if crate::widgets::icon_toggle(
+                                            ui,
+                                            fs_icon,
+                                            *fullscreen,
+                                            fs_tip,
+                                        )
+                                        .clicked()
+                                        {
+                                            *fullscreen = !*fullscreen;
+                                        }
+                                    });
                                 });
-                            });
-                            ui.separator();
-                            self.show_errors(ui);
-                            self.state = current_state.take();
-                            return;
-                        }
+                                ui.separator();
 
-                        let Some(state) = current_state.take() else {
-                            self.show_errors(ui);
-                            return;
-                        };
-
-                        let course = &self.course;
-                        let view = &mut self.view;
-                        let frame = &mut self.frame;
-                        let ticker = &mut self.ticker;
-                        let media_driver = &mut self.media;
-                        let log = &mut self.log;
-                        let show_log = &mut self.show_log;
-                        let show_variables = &mut self.show_variables;
-                        let fullscreen = &mut self.fullscreen;
-                        let referenced_vars = &self.referenced_vars;
-                        let last_var_values = &mut self.last_var_values;
-                        let var_changed_at = &mut self.var_changed_at;
-                        let ended = &mut self.ended;
-                        let partial_count = self.preview_subset.as_ref().map(Vec::len);
-
-                        let mut player =
-                            match resume_with_plan(course, state, self.play_plan.as_ref()) {
-                                Ok(p) => p,
-                                Err(issues) => {
-                                    self.errors = issues;
-                                    should_show_errors = true;
+                                if should_restart {
+                                    drop(player);
+                                    self.restart();
                                     return;
                                 }
-                            };
 
-                        // Advance clock ticker
-                        if let Some(tick) = ticker.advance(dt) {
-                            let effects = player.handle(&tick);
-                            record_effects(&effects, log, ended, Some(ctx));
-                            frame_effects.extend(effects);
-                            if player.take_preview_boundary() {
-                                boundary_hit = true;
-                            }
-                        }
-
-                        // Keyboard shortcut: F2 toggles effect log
-                        if ctx.input(|i| i.key_pressed(egui::Key::F2)) {
-                            *show_log = !*show_log;
-                        }
-                        // Keyboard shortcut: F3 toggles live variables
-                        if ctx.input(|i| i.key_pressed(egui::Key::F3)) {
-                            *show_variables = !*show_variables;
-                        }
-
-                        // Top controls bar
-                        let mut should_restart = false;
-                        ui.horizontal(|ui| {
-                            if crate::widgets::icon_button(
-                                ui,
-                                coursecraft_render::Icon::ArrowClockwise,
-                                "Restart preview from the first slide",
-                            )
-                            .clicked()
-                            {
-                                should_restart = true;
-                            }
-                            if crate::widgets::icon_toggle(
-                                ui,
-                                coursecraft_render::Icon::Notepad,
-                                *show_log,
-                                "Effect log (F2)",
-                            )
-                            .clicked()
-                            {
-                                *show_log = !*show_log;
-                            }
-                            if crate::widgets::icon_toggle(
-                                ui,
-                                coursecraft_render::Icon::BracketsCurly,
-                                *show_variables,
-                                "Variables (F3)",
-                            )
-                            .clicked()
-                            {
-                                *show_variables = !*show_variables;
-                            }
-                            if let Some(count) = partial_count {
-                                let label = if count == 1 {
-                                    "Partial preview (1 slide)".to_owned()
-                                } else {
-                                    format!("Partial preview ({count} slides)")
-                                };
-                                ui.add_space(6.0);
-                                ui.label(
-                                    egui::RichText::new(label).small().color(
-                                        coursecraft_render::palette(ui.ctx()).text_secondary,
-                                    ),
-                                );
-                            }
-                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                if crate::widgets::icon_button(
-                                    ui,
-                                    coursecraft_render::Icon::X,
-                                    "Close preview",
-                                )
-                                .clicked()
+                                let is_log_visible = *show_log;
+                                let is_vars_visible = *show_variables;
+                                let avail = ui.available_size();
+                                let (slide_width, side_width) = if is_log_visible || is_vars_visible
                                 {
-                                    close_requested = true;
-                                }
-                                let (fs_icon, fs_tip) = if *fullscreen {
-                                    (
-                                        coursecraft_render::Icon::CornersIn,
-                                        "Exit full screen (F11)",
-                                    )
+                                    let max_side = (avail.x - LOG_GAP - 80.0).max(0.0);
+                                    let min_side = 240.0_f32.min(max_side);
+                                    let sw = coursecraft_course::safe_clamp(
+                                        avail.x * 0.35,
+                                        min_side,
+                                        400.0_f32.min(max_side),
+                                    );
+                                    ((avail.x - sw - LOG_GAP).max(1.0), Some(sw))
                                 } else {
-                                    (coursecraft_render::Icon::CornersOut, "Full screen (F11)")
+                                    (avail.x.max(1.0), None)
                                 };
-                                if crate::widgets::icon_toggle(ui, fs_icon, *fullscreen, fs_tip)
-                                    .clicked()
-                                {
-                                    *fullscreen = !*fullscreen;
-                                }
-                            });
-                        });
-                        ui.separator();
 
-                        if should_restart {
-                            drop(player);
-                            self.restart();
-                            return;
-                        }
-
-                        let is_log_visible = *show_log;
-                        let is_vars_visible = *show_variables;
-                        let avail = ui.available_size();
-                        let (slide_width, side_width) = if is_log_visible || is_vars_visible {
-                            let max_side = (avail.x - LOG_GAP - 80.0).max(0.0);
-                            let min_side = 240.0_f32.min(max_side);
-                            let sw = coursecraft_course::safe_clamp(
-                                avail.x * 0.35,
-                                min_side,
-                                400.0_f32.min(max_side),
-                            );
-                            ((avail.x - sw - LOG_GAP).max(1.0), Some(sw))
-                        } else {
-                            (avail.x.max(1.0), None)
-                        };
-
-                        // The content must take exactly `avail`: any extra pixel (item spacing between
-                        // the slide and the log, the separator, row padding) makes the window
-                        // auto-grow a little on every frame. Zero the spacing and lay the gaps out
-                        // explicitly so the sums are exact.
-                        ui.horizontal(|ui| {
-                            ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
-                            // Left area: the shared player frame (slide, strip, rule, drawer)
-                            ui.allocate_ui_with_layout(
-                                egui::vec2(slide_width, avail.y),
-                                Layout::top_down(Align::Min),
-                                |ui| {
+                                // The content must take exactly `avail`: any extra pixel (item spacing between
+                                // the slide and the log, the separator, row padding) makes the window
+                                // auto-grow a little on every frame. Zero the spacing and lay the gaps out
+                                // explicitly so the sums are exact.
+                                ui.horizontal(|ui| {
                                     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
-                                    frame.ended = *ended;
-                                    frame.can_speed = media_driver.supports_rate();
-                                    frame.can_fullscreen = true;
-                                    frame.fullscreen = *fullscreen;
-                                    let caption = media_driver.caption_frame(
-                                        &player,
-                                        media.as_ref().map(|(_, source)| *source),
-                                        view,
-                                    );
-                                    media_driver
-                                        .present_captions(caption.as_ref(), frame.captions_on);
-                                    frame.set_caption_frame(if frame.captions_on {
-                                        caption
-                                    } else {
-                                        None
-                                    });
-                                    let combined_holder;
-                                    let media_arg = match media.as_mut() {
-                                        Some((c, s)) => {
-                                            combined_holder = media_driver.as_media_source(*s);
-                                            Some((&mut **c, &combined_holder as &dyn MediaSource))
-                                        }
-                                        None => None,
-                                    };
-                                    let out: FrameOutput = frame.show(ui, &player, view, media_arg);
-                                    if out.fullscreen_toggle {
-                                        *fullscreen = !*fullscreen;
-                                    }
-                                    crate::content_region::mark_content_region(
-                                        ctx,
-                                        ui.layer_id(),
-                                        out.slide_rect,
-                                    );
-                                    if let Some(volume) = out.volume {
-                                        media_driver.set_volume(volume);
-                                    }
-                                    for input in out.inputs {
-                                        let effects = player.handle(&input);
-                                        if matches!(input, Input::SetSpeed { .. }) {
-                                            media_driver.set_rate(player.speed());
-                                        }
-                                        record_effects(&effects, log, ended, Some(ctx));
-                                        frame_effects.extend(effects);
-                                        if player.take_preview_boundary() {
-                                            boundary_hit = true;
-                                        }
-                                    }
-                                    if let Some((cache, _)) = media.as_mut() {
-                                        for input in cache.lottie_ended(&player) {
-                                            let effects = player.handle(&input);
-                                            record_effects(&effects, log, ended, Some(ctx));
-                                            frame_effects.extend(effects);
-                                            if player.take_preview_boundary() {
-                                                boundary_hit = true;
+                                    // Left area: the shared player frame (slide, strip, rule, drawer)
+                                    ui.allocate_ui_with_layout(
+                                        egui::vec2(slide_width, avail.y),
+                                        Layout::top_down(Align::Min),
+                                        |ui| {
+                                            ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
+                                            frame.ended = *ended;
+                                            frame.can_speed = media_driver.supports_rate();
+                                            frame.can_fullscreen = true;
+                                            frame.fullscreen = *fullscreen;
+                                            let caption = media_driver.caption_frame(
+                                                &player,
+                                                media.as_ref().map(|(_, source)| *source),
+                                                view,
+                                            );
+                                            media_driver.present_captions(
+                                                caption.as_ref(),
+                                                frame.captions_on,
+                                            );
+                                            frame.set_caption_frame(if frame.captions_on {
+                                                caption
+                                            } else {
+                                                None
+                                            });
+                                            let combined_holder;
+                                            let media_arg = match media.as_mut() {
+                                                Some((c, s)) => {
+                                                    combined_holder =
+                                                        media_driver.as_media_source(*s);
+                                                    Some((
+                                                        &mut **c,
+                                                        &combined_holder as &dyn MediaSource,
+                                                    ))
+                                                }
+                                                None => None,
+                                            };
+                                            let out: FrameOutput =
+                                                frame.show(ui, &player, view, media_arg);
+                                            if out.fullscreen_toggle {
+                                                *fullscreen = !*fullscreen;
                                             }
+                                            crate::content_region::mark_content_region(
+                                                ctx,
+                                                ui.layer_id(),
+                                                out.slide_rect,
+                                            );
+                                            if let Some(volume) = out.volume {
+                                                media_driver.set_volume(volume);
+                                            }
+                                            for input in out.inputs {
+                                                let effects = player.handle(&input);
+                                                if matches!(input, Input::SetSpeed { .. }) {
+                                                    media_driver.set_rate(player.speed());
+                                                }
+                                                record_effects(&effects, log, ended, Some(ctx));
+                                                frame_effects.extend(effects);
+                                                if player.take_preview_boundary() {
+                                                    boundary_hit = true;
+                                                }
+                                            }
+                                            if let Some((cache, _)) = media.as_mut() {
+                                                for input in cache.lottie_ended(&player) {
+                                                    let effects = player.handle(&input);
+                                                    record_effects(&effects, log, ended, Some(ctx));
+                                                    frame_effects.extend(effects);
+                                                    if player.take_preview_boundary() {
+                                                        boundary_hit = true;
+                                                    }
+                                                }
+                                            }
+                                        },
+                                    );
+
+                                    let now = ctx.input(|i| i.time);
+                                    for var in &course.variables {
+                                        let current =
+                                            player.variable(&var.name).unwrap_or(&var.value);
+                                        match last_var_values.get(&var.name) {
+                                            Some(prev) if prev != current => {
+                                                last_var_values
+                                                    .insert(var.name.clone(), current.clone());
+                                                var_changed_at.insert(var.name.clone(), now);
+                                            }
+                                            None => {
+                                                last_var_values
+                                                    .insert(var.name.clone(), current.clone());
+                                            }
+                                            _ => {}
                                         }
                                     }
-                                },
-                            );
 
-                            let now = ctx.input(|i| i.time);
-                            for var in &course.variables {
-                                let current = player.variable(&var.name).unwrap_or(&var.value);
-                                match last_var_values.get(&var.name) {
-                                    Some(prev) if prev != current => {
-                                        last_var_values.insert(var.name.clone(), current.clone());
-                                        var_changed_at.insert(var.name.clone(), now);
-                                    }
-                                    None => {
-                                        last_var_values.insert(var.name.clone(), current.clone());
-                                    }
-                                    _ => {}
-                                }
-                            }
-
-                            // Right area: Live variables and/or Effect log
-                            if let Some(sw) = side_width {
-                                let gap = ui.allocate_space(egui::vec2(LOG_GAP, avail.y)).1;
-                                ui.painter().vline(
-                                    gap.center().x,
-                                    gap.y_range(),
-                                    ui.visuals().widgets.noninteractive.bg_stroke,
-                                );
-                                ui.allocate_ui_with_layout(
-                                    egui::vec2(sw, avail.y),
-                                    Layout::top_down(Align::Min),
-                                    |ui| {
-                                        if is_vars_visible && is_log_visible {
-                                            let top_h = ((avail.y - LOG_GAP) * 0.5).max(80.0);
-                                            let bot_h = (avail.y - LOG_GAP - top_h).max(80.0);
-                                            ui.allocate_ui_with_layout(
-                                                egui::vec2(sw, top_h),
-                                                Layout::top_down(Align::Min),
-                                                |ui| {
+                                    // Right area: Live variables and/or Effect log
+                                    if let Some(sw) = side_width {
+                                        let gap = ui.allocate_space(egui::vec2(LOG_GAP, avail.y)).1;
+                                        ui.painter().vline(
+                                            gap.center().x,
+                                            gap.y_range(),
+                                            ui.visuals().widgets.noninteractive.bg_stroke,
+                                        );
+                                        ui.allocate_ui_with_layout(
+                                            egui::vec2(sw, avail.y),
+                                            Layout::top_down(Align::Min),
+                                            |ui| {
+                                                if is_vars_visible && is_log_visible {
+                                                    let top_h =
+                                                        ((avail.y - LOG_GAP) * 0.5).max(80.0);
+                                                    let bot_h =
+                                                        (avail.y - LOG_GAP - top_h).max(80.0);
+                                                    ui.allocate_ui_with_layout(
+                                                        egui::vec2(sw, top_h),
+                                                        Layout::top_down(Align::Min),
+                                                        |ui| {
+                                                            show_variables_panel(
+                                                                ui,
+                                                                course,
+                                                                &player,
+                                                                referenced_vars,
+                                                                var_changed_at,
+                                                                now,
+                                                            );
+                                                        },
+                                                    );
+                                                    let hgap = ui
+                                                        .allocate_space(egui::vec2(sw, LOG_GAP))
+                                                        .1;
+                                                    ui.painter().hline(
+                                                        hgap.x_range(),
+                                                        hgap.center().y,
+                                                        ui.visuals()
+                                                            .widgets
+                                                            .noninteractive
+                                                            .bg_stroke,
+                                                    );
+                                                    ui.allocate_ui_with_layout(
+                                                        egui::vec2(sw, bot_h),
+                                                        Layout::top_down(Align::Min),
+                                                        |ui| {
+                                                            ui.label(
+                                                                egui::RichText::new("Effect log")
+                                                                    .strong(),
+                                                            );
+                                                            ScrollArea::vertical()
+                                                                .auto_shrink([false, false])
+                                                                .stick_to_bottom(true)
+                                                                .show(ui, |ui| {
+                                                                    for line in &*log {
+                                                                        ui.monospace(line);
+                                                                    }
+                                                                });
+                                                        },
+                                                    );
+                                                } else if is_vars_visible {
                                                     show_variables_panel(
                                                         ui,
                                                         course,
@@ -1224,18 +1307,7 @@ impl Preview {
                                                         var_changed_at,
                                                         now,
                                                     );
-                                                },
-                                            );
-                                            let hgap = ui.allocate_space(egui::vec2(sw, LOG_GAP)).1;
-                                            ui.painter().hline(
-                                                hgap.x_range(),
-                                                hgap.center().y,
-                                                ui.visuals().widgets.noninteractive.bg_stroke,
-                                            );
-                                            ui.allocate_ui_with_layout(
-                                                egui::vec2(sw, bot_h),
-                                                Layout::top_down(Align::Min),
-                                                |ui| {
+                                                } else {
                                                     ui.label(
                                                         egui::RichText::new("Effect log").strong(),
                                                     );
@@ -1247,44 +1319,36 @@ impl Preview {
                                                                 ui.monospace(line);
                                                             }
                                                         });
-                                                },
-                                            );
-                                        } else if is_vars_visible {
-                                            show_variables_panel(
-                                                ui,
-                                                course,
-                                                &player,
-                                                referenced_vars,
-                                                var_changed_at,
-                                                now,
-                                            );
-                                        } else {
-                                            ui.label(egui::RichText::new("Effect log").strong());
-                                            ScrollArea::vertical()
-                                                .auto_shrink([false, false])
-                                                .stick_to_bottom(true)
-                                                .show(ui, |ui| {
-                                                    for line in &*log {
-                                                        ui.monospace(line);
-                                                    }
-                                                });
-                                        }
-                                    },
-                                );
-                            }
-                        });
+                                                }
+                                            },
+                                        );
+                                    }
+                                });
 
-                        self.state = Some(player.into_state());
-                    });
-                });
+                                self.state = Some(player.into_state());
+                            },
+                        );
+                    })
+                    .response;
+                if window_ui.response().has_focus() {
+                    ui.memory_mut(|m| m.surrender_focus(window_ui.response().id));
+                }
+
+                let resized_rect = if !self.fullscreen {
+                    self.non_fullscreen_rect.map(|prev_rect| {
+                        handle_resize_grips(ui, prev_rect, bounds, min_size, max_size)
+                    })
+                } else {
+                    None
+                };
+
+                (backdrop_response, frame_response.rect, resized_rect)
             });
 
-        let rect = window_area.response.rect;
+        ctx.memory_mut(|mem| mem.set_modal_layer(modal_area.response.layer_id));
+        let (backdrop_response, rect, resized_rect) = modal_area.inner;
         if boundary_hit {
             self.end_of_preview_popup = true;
-        }
-        if !self.end_of_preview_popup {
-            ctx.move_to_top(window_area.response.layer_id);
         }
         let mut popup_replay = false;
         let mut popup_close_preview = false;
@@ -1343,14 +1407,11 @@ impl Preview {
         } else if popup_close_preview {
             close_requested = true;
         }
-        if !self.fullscreen
-            && let Some(prev_rect) = self.non_fullscreen_rect
+        if let (Some(prev_rect), Some(resized)) = (self.non_fullscreen_rect, resized_rect)
+            && resized != prev_rect
         {
-            let resized = handle_resize_grips(ctx, prev_rect, bounds, min_size, max_size);
-            if resized != prev_rect {
-                self.non_fullscreen_rect = Some(resized);
-                self.remembered_size = Some(resized.size());
-            }
+            self.non_fullscreen_rect = Some(resized);
+            self.remembered_size = Some(resized.size());
         }
         let (pressed, pos) = ctx.input(|i| (i.pointer.any_pressed(), i.pointer.interact_pos()));
         let inside = pos.is_some_and(|p| rect.contains(p));
@@ -1358,14 +1419,18 @@ impl Preview {
         self.had_text_focus = ctx.egui_wants_keyboard_input();
         self.window_rect = Some(rect);
 
-        // Escape dismisses the end-of-preview popup first, then leaves full screen,
-        // then closes the preview (unless the player drawer or a focused text input used it first).
-        // Clicking the dimmed backdrop outside the window closes it only when not full screen.
+        // Escape dismisses open popups (e.g. matching dropdowns) first, then the end-of-preview
+        // popup, then leaves full screen, then closes the preview (unless the player drawer or a
+        // focused text input used it first). Clicking the dimmed backdrop outside the window
+        // closes it only when not full screen and no popup was open.
         let escape = ctx.input(|i| i.key_pressed(egui::Key::Escape));
-        let backdrop_clicked = !self.fullscreen && backdrop.inner.clicked();
+        let backdrop_clicked = !self.fullscreen
+            && !popup_was_open
+            && backdrop_response.clicked_by(egui::PointerButton::Primary)
+            && pos.is_some_and(|p| !rect.contains(p));
         if close_requested || backdrop_clicked {
             *open = false;
-        } else if escape && !drawer_was_open {
+        } else if escape && !drawer_was_open && !popup_was_open && !egui::Popup::is_any_open(ctx) {
             if self.end_of_preview_popup {
                 self.end_of_preview_popup = false;
             } else if !text_edit_was_focused {
@@ -1635,59 +1700,52 @@ impl ResizeEdge {
 }
 
 fn handle_resize_grips(
-    ctx: &egui::Context,
+    ui: &mut Ui,
     rect: Rect,
     bounds: Rect,
     min_size: egui::Vec2,
     max_size: egui::Vec2,
 ) -> Rect {
     let mut updated = rect;
-    let area_origin = rect.min - egui::vec2(RESIZE_GRIP_OUT, RESIZE_GRIP_OUT);
-    let grip_area = egui::Area::new(Id::unique("preview_resize_grips"))
-        .order(egui::Order::Foreground)
-        .fixed_pos(area_origin)
-        .interactable(true)
-        .show(ctx, |ui| {
-            for edge in ResizeEdge::ALL {
-                let grip = edge.grip_rect(rect);
-                let resp = ui.interact(
-                    grip,
-                    Id::unique(("preview_resize", edge.id_suffix())),
-                    egui::Sense::drag(),
-                );
-                if resp.hovered() || resp.dragged() {
-                    ctx.set_cursor_icon(edge.cursor());
-                }
-                if resp.dragged() {
-                    let delta = resp.drag_delta();
-                    if edge.moves_left() {
-                        let min_bound = bounds.min.x.max(updated.max.x - max_size.x);
-                        let max_bound = updated.max.x - min_size.x;
-                        updated.min.x =
-                            (updated.min.x + delta.x).clamp(min_bound.min(max_bound), max_bound);
-                    }
-                    if edge.moves_right() {
-                        let min_bound = updated.min.x + min_size.x;
-                        let max_bound = bounds.max.x.min(updated.min.x + max_size.x);
-                        updated.max.x =
-                            (updated.max.x + delta.x).clamp(min_bound, max_bound.max(min_bound));
-                    }
-                    if edge.moves_top() {
-                        let min_bound = bounds.min.y.max(updated.max.y - max_size.y);
-                        let max_bound = updated.max.y - min_size.y;
-                        updated.min.y =
-                            (updated.min.y + delta.y).clamp(min_bound.min(max_bound), max_bound);
-                    }
-                    if edge.moves_bottom() {
-                        let min_bound = updated.min.y + min_size.y;
-                        let max_bound = bounds.max.y.min(updated.min.y + max_size.y);
-                        updated.max.y =
-                            (updated.max.y + delta.y).clamp(min_bound, max_bound.max(min_bound));
-                    }
-                }
+    let ctx = ui.ctx();
+    for edge in ResizeEdge::ALL {
+        let grip = edge.grip_rect(rect);
+        let resp = ui.interact(
+            grip,
+            Id::unique(("preview_resize", edge.id_suffix())),
+            egui::Sense::drag(),
+        );
+        if resp.hovered() || resp.dragged() {
+            ctx.set_cursor_icon(edge.cursor());
+        }
+        if resp.dragged() {
+            let delta = resp.drag_delta();
+            if edge.moves_left() {
+                let min_bound = bounds.min.x.max(updated.max.x - max_size.x);
+                let max_bound = updated.max.x - min_size.x;
+                updated.min.x =
+                    (updated.min.x + delta.x).clamp(min_bound.min(max_bound), max_bound);
             }
-        });
-    ctx.move_to_top(grip_area.response.layer_id);
+            if edge.moves_right() {
+                let min_bound = updated.min.x + min_size.x;
+                let max_bound = bounds.max.x.min(updated.min.x + max_size.x);
+                updated.max.x =
+                    (updated.max.x + delta.x).clamp(min_bound, max_bound.max(min_bound));
+            }
+            if edge.moves_top() {
+                let min_bound = bounds.min.y.max(updated.max.y - max_size.y);
+                let max_bound = updated.max.y - min_size.y;
+                updated.min.y =
+                    (updated.min.y + delta.y).clamp(min_bound.min(max_bound), max_bound);
+            }
+            if edge.moves_bottom() {
+                let min_bound = updated.min.y + min_size.y;
+                let max_bound = bounds.max.y.min(updated.min.y + max_size.y);
+                updated.max.y =
+                    (updated.max.y + delta.y).clamp(min_bound, max_bound.max(min_bound));
+            }
+        }
+    }
     updated
 }
 

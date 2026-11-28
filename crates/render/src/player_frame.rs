@@ -976,7 +976,7 @@ impl PlayerFrame {
         show_nav: bool,
     ) -> Vec<Input> {
         self.focus.flush_external_keys(ui);
-        if ui.ctx().text_edit_focused() {
+        if ui.ctx().text_edit_focused() || egui::Popup::is_any_open(ui.ctx()) {
             return Vec::new();
         }
         // Menu and caption keys are consumed here so a trigger's key forwarding

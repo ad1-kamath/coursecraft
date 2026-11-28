@@ -2570,3 +2570,168 @@ fn set_speed_applies_the_new_speed_to_media_at_once() {
     playing.handle_input(&Input::SetSpeed { rate: 2.0 }, None);
     assert!((playing.media.rate() - 2.0).abs() < 1e-6);
 }
+
+#[test]
+fn published_player_matching_dropdown_opens_and_exposes_select_options() {
+    use coursecraft_render::{AccessRole, Visual, build_access_tree};
+    use egui::{Event, Modifiers, PointerButton, Pos2, RawInput, Rect, pos2, vec2};
+
+    let raw = include_str!("../../../examples/feature-tour/course.json");
+    let course: Course = serde_json::from_str(raw).expect("valid feature-tour json");
+    let mut playing = Playing::from_course(course, false)
+        .expect("valid course")
+        .with_backend(Box::new(coursecraft_playback::NullBackend::default()));
+    playing.handle_input(&Input::Start, None);
+    playing.handle_input(
+        &Input::Jump {
+            slide: "q-match".into(),
+        },
+        None,
+    );
+
+    let ctx = egui::Context::default();
+    coursecraft_render::install_fonts(&ctx);
+    let screen = Rect::from_min_size(Pos2::ZERO, vec2(1280.0, 720.0));
+    let mut time = 0.0_f64;
+
+    let mut step = |events: Vec<Event>, playing: &mut Playing| -> Vec<egui::epaint::ClippedShape> {
+        time += 0.1;
+        let raw = RawInput {
+            screen_rect: Some(screen),
+            events,
+            time: Some(time),
+            ..Default::default()
+        };
+        let out = ctx.run_ui(raw, |ui| {
+            playing.show_ui(ui);
+        });
+        let shapes = out.shapes.clone();
+        out.drop_without_applying_deltas();
+        shapes
+    };
+
+    // Let the push transition finish so live matching widgets appear.
+    for _ in 0..10 {
+        step(vec![], &mut playing);
+    }
+
+    // Verify the ARIA AccessTree exposes all 3 rows as Select nodes with placeholder + 3 options.
+    let tree = build_access_tree(
+        &playing.player,
+        &playing.frame,
+        playing.view.last_items(),
+        true,
+        true,
+    );
+    let selects: Vec<_> = tree
+        .nodes
+        .iter()
+        .filter(|n| n.role == AccessRole::Select)
+        .collect();
+    assert_eq!(selects.len(), 3, "expected 3 accessible Select nodes");
+    assert_eq!(
+        selects[0].options.len(),
+        4,
+        "placeholder + 3 right-hand options"
+    );
+
+    // Compute the screen center of row 1's ComboBox from the composed MatchRow rect.
+    let t = playing.view.last_transform().expect("transform");
+    let scale = t.scale();
+    let combo_center = playing
+        .view
+        .last_items()
+        .iter()
+        .find_map(|item| {
+            let Visual::MatchRow { id, .. } = &item.visual else {
+                return None;
+            };
+            if id != "p1" {
+                return None;
+            }
+            let row = t.to_screen_rect(item.rect);
+            let combo_w = (row.width() * 0.46).max(1.0);
+            let combo_h = (row.height() - 12.0 * scale).max(1.0);
+            Some(
+                Rect::from_min_size(
+                    pos2(row.max.x - combo_w - 8.0 * scale, row.min.y + 6.0 * scale),
+                    vec2(combo_w, combo_h),
+                )
+                .center(),
+            )
+        })
+        .expect("p1 MatchRow");
+
+    // Click row 1's ComboBox and verify the popup opens above the slide and selects on click.
+    step(
+        vec![
+            Event::PointerMoved(combo_center),
+            Event::PointerButton {
+                pos: combo_center,
+                button: PointerButton::Primary,
+                pressed: true,
+                modifiers: Modifiers::NONE,
+            },
+        ],
+        &mut playing,
+    );
+    step(
+        vec![
+            Event::PointerMoved(combo_center),
+            Event::PointerButton {
+                pos: combo_center,
+                button: PointerButton::Primary,
+                pressed: false,
+                modifiers: Modifiers::NONE,
+            },
+        ],
+        &mut playing,
+    );
+    let open_shapes = step(vec![], &mut playing);
+    assert!(
+        egui::Popup::is_any_open(&ctx),
+        "matching dropdown must open"
+    );
+
+    fn find_text(shapes: &[egui::epaint::ClippedShape], needle: &str) -> Option<Pos2> {
+        fn walk(shape: &egui::epaint::Shape, needle: &str) -> Option<Pos2> {
+            match shape {
+                egui::epaint::Shape::Text(t) if t.galley.text() == needle => {
+                    Some(t.visual_bounding_rect().center())
+                }
+                egui::epaint::Shape::Vec(v) => v.iter().find_map(|s| walk(s, needle)),
+                _ => None,
+            }
+        }
+        shapes.iter().rev().find_map(|c| walk(&c.shape, needle))
+    }
+
+    let opt_pos = find_text(&open_shapes, "Runs an action when something happens")
+        .expect("option in open popup");
+    step(
+        vec![
+            Event::PointerMoved(opt_pos),
+            Event::PointerButton {
+                pos: opt_pos,
+                button: PointerButton::Primary,
+                pressed: true,
+                modifiers: Modifiers::NONE,
+            },
+        ],
+        &mut playing,
+    );
+    step(
+        vec![
+            Event::PointerMoved(opt_pos),
+            Event::PointerButton {
+                pos: opt_pos,
+                button: PointerButton::Primary,
+                pressed: false,
+                modifiers: Modifiers::NONE,
+            },
+        ],
+        &mut playing,
+    );
+    step(vec![], &mut playing);
+    assert_eq!(playing.player.match_for("p1"), Some("p1"));
+}

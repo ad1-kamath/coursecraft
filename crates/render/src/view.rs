@@ -1970,6 +1970,10 @@ fn show_matching(
     inputs: &mut Vec<Input>,
 ) {
     let options = player.matching_options();
+    let slide_id = player
+        .current_slide()
+        .map(|s| s.id.as_str())
+        .unwrap_or_default();
     for item in items {
         let Visual::MatchRow { id, value, .. } = &item.visual else {
             continue;
@@ -1991,11 +1995,11 @@ fn show_matching(
         }
         let current = player.match_for(id).map(str::to_owned);
         let mut pick: Option<Option<String>> = None;
-        let mut child = ui.new_child(
-            egui::UiBuilder::new()
-                .max_rect(combo_rect)
-                .id_salt(("match-slot", id)),
-        );
+        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(combo_rect).id_salt((
+            "match-slot",
+            slide_id,
+            id,
+        )));
         apply_slide_widget_style(
             child.style_mut(),
             &style.font,
@@ -2005,7 +2009,7 @@ fn show_matching(
             combo_h,
         );
         let (popup_font, text_c, accent_c) = (style.font.clone(), style.text, style.accent);
-        let combo = egui::ComboBox::from_id_salt(("match-pair", id))
+        let combo = egui::ComboBox::from_id_salt(("match-pair", slide_id, id))
             .selected_text(value.clone())
             .truncate()
             .width(combo_w)
@@ -2597,5 +2601,164 @@ mod neon_player_tests {
         assert!(!is_object_clickable(&player, "dead"));
         assert!(is_object_clickable(&player, "live"));
         assert!(is_object_clickable(&player, "vid"));
+    }
+
+    #[test]
+    fn matching_dropdown_opens_and_selects_in_player_frame() {
+        use egui::{Key, Modifiers, RawInput, vec2};
+        let json = include_str!("../../../examples/feature-tour/course.json");
+        let course = Course::from_json(json).expect("valid feature-tour course");
+        let mut player = Player::new(&course).expect("player");
+        player.handle(&Input::Start);
+        player.handle(&Input::Jump {
+            slide: "q-match".into(),
+        });
+
+        let ctx = egui::Context::default();
+        crate::install_fonts(&ctx);
+        let mut frame = crate::player_frame::PlayerFrame::new();
+        let mut view = SlideView::new();
+        let screen = Rect::from_min_size(Pos2::ZERO, vec2(1280.0, 720.0));
+        let mut time = 0.0_f64;
+
+        let mut step =
+            |events: Vec<Event>, player: &mut Player<'_>| -> Vec<egui::epaint::ClippedShape> {
+                time += 0.1;
+                let raw = RawInput {
+                    screen_rect: Some(screen),
+                    events,
+                    time: Some(time),
+                    ..Default::default()
+                };
+                let mut inputs = Vec::new();
+                let out = ctx.run_ui(raw, |ui| {
+                    egui::CentralPanel::default()
+                        .frame(egui::Frame::NONE)
+                        .show(ui, |ui| {
+                            let fo = frame.show(ui, player, &mut view, None);
+                            inputs = fo.inputs;
+                        });
+                });
+                let shapes = out.shapes.clone();
+                out.drop_without_applying_deltas();
+                for input in inputs {
+                    player.handle(&input);
+                }
+                shapes
+            };
+
+        // Let the 600 ms slide transition finish so live widgets are active.
+        for _ in 0..10 {
+            step(vec![], &mut player);
+        }
+
+        fn find_texts(shapes: &[egui::epaint::ClippedShape], needle: &str) -> Vec<(usize, Pos2)> {
+            fn walk(
+                shape: &egui::epaint::Shape,
+                needle: &str,
+                idx: usize,
+                out: &mut Vec<(usize, Pos2)>,
+            ) {
+                match shape {
+                    egui::epaint::Shape::Text(t) if t.galley.text() == needle => {
+                        out.push((idx, t.visual_bounding_rect().center()));
+                    }
+                    egui::epaint::Shape::Vec(v) => {
+                        for s in v {
+                            walk(s, needle, idx, out);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            let mut out = Vec::new();
+            for (idx, clipped) in shapes.iter().enumerate() {
+                walk(&clipped.shape, needle, idx, &mut out);
+            }
+            out
+        }
+
+        let click = |pos: Pos2,
+                     step: &mut dyn FnMut(
+            Vec<Event>,
+            &mut Player<'_>,
+        ) -> Vec<egui::epaint::ClippedShape>,
+                     player: &mut Player<'_>| {
+            step(
+                vec![
+                    Event::PointerMoved(pos),
+                    Event::PointerButton {
+                        pos,
+                        button: PointerButton::Primary,
+                        pressed: true,
+                        modifiers: Modifiers::NONE,
+                    },
+                ],
+                player,
+            );
+            step(
+                vec![
+                    Event::PointerMoved(pos),
+                    Event::PointerButton {
+                        pos,
+                        button: PointerButton::Primary,
+                        pressed: false,
+                        modifiers: Modifiers::NONE,
+                    },
+                ],
+                player,
+            );
+        };
+
+        let shapes = step(vec![], &mut player);
+        let chooses = find_texts(&shapes, crate::compose::MATCH_PLACEHOLDER);
+        assert_eq!(chooses.len(), 3, "expected 3 matching Choose… controls");
+
+        // Open row 2's dropdown first; pressing ArrowDown while it is open must NOT
+        // silently change row 1 via FocusManager.
+        click(chooses[1].1, &mut step, &mut player);
+        let open_row2 = step(vec![], &mut player);
+        assert!(egui::Popup::is_any_open(&ctx), "row 2 dropdown must open");
+        step(
+            vec![Event::Key {
+                key: Key::ArrowDown,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: Modifiers::NONE,
+            }],
+            &mut player,
+        );
+        step(vec![], &mut player);
+        assert_eq!(
+            player.match_for("p1"),
+            None,
+            "ArrowDown while row 2's dropdown is open must not mutate row 1"
+        );
+        let row2_opt = find_texts(&open_row2, "Changes how an object looks")
+            .pop()
+            .expect("row 2 option in open popup")
+            .1;
+        click(row2_opt, &mut step, &mut player);
+        step(vec![], &mut player);
+        assert_eq!(player.match_for("p2"), Some("p2"));
+
+        // Open row 1's dropdown, verify it paints above the slide prompt, and select p1.
+        click(chooses[0].1, &mut step, &mut player);
+        let open_row1 = step(vec![], &mut player);
+        let prompt_idx = find_texts(&open_row1, "Match each feature to what it does.")
+            .first()
+            .expect("prompt")
+            .0;
+        let (opt_idx, opt_pos) = find_texts(&open_row1, "Runs an action when something happens")
+            .pop()
+            .expect("p1 option");
+        assert!(
+            opt_idx > prompt_idx,
+            "matching popup must paint above the slide in PlayerFrame"
+        );
+        click(opt_pos, &mut step, &mut player);
+        step(vec![], &mut player);
+        assert_eq!(player.match_for("p1"), Some("p1"));
     }
 }
