@@ -8571,6 +8571,8 @@ pub fn show_canvas_and_layers(editor: &mut Editor, ui: &mut Ui) {
             .layers
             .extra_layer_ids(slide, editor.selection.layer.as_deref());
         let base_slide_view = editor.session.course.editor.base_slide_view;
+        let hide_base_view = editor.selection.layer.is_some()
+            && base_slide_view == coursecraft_course::BaseSlideView::Hide;
         let selected_marker_id = editor.selection.object.as_deref().filter(|sel| {
             slide.object(sel).is_some_and(|(obj, _)| {
                 matches!(obj.kind, coursecraft_course::ObjectKind::Marker { .. })
@@ -8612,8 +8614,6 @@ pub fn show_canvas_and_layers(editor: &mut Editor, ui: &mut Ui) {
         ) {
             hit
         } else {
-            let hide_base_view = editor.selection.layer.is_some()
-                && base_slide_view == coursecraft_course::BaseSlideView::Hide;
             let dim_base = editor.selection.layer.is_some()
                 && base_slide_view == coursecraft_course::BaseSlideView::Dim;
             #[cfg(test)]
@@ -8819,9 +8819,9 @@ pub fn show_canvas_and_layers(editor: &mut Editor, ui: &mut Ui) {
                 .course
                 .slide(&editor.selection.slide)
                 .map(|slide| {
-                    let master = slide
-                        .master
-                        .as_deref()
+                    let master = (!hide_base_view)
+                        .then_some(slide.master.as_deref())
+                        .flatten()
                         .and_then(|id| editor.session.course.master(id));
                     timeline_animated_items(
                         &cached_items,
@@ -8986,9 +8986,9 @@ pub fn show_canvas_and_layers(editor: &mut Editor, ui: &mut Ui) {
                 .course
                 .slide(&editor.selection.slide)
                 .map(|slide| {
-                    let master = slide
-                        .master
-                        .as_deref()
+                    let master = (!hide_base_view)
+                        .then_some(slide.master.as_deref())
+                        .flatten()
                         .and_then(|id| editor.session.course.master(id));
                     timeline_animated_items(
                         items,
@@ -9489,10 +9489,20 @@ fn animate_item_with_object(
     vec![item]
 }
 
+fn is_emitted_master_object(obj: &coursecraft_course::Object) -> bool {
+    let f = &obj.frame;
+    !matches!(obj.kind, coursecraft_course::ObjectKind::Audio { .. })
+        && f.x.is_finite()
+        && f.y.is_finite()
+        && f.w.is_finite()
+        && f.h.is_finite()
+        && f.w >= 0.0
+        && f.h >= 0.0
+        && (f.x + f.w).is_finite()
+        && (f.y + f.h).is_finite()
+}
+
 fn item_matches_master_object(item: &DrawItem, obj: &coursecraft_course::Object) -> bool {
-    if matches!(obj.kind, coursecraft_course::ObjectKind::Audio { .. }) {
-        return false;
-    }
     (item.rect.min.x - obj.frame.x).abs() < 0.5
         && (item.rect.min.y - obj.frame.y).abs() < 0.5
         && (item.rect.width() - obj.frame.w).abs() < 0.5
@@ -9511,7 +9521,7 @@ pub(crate) fn timeline_animated_items(
         Option<Option<std::sync::Arc<coursecraft_render::GroupAnim>>>,
     > = std::collections::HashMap::new();
     let mut master_cursor = 0usize;
-    let mut in_master_prefix = true;
+    let mut in_master_prefix = master.is_some();
     items
         .iter()
         .flat_map(|item| {
@@ -9532,28 +9542,35 @@ pub(crate) fn timeline_animated_items(
                     &mut group_cache,
                 );
             }
-            if in_master_prefix
-                && let Some(master_slide) = master
-                && let Some(offset) = master_slide.objects[master_cursor..]
-                    .iter()
-                    .position(|obj| item_matches_master_object(item, obj))
-            {
-                let obj = &master_slide.objects[master_cursor + offset];
-                master_cursor += offset + 1;
-                if obj.initial_state == "hidden" {
-                    return Vec::new();
+            if in_master_prefix && let Some(master_slide) = master {
+                if item.hit == Hit::None {
+                    while let Some(obj) = master_slide.objects.get(master_cursor) {
+                        if is_emitted_master_object(obj) {
+                            break;
+                        }
+                        master_cursor += 1;
+                    }
+                    if let Some(obj) = master_slide.objects.get(master_cursor)
+                        && item_matches_master_object(item, obj)
+                    {
+                        master_cursor += 1;
+                        if obj.initial_state == "hidden" {
+                            return Vec::new();
+                        }
+                        return animate_item_with_object(
+                            item,
+                            obj,
+                            master_slide,
+                            None,
+                            slide.duration_ms,
+                            slide_size,
+                            playhead_ms,
+                            "master:",
+                            &mut group_cache,
+                        );
+                    }
                 }
-                return animate_item_with_object(
-                    item,
-                    obj,
-                    master_slide,
-                    None,
-                    slide.duration_ms,
-                    slide_size,
-                    playhead_ms,
-                    "master:",
-                    &mut group_cache,
-                );
+                in_master_prefix = false;
             }
             vec![item.clone()]
         })

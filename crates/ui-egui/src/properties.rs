@@ -4834,7 +4834,6 @@ fn show_animate_tab(
         let selected_group = editor.selected_group_for_animation();
         if let Some(gid) = selected_group {
             show_group_animations_section(editor, ui, &gid, actions_to_run);
-            inspector_separator(ui);
         } else if editor.selection.is_multi() {
             let slide_id = editor.selection.slide.clone();
             let ids = editor.selection.ids();
@@ -4910,10 +4909,8 @@ fn show_animate_tab(
                     ));
                 }
             }
-            inspector_separator(ui);
         } else if editor.selection.object.is_some() {
             show_animations_section(editor, ui, actions_to_run);
-            inspector_separator(ui);
         } else {
             ui.vertical_centered(|ui| {
                 ui.add_space(8.0);
@@ -4924,10 +4921,10 @@ fn show_animate_tab(
                 );
                 ui.add_space(8.0);
             });
-            inspector_separator(ui);
         }
 
         if !editor.ui.master_view {
+            inspector_separator(ui);
             inspector_section_header(ui, "Transition");
             if let Some(slide) = editor.session.course.slide(&editor.selection.slide) {
                 let mut action = None;

@@ -3894,6 +3894,14 @@ impl Editor {
         dock::request_bottom_tab(self, BottomTab::Timeline);
         self.ui.placement_tool = None;
         self.ui.placement_drag = None;
+        if self
+            .ui
+            .format_painter
+            .as_ref()
+            .is_some_and(|p| p.kind == format_painter::PainterKind::Format)
+        {
+            self.ui.format_painter = None;
+        }
         self.ui.canvas_drag = None;
         self.ui.inline_edit = None;
         self.ui.crop_edit = None;

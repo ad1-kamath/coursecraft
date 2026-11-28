@@ -6,7 +6,8 @@ use crate::canvas::timeline_animated_items;
 use crate::dock::{self, Panel};
 use crate::properties::InspectorTab;
 use crate::ribbon::gallery;
-use crate::ribbon::spec::Gallery;
+use crate::ribbon::spec::{Gallery, UiAction};
+use crate::ribbon::ui_available;
 use crate::test_harness::TestHarness;
 
 fn master_course() -> Course {
@@ -64,8 +65,16 @@ fn m49_s5_animations_tab_enabled_in_master_view_and_sets_animation() {
         "Animations entrance gallery should be enabled in Master View"
     );
     assert!(
-        h.editor.can_arm_animation_painter(),
-        "Animation Painter should be armable in Master View"
+        ui_available(&h.editor, UiAction::AnimationPainter).is_ok(),
+        "Animation Painter ribbon control should be enabled in Master View"
+    );
+    assert!(
+        ui_available(&h.editor, UiAction::FormatPainter).is_err(),
+        "Format Painter ribbon control should stay disabled in Master View"
+    );
+    assert!(
+        ui_available(&h.editor, UiAction::AddMotionPath).is_err(),
+        "Add Motion Path ribbon control should stay disabled in Master View"
     );
 
     // Index 2 in EFFECTS + None is Fade.
@@ -273,4 +282,192 @@ fn m49_s5_anim_preview_and_timeline_play_work_in_master_view() {
         "expected ~0.5 opacity on master item during regular slide timeline play, got {}",
         master_item_on_slide.opacity
     );
+}
+
+#[test]
+fn m49_s5_animation_painter_and_master_group_in_master_view_and_prefix_safety() {
+    let json = serde_json::json!({
+        "schema_version": 1,
+        "id": "m49-master-extra",
+        "title": "M49 Master Extra",
+        "slide_size": { "w": 1280, "h": 720 },
+        "masters": [{
+            "id": "m1",
+            "title": "Main Master",
+            "duration_ms": 5000,
+            "objects": [
+                {
+                    "id": "m_a",
+                    "name": "Master A",
+                    "kind": { "type": "shape", "shape": "rectangle", "fill": "#2F6FEB" },
+                    "frame": { "x": 100, "y": 80, "w": 200, "h": 100 },
+                    "group": "mg1"
+                },
+                {
+                    "id": "m_b",
+                    "name": "Master B",
+                    "kind": { "type": "shape", "shape": "rectangle", "fill": "#22A06B" },
+                    "frame": { "x": 320, "y": 80, "w": 200, "h": 100 },
+                    "group": "mg1"
+                },
+                {
+                    "id": "m_c",
+                    "name": "Master C",
+                    "kind": { "type": "shape", "shape": "rectangle", "fill": "#D2522B" },
+                    "frame": { "x": 600, "y": 80, "w": 200, "h": 100 }
+                }
+            ]
+        }],
+        "scenes": [{
+            "id": "sc1",
+            "title": "Scene 1",
+            "slides": [{
+                "id": "sl1",
+                "title": "Slide 1",
+                "master": "m1",
+                "duration_ms": 5000,
+                "objects": [
+                    {
+                        "id": "s_obj",
+                        "kind": { "type": "shape", "shape": "rectangle", "fill": "#555555" },
+                        "frame": { "x": 10, "y": 10, "w": 50, "h": 50 }
+                    }
+                ],
+                "layers": [
+                    {
+                        "id": "l_bg",
+                        "name": "Background Layer",
+                        "duration_ms": 5000,
+                        "objects": [
+                            {
+                                "id": "l_same_frame",
+                                "kind": { "type": "shape", "shape": "rectangle", "fill": "#999999" },
+                                "frame": { "x": 100, "y": 80, "w": 200, "h": 100 }
+                            }
+                        ]
+                    },
+                    {
+                        "id": "l_fg",
+                        "name": "Foreground Layer",
+                        "duration_ms": 5000,
+                        "objects": []
+                    }
+                ]
+            }]
+        }]
+    });
+    let course = Course::from_json(&json.to_string()).expect("course");
+    let mut h = TestHarness::new(course);
+
+    // Format Painter armed on a regular slide is cleared when entering Master View.
+    h.editor.selection.slide = "sl1".into();
+    h.editor.selection.set_many(["s_obj"]);
+    h.editor.arm_format_painter(false);
+    assert!(h.editor.ui.format_painter.is_some());
+    h.editor.enter_master_view();
+    assert!(
+        h.editor.ui.format_painter.is_none(),
+        "entering Master View should disarm Format Painter"
+    );
+
+    // Animate inspector on a master group shows Group animation and hides Transition.
+    h.editor.selection.slide = "m1".into();
+    h.editor.selection.set_many(["m_a", "m_b"]);
+    h.editor.ui.inspector_tab = InspectorTab::Animate;
+    h.idle_frame();
+    assert!(h.find_text("Group animation").is_some());
+    assert!(h.find_text("Transition").is_none());
+    assert!(h.find_text("Motion paths").is_none());
+
+    // Animation Painter copies an animation from one master object to another in Master View.
+    let fade = Animation {
+        effect: AnimEffect::new("fade"),
+        duration_ms: 1000,
+        easing: Easing::Linear,
+        sequence: Default::default(),
+    };
+    h.editor.run(
+        "object.set_animation",
+        serde_json::json!({
+            "slide": "m1",
+            "object": "m_c",
+            "which": "entrance",
+            "animation": fade,
+        }),
+    );
+    h.editor.selection.set_many(["m_c"]);
+    h.editor.arm_animation_painter(false);
+    assert!(h.editor.animation_painter_armed());
+    h.editor.apply_format_painter(&["m_a".into()]);
+    let master = h.editor.session.course.master("m1").expect("master");
+    assert!(
+        master.object("m_a").expect("m_a").0.entrance.is_some(),
+        "Animation Painter should copy entrance onto target master object"
+    );
+
+    // Master group animation emits a `master:` GroupAnim during regular slide timeline play.
+    h.editor.run(
+        "object.set_animation",
+        serde_json::json!({
+            "slide": "m1",
+            "object": "mg1",
+            "which": "entrance",
+            "animation": fade,
+        }),
+    );
+    let slide = h.editor.session.course.slide("sl1").expect("sl1");
+    let master = h.editor.session.course.master("m1").expect("m1");
+    let slide_base = coursecraft_render::compose_authoring_layers_opts(
+        &h.editor.session.course,
+        slide,
+        None,
+        &[],
+        false,
+        true,
+    );
+    let played = timeline_animated_items(
+        &slide_base,
+        slide,
+        Some(master),
+        h.editor.session.course.slide_size,
+        500,
+    );
+    let group_items: Vec<_> = played
+        .iter()
+        .filter(|i| {
+            i.hit == Hit::None
+                && i.group_anim
+                    .as_ref()
+                    .is_some_and(|ga| ga.id == "master:mg1")
+        })
+        .collect();
+    assert_eq!(
+        group_items.len(),
+        2,
+        "both master group members should carry `master:mg1` GroupAnim on regular slide play"
+    );
+
+    // When base/master is hidden (`show_base = false`), an unfocused layer item with the same
+    // frame as a master object must not be matched against master objects.
+    let hidden_base = coursecraft_render::compose_authoring_layers_opts(
+        &h.editor.session.course,
+        slide,
+        Some("l_fg"),
+        &["l_bg".to_owned()],
+        true,
+        false,
+    );
+    let played_hidden = timeline_animated_items(
+        &hidden_base,
+        slide,
+        None,
+        h.editor.session.course.slide_size,
+        0,
+    );
+    assert_eq!(
+        played_hidden.len(),
+        1,
+        "unfocused layer item should remain untouched when base/master is hidden"
+    );
+    assert_eq!(played_hidden[0].opacity, 1.0);
 }
