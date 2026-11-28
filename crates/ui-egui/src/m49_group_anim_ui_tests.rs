@@ -410,7 +410,8 @@ fn m49_s3_anim_preview_and_timeline_play_emit_group_anim() {
     }
 
     // 2. Timeline play (`timeline_animated_items`)
-    let played = timeline_animated_items(&base, slide, h.editor.session.course.slide_size, 500);
+    let played =
+        timeline_animated_items(&base, slide, None, h.editor.session.course.slide_size, 500);
     for oid in ["a", "b"] {
         let item = played
             .iter()

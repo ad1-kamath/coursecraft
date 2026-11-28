@@ -21,7 +21,7 @@
 | 3 | **Slides** | always (hidden in master mode) |
 | 4 | **Design** | always (hidden in master mode) |
 | 5 | **Transitions** | slide open |
-| 6 | **Animations** | slide open |
+| 6 | **Animations** | slide open (also in Master View: Entrance, Emphasis, Exit, and Animation Painter; Motion Paths stay disabled) |
 | 7 | **View** | always |
 | 8 | **AI** | always; CourseCraft's own tab |
 | 9 | **Help** | always |

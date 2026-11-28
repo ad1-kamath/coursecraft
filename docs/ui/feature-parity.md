@@ -182,12 +182,12 @@ Counted from the tables below; recount when a row changes.
 
 | Feature | CourseCraft | Status | Milestone |
 |---|---|---|---|
-| Entrance and exit animations | `object.set_animation` (on objects and whole groups) | ✅ | — |
+| Entrance and exit animations | `object.set_animation` (on objects, whole groups, and slide masters) | ✅ | — |
 | Animation duration and effect options (8 directions, shape, in/out, spokes, orientation) | `object.set_animation`; the Animate inspector's Entrance and Exit cards (`anim_panel.rs`) show one row of icon buttons per option the effect takes (including on a selected group) | ✅ | — |
 | Preview an animation on the canvas | `anim_preview.rs`: plays the selected objects' or group's entrance, exit, or emphasis in place through the player's sampler, once on ▶ Preview or a pick, in a loop while an effect tile is hovered; Auto-preview turns the automatic ones off | ✅ | M46 |
 | Motion paths (add, duration, name, options) | `object.*motion_path` | ✅ | — |
 | Slide transitions and duration | `slide.set_transition` | ✅ | — |
-| Timeline: bars, drag timing, rename, restack | `timeline.rs` | ✅ | — |
+| Timeline: bars, drag timing, rename, restack | `timeline.rs` (works on slides, layers, and slide masters) | ✅ | — |
 | Show until end / show always | `timeline.rs` | ✅ | — |
 | Cue points, snapping | `slide.add_cue` | ✅ | — |
 | Slide duration | `slide.set_duration` | ✅ | — |

@@ -4927,12 +4927,14 @@ fn show_animate_tab(
             inspector_separator(ui);
         }
 
-        inspector_section_header(ui, "Transition");
-        if let Some(slide) = editor.session.course.slide(&editor.selection.slide) {
-            let mut action = None;
-            show_transition_section(&mut editor.ui.properties, slide, ui, &mut action);
-            if let Some(act) = action {
-                actions_to_run.push(act);
+        if !editor.ui.master_view {
+            inspector_section_header(ui, "Transition");
+            if let Some(slide) = editor.session.course.slide(&editor.selection.slide) {
+                let mut action = None;
+                show_transition_section(&mut editor.ui.properties, slide, ui, &mut action);
+                if let Some(act) = action {
+                    actions_to_run.push(act);
+                }
             }
         }
     })
@@ -12053,161 +12055,163 @@ pub fn show_animations_section(
         pv,
         &mut exit_preview,
     );
-    inspector_separator(ui);
-    inspector_section_header(ui, "Motion paths");
-    if crate::quiet_button(ui, "+ Add motion path", crate::QuietTone::Accent, true).clicked() {
-        action_to_run = Some((
-            "object.add_motion_path",
-            serde_json::json!({
-                "slide": slide.id,
-                "object": obj.id,
-            }),
-        ));
-    }
+    if !editor.ui.master_view {
+        inspector_separator(ui);
+        inspector_section_header(ui, "Motion paths");
+        if crate::quiet_button(ui, "+ Add motion path", crate::QuietTone::Accent, true).clicked() {
+            action_to_run = Some((
+                "object.add_motion_path",
+                serde_json::json!({
+                    "slide": slide.id,
+                    "object": obj.id,
+                }),
+            ));
+        }
 
-    let p = coursecraft_render::palette(ui.ctx());
-    for path in &obj.motion_paths {
-        ui.add_space(coursecraft_render::SPACE_MD);
-        let card_margin = coursecraft_render::SPACE_MD;
-        let card_w = ui.available_width();
-        egui::Frame::NONE
-            .fill(p.raised)
-            .stroke(Stroke::new(1.0, p.border))
-            .corner_radius(CornerRadius::same(coursecraft_render::RADIUS_MD as u8))
-            .inner_margin(egui::Margin::same(card_margin as i8))
-            .show(ui, |ui| {
-                ui.set_width((card_w - 2.0 * (card_margin + 1.0)).max(60.0));
+        let p = coursecraft_render::palette(ui.ctx());
+        for path in &obj.motion_paths {
+            ui.add_space(coursecraft_render::SPACE_MD);
+            let card_margin = coursecraft_render::SPACE_MD;
+            let card_w = ui.available_width();
+            egui::Frame::NONE
+                .fill(p.raised)
+                .stroke(Stroke::new(1.0, p.border))
+                .corner_radius(CornerRadius::same(coursecraft_render::RADIUS_MD as u8))
+                .inner_margin(egui::Margin::same(card_margin as i8))
+                .show(ui, |ui| {
+                    ui.set_width((card_w - 2.0 * (card_margin + 1.0)).max(60.0));
 
-                // Path: name on the left, quiet delete on the right.
-                inspector_row(ui, "Path", |ui| {
-                    ui.label(RichText::new(&path.id).monospace());
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if crate::widgets::icon_button_danger(
-                            ui,
-                            coursecraft_render::Icon::Trash,
-                            true,
-                            "Delete motion path",
-                        )
-                        .clicked()
-                        {
+                    // Path: name on the left, quiet delete on the right.
+                    inspector_row(ui, "Path", |ui| {
+                        ui.label(RichText::new(&path.id).monospace());
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if crate::widgets::icon_button_danger(
+                                ui,
+                                coursecraft_render::Icon::Trash,
+                                true,
+                                "Delete motion path",
+                            )
+                            .clicked()
+                            {
+                                action_to_run = Some((
+                                    "object.remove_motion_path",
+                                    serde_json::json!({
+                                        "slide": slide.id,
+                                        "object": obj.id,
+                                        "path": path.id,
+                                    }),
+                                ));
+                            }
+                        });
+                    });
+
+                    // Relative: checkbox.
+                    inspector_row(ui, "Relative", |ui| {
+                        let mut rel = path.relative;
+                        if ui.checkbox(&mut rel, "").changed() && rel != path.relative {
                             action_to_run = Some((
-                                "object.remove_motion_path",
+                                "object.update_motion_path",
                                 serde_json::json!({
                                     "slide": slide.id,
                                     "object": obj.id,
                                     "path": path.id,
+                                    "relative": rel,
                                 }),
                             ));
                         }
                     });
-                });
 
-                // Relative: checkbox.
-                inspector_row(ui, "Relative", |ui| {
-                    let mut rel = path.relative;
-                    if ui.checkbox(&mut rel, "").changed() && rel != path.relative {
-                        action_to_run = Some((
-                            "object.update_motion_path",
-                            serde_json::json!({
-                                "slide": slide.id,
-                                "object": obj.id,
-                                "path": path.id,
-                                "relative": rel,
-                            }),
-                        ));
-                    }
-                });
+                    // Duration: drag value and easing combo on one row.
+                    inspector_row(ui, "Duration", |ui| {
+                        let dur_id = ui.make_persistent_id(("mp_duration", path.id.as_str()));
+                        let (_, committed_dur) = ui
+                            .allocate_ui_with_layout(
+                                vec2(64.0, coursecraft_render::CONTROL_COMPACT),
+                                egui::Layout::left_to_right(egui::Align::Center),
+                                |ui| {
+                                    crate::grid_panel::committed_drag(
+                                        ui,
+                                        dur_id,
+                                        path.duration_ms,
+                                        |d| d.speed(50.0).range(1..=60000).suffix(" ms"),
+                                    )
+                                },
+                            )
+                            .inner;
+                        if let Some(dur) = committed_dur {
+                            action_to_run = Some((
+                                "object.update_motion_path",
+                                serde_json::json!({
+                                    "slide": slide.id,
+                                    "object": obj.id,
+                                    "path": path.id,
+                                    "duration_ms": dur,
+                                }),
+                            ));
+                        }
 
-                // Duration: drag value and easing combo on one row.
-                inspector_row(ui, "Duration", |ui| {
-                    let dur_id = ui.make_persistent_id(("mp_duration", path.id.as_str()));
-                    let (_, committed_dur) = ui
-                        .allocate_ui_with_layout(
-                            vec2(64.0, coursecraft_render::CONTROL_COMPACT),
-                            egui::Layout::left_to_right(egui::Align::Center),
-                            |ui| {
-                                crate::grid_panel::committed_drag(
-                                    ui,
-                                    dur_id,
-                                    path.duration_ms,
-                                    |d| d.speed(50.0).range(1..=60000).suffix(" ms"),
-                                )
-                            },
-                        )
-                        .inner;
-                    if let Some(dur) = committed_dur {
-                        action_to_run = Some((
-                            "object.update_motion_path",
-                            serde_json::json!({
-                                "slide": slide.id,
-                                "object": obj.id,
-                                "path": path.id,
-                                "duration_ms": dur,
-                            }),
-                        ));
-                    }
-
-                    let mut ease = path.easing;
-                    let ease_label = crate::tl!(ease.label());
-                    let rem_w = ui.available_width().max(30.0);
-                    crate::widgets::styled_combo(ui, format!("mp_easing_{}", path.id), rem_w)
-                        .selected_text(ease_label)
-                        .show_ui(ui, |ui| {
-                            for val in Easing::ALL {
-                                let l = crate::tl!(val.label());
-                                if ui.selectable_value(&mut ease, val, l).clicked()
-                                    && val != path.easing
-                                {
-                                    action_to_run = Some((
-                                        "object.update_motion_path",
-                                        serde_json::json!({
-                                            "slide": slide.id,
-                                            "object": obj.id,
-                                            "path": path.id,
-                                            "easing": val,
-                                        }),
-                                    ));
+                        let mut ease = path.easing;
+                        let ease_label = crate::tl!(ease.label());
+                        let rem_w = ui.available_width().max(30.0);
+                        crate::widgets::styled_combo(ui, format!("mp_easing_{}", path.id), rem_w)
+                            .selected_text(ease_label)
+                            .show_ui(ui, |ui| {
+                                for val in Easing::ALL {
+                                    let l = crate::tl!(val.label());
+                                    if ui.selectable_value(&mut ease, val, l).clicked()
+                                        && val != path.easing
+                                    {
+                                        action_to_run = Some((
+                                            "object.update_motion_path",
+                                            serde_json::json!({
+                                                "slide": slide.id,
+                                                "object": obj.id,
+                                                "path": path.id,
+                                                "easing": val,
+                                            }),
+                                        ));
+                                    }
                                 }
-                            }
-                        });
-                });
+                            });
+                    });
 
-                // One row per point, with paired X/Y halves.
-                let mut points_changed = false;
-                let mut updated_points = path.points.clone();
-                for (pt_idx, pt) in updated_points.iter_mut().enumerate() {
-                    let ((rx, enter_x), (ry, enter_y)) = show_paired_numeric_row(
-                        ui,
-                        &format!("Point {}", pt_idx + 1),
-                        "X",
-                        &mut pt.x,
-                        1.0,
-                        "Y",
-                        &mut pt.y,
-                        1.0,
-                    );
-                    if rx.drag_stopped()
-                        || rx.lost_focus()
-                        || ry.drag_stopped()
-                        || ry.lost_focus()
-                        || enter_x
-                        || enter_y
-                    {
-                        points_changed = true;
+                    // One row per point, with paired X/Y halves.
+                    let mut points_changed = false;
+                    let mut updated_points = path.points.clone();
+                    for (pt_idx, pt) in updated_points.iter_mut().enumerate() {
+                        let ((rx, enter_x), (ry, enter_y)) = show_paired_numeric_row(
+                            ui,
+                            &format!("Point {}", pt_idx + 1),
+                            "X",
+                            &mut pt.x,
+                            1.0,
+                            "Y",
+                            &mut pt.y,
+                            1.0,
+                        );
+                        if rx.drag_stopped()
+                            || rx.lost_focus()
+                            || ry.drag_stopped()
+                            || ry.lost_focus()
+                            || enter_x
+                            || enter_y
+                        {
+                            points_changed = true;
+                        }
                     }
-                }
-                if points_changed && updated_points != path.points {
-                    action_to_run = Some((
-                        "object.update_motion_path",
-                        serde_json::json!({
-                            "slide": slide.id,
-                            "object": obj.id,
-                            "path": path.id,
-                            "points": updated_points,
-                        }),
-                    ));
-                }
-            });
+                    if points_changed && updated_points != path.points {
+                        action_to_run = Some((
+                            "object.update_motion_path",
+                            serde_json::json!({
+                                "slide": slide.id,
+                                "object": obj.id,
+                                "path": path.id,
+                                "points": updated_points,
+                            }),
+                        ));
+                    }
+                });
+        }
     }
 
     let ctx = ui.ctx().clone();

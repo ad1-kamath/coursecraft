@@ -18675,7 +18675,8 @@ fn timeline_play_shows_entrance_and_exit_on_the_canvas() {
     let Some((rest_x, _)) = rest(&items) else {
         panic!("txt drawn at rest");
     };
-    let at = |ms| crate::canvas::timeline_animated_items(&items, slide, course.slide_size, ms);
+    let at =
+        |ms| crate::canvas::timeline_animated_items(&items, slide, None, course.slide_size, ms);
     assert_eq!(rest(&at(500)), None, "not on screen before it starts");
     let Some((mid_x, _)) = rest(&at(1500)) else {
         panic!("flying in");

@@ -172,7 +172,7 @@ fn painter_available(
     };
     if editor.ui.editing_state.is_some() {
         Err(crate::STATE_LOCK_TOOLTIP)
-    } else if editor.ui.master_view {
+    } else if editor.ui.master_view && kind == crate::format_painter::PainterKind::Format {
         Err(MASTER)
     } else if armed || can_arm {
         Ok(())

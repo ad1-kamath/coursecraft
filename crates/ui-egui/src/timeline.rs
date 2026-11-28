@@ -583,7 +583,7 @@ fn render_timeline_header(
                     if !slide_is_draw {
                         tabs.push(BottomTab::Question);
                     }
-                } else if editor.ui.bottom_tab == BottomTab::States {
+                } else if editor.ui.bottom_tab != BottomTab::Timeline {
                     editor.ui.bottom_tab = BottomTab::Timeline;
                 }
                 for tab in tabs {
@@ -3418,7 +3418,7 @@ pub(crate) fn show_timeline_content(
     ui: &mut Ui,
     actions: &mut Vec<(&'static str, Json)>,
 ) {
-    if editor.ui.master_view && editor.ui.bottom_tab == BottomTab::States {
+    if editor.ui.master_view && editor.ui.bottom_tab != BottomTab::Timeline {
         editor.ui.bottom_tab = BottomTab::Timeline;
     }
     editor.ui.timeline.sync(

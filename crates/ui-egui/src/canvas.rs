@@ -8819,9 +8819,14 @@ pub fn show_canvas_and_layers(editor: &mut Editor, ui: &mut Ui) {
                 .course
                 .slide(&editor.selection.slide)
                 .map(|slide| {
+                    let master = slide
+                        .master
+                        .as_deref()
+                        .and_then(|id| editor.session.course.master(id));
                     timeline_animated_items(
                         &cached_items,
                         slide,
+                        master,
                         editor.session.course.slide_size,
                         playhead_ms,
                     )
@@ -8981,9 +8986,14 @@ pub fn show_canvas_and_layers(editor: &mut Editor, ui: &mut Ui) {
                 .course
                 .slide(&editor.selection.slide)
                 .map(|slide| {
+                    let master = slide
+                        .master
+                        .as_deref()
+                        .and_then(|id| editor.session.course.master(id));
                     timeline_animated_items(
                         items,
                         slide,
+                        master,
                         editor.session.course.slide_size,
                         playhead_ms,
                     )
@@ -9371,12 +9381,128 @@ fn draw_empty_slide_hint(editor: &mut Editor, ui: &mut Ui, t: &SlideTransform) {
 }
 
 /// The canvas items as they look at `playhead_ms` during timeline Play:
-/// each object moved, scaled, faded and clipped by its entrance or exit
-/// animation, and objects outside their timing left out. Items that are not
-/// slide objects (masters, question rows) are kept as they are.
+/// each object (and master object when `master` is `Some`) moved, scaled, faded
+/// and clipped by its entrance or exit animation, and objects outside their
+/// timing left out. Other non-object chrome (question rows, etc.) is kept as-is.
+#[allow(clippy::too_many_arguments)]
+fn animate_item_with_object(
+    item: &DrawItem,
+    obj: &coursecraft_course::Object,
+    owner_slide: &coursecraft_course::Slide,
+    owner_layer_id: Option<&str>,
+    fallback_duration_ms: u32,
+    slide_size: coursecraft_course::Size,
+    playhead_ms: u32,
+    group_id_prefix: &str,
+    group_cache: &mut std::collections::HashMap<
+        String,
+        Option<Option<std::sync::Arc<coursecraft_render::GroupAnim>>>,
+    >,
+) -> Vec<DrawItem> {
+    let group_anim = if let Some((group, owner)) = owner_slide.group_of_object(&obj.id)
+        && group.has_animation()
+    {
+        let cache_key = format!("{group_id_prefix}{}", group.id);
+        if let Some(cached) = group_cache.get(&cache_key) {
+            match cached {
+                None => return Vec::new(),
+                Some(ga) => ga.clone(),
+            }
+        } else {
+            let group_dur = owner
+                .and_then(|l| owner_slide.layer(l))
+                .map_or(fallback_duration_ms, |l| l.duration_ms);
+            let res = owner_slide
+                .group_timing(&group.id, owner)
+                .zip(owner_slide.group_frame(&group.id, owner))
+                .and_then(|(timing, frame)| {
+                    let sample = coursecraft_logic::sample_group_animation(
+                        group,
+                        timing,
+                        frame,
+                        playhead_ms,
+                        group_dur,
+                        slide_size,
+                    )?;
+                    if sample.opacity <= 0.0 {
+                        return None;
+                    }
+                    let ga = (sample != coursecraft_logic::ObjectSample::IDENTITY).then(|| {
+                        std::sync::Arc::new(coursecraft_render::GroupAnim {
+                            id: cache_key.clone(),
+                            frame: egui::Rect::from_min_size(
+                                egui::pos2(frame.x, frame.y),
+                                egui::vec2(frame.w, frame.h),
+                            ),
+                            sample,
+                        })
+                    });
+                    Some(ga)
+                });
+            group_cache.insert(cache_key, res.clone());
+            match res {
+                None => return Vec::new(),
+                Some(ga) => ga,
+            }
+        }
+    } else {
+        None
+    };
+    let duration_ms = owner_layer_id
+        .and_then(|layer| owner_slide.layer(layer))
+        .map_or(fallback_duration_ms, |layer| layer.duration_ms);
+    let Some(sample) =
+        coursecraft_logic::sample_timed_animation(obj, playhead_ms, duration_ms, slide_size)
+    else {
+        return Vec::new();
+    };
+    // By paragraph or by letter: each part gets its own sample (M46 phase 7).
+    if !item.is_state_extra
+        && let Some(seq) = coursecraft_logic::plays_in_parts(obj)
+        && let Some(mut parts) = coursecraft_render::sequence::split_parts(item, seq)
+        && let Some(samples) = coursecraft_logic::sample_timed_parts(
+            obj,
+            playhead_ms,
+            duration_ms,
+            slide_size,
+            parts.len(),
+        )
+        && samples.len() == parts.len()
+    {
+        for (part, s) in parts.iter_mut().zip(&samples) {
+            coursecraft_render::apply_sample_to_items(std::slice::from_mut(part), s);
+            if group_anim.is_some() {
+                part.group_anim = group_anim.clone();
+            }
+        }
+        parts.retain(|p| p.opacity > 0.0);
+        return parts;
+    }
+    if sample.opacity <= 0.0 {
+        return Vec::new();
+    }
+    let mut item = item.clone();
+    coursecraft_render::apply_sample_to_items(std::slice::from_mut(&mut item), &sample);
+    if group_anim.is_some() {
+        item.group_anim = group_anim;
+    }
+    vec![item]
+}
+
+fn item_matches_master_object(item: &DrawItem, obj: &coursecraft_course::Object) -> bool {
+    if matches!(obj.kind, coursecraft_course::ObjectKind::Audio { .. }) {
+        return false;
+    }
+    (item.rect.min.x - obj.frame.x).abs() < 0.5
+        && (item.rect.min.y - obj.frame.y).abs() < 0.5
+        && (item.rect.width() - obj.frame.w).abs() < 0.5
+        && (item.rect.height() - obj.frame.h).abs() < 0.5
+}
+
 pub(crate) fn timeline_animated_items(
     items: &[DrawItem],
     slide: &coursecraft_course::Slide,
+    master: Option<&coursecraft_course::Slide>,
     slide_size: coursecraft_course::Size,
     playhead_ms: u32,
 ) -> Vec<DrawItem> {
@@ -9384,106 +9510,52 @@ pub(crate) fn timeline_animated_items(
         String,
         Option<Option<std::sync::Arc<coursecraft_render::GroupAnim>>>,
     > = std::collections::HashMap::new();
+    let mut master_cursor = 0usize;
+    let mut in_master_prefix = true;
     items
         .iter()
         .flat_map(|item| {
-            let Hit::Object(id) = &item.hit else {
-                return vec![item.clone()];
-            };
-            let Some((obj, layer_id)) = slide.object(id) else {
-                return vec![item.clone()];
-            };
-            let group_anim = if let Some((group, owner)) = slide.group_of_object(id)
-                && group.has_animation()
-            {
-                if let Some(cached) = group_cache.get(&group.id) {
-                    match cached {
-                        None => return Vec::new(),
-                        Some(ga) => ga.clone(),
-                    }
-                } else {
-                    let group_dur = owner
-                        .and_then(|l| slide.layer(l))
-                        .map_or(slide.duration_ms, |l| l.duration_ms);
-                    let res = slide
-                        .group_timing(&group.id, owner)
-                        .zip(slide.group_frame(&group.id, owner))
-                        .and_then(|(timing, frame)| {
-                            let sample = coursecraft_logic::sample_group_animation(
-                                group,
-                                timing,
-                                frame,
-                                playhead_ms,
-                                group_dur,
-                                slide_size,
-                            )?;
-                            if sample.opacity <= 0.0 {
-                                return None;
-                            }
-                            let ga =
-                                (sample != coursecraft_logic::ObjectSample::IDENTITY).then(|| {
-                                    std::sync::Arc::new(coursecraft_render::GroupAnim {
-                                        id: group.id.clone(),
-                                        frame: egui::Rect::from_min_size(
-                                            egui::pos2(frame.x, frame.y),
-                                            egui::vec2(frame.w, frame.h),
-                                        ),
-                                        sample,
-                                    })
-                                });
-                            Some(ga)
-                        });
-                    group_cache.insert(group.id.clone(), res.clone());
-                    match res {
-                        None => return Vec::new(),
-                        Some(ga) => ga,
-                    }
-                }
-            } else {
-                None
-            };
-            let duration_ms = layer_id
-                .and_then(|layer| slide.layer(layer))
-                .map_or(slide.duration_ms, |layer| layer.duration_ms);
-            let Some(sample) = coursecraft_logic::sample_timed_animation(
-                obj,
-                playhead_ms,
-                duration_ms,
-                slide_size,
-            ) else {
-                return Vec::new();
-            };
-            // By paragraph or by letter: each part gets its own sample (M46 phase 7).
-            if !item.is_state_extra
-                && let Some(seq) = coursecraft_logic::plays_in_parts(obj)
-                && let Some(mut parts) = coursecraft_render::sequence::split_parts(item, seq)
-                && let Some(samples) = coursecraft_logic::sample_timed_parts(
+            if let Hit::Object(id) = &item.hit {
+                in_master_prefix = false;
+                let Some((obj, layer_id)) = slide.object(id) else {
+                    return vec![item.clone()];
+                };
+                return animate_item_with_object(
+                    item,
                     obj,
-                    playhead_ms,
-                    duration_ms,
+                    slide,
+                    layer_id,
+                    slide.duration_ms,
                     slide_size,
-                    parts.len(),
-                )
-                && samples.len() == parts.len()
+                    playhead_ms,
+                    "",
+                    &mut group_cache,
+                );
+            }
+            if in_master_prefix
+                && let Some(master_slide) = master
+                && let Some(offset) = master_slide.objects[master_cursor..]
+                    .iter()
+                    .position(|obj| item_matches_master_object(item, obj))
             {
-                for (part, s) in parts.iter_mut().zip(&samples) {
-                    coursecraft_render::apply_sample_to_items(std::slice::from_mut(part), s);
-                    if group_anim.is_some() {
-                        part.group_anim = group_anim.clone();
-                    }
+                let obj = &master_slide.objects[master_cursor + offset];
+                master_cursor += offset + 1;
+                if obj.initial_state == "hidden" {
+                    return Vec::new();
                 }
-                parts.retain(|p| p.opacity > 0.0);
-                return parts;
+                return animate_item_with_object(
+                    item,
+                    obj,
+                    master_slide,
+                    None,
+                    slide.duration_ms,
+                    slide_size,
+                    playhead_ms,
+                    "master:",
+                    &mut group_cache,
+                );
             }
-            if sample.opacity <= 0.0 {
-                return Vec::new();
-            }
-            let mut item = item.clone();
-            coursecraft_render::apply_sample_to_items(std::slice::from_mut(&mut item), &sample);
-            if group_anim.is_some() {
-                item.group_anim = group_anim;
-            }
-            vec![item]
+            vec![item.clone()]
         })
         .collect()
 }
