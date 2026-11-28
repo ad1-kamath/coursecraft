@@ -15,6 +15,7 @@ app="$work/CourseCraft.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$out"
 cp "$binary" "$app/Contents/MacOS/CourseCraft"
 cp "$(dirname "$0")/../apps/coursecraft/icons/CourseCraft.icns" "$app/Contents/Resources/CourseCraft.icns"
+cp "$(dirname "$0")/../apps/coursecraft/icons/Assets.car" "$app/Contents/Resources/Assets.car"
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -26,6 +27,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>CourseCraft</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleIconFile</key><string>CourseCraft</string>
+  <key>CFBundleIconName</key><string>CourseCraft</string>
   <key>CFBundleShortVersionString</key><string>$version</string>
   <key>CFBundleVersion</key><string>$version</string>
   <key>NSHighResolutionCapable</key><true/>

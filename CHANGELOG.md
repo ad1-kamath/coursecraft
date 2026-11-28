@@ -4,6 +4,13 @@ What changed in each release, newest first. Versions follow [semantic versioning
 
 ## Unreleased
 
+**macOS**
+- Added a dark app icon on macOS when Dark icons are enabled in System Settings.
+
+**Animations**
+- Grouped objects now animate together as one unit: applying an entrance, exit, or emphasis animation to a group moves, scales, turns, wipes, and fades the whole group around its shared box without overlapping shapes showing through each other mid-fade, while individual items inside the group can still keep their own animations. Thanks to Luca.
+- Objects and groups on slide masters can now have entrance, exit, and emphasis animations and be timed on the timeline in Master View, and those animations play from the start of each slide that uses the master. Thanks to Luca.
+
 **Questions**
 - In the editor's Preview, the "Choose…" lists in matching questions now open. Escape closes only the open list, and the arrow keys move through the list you opened.
 
