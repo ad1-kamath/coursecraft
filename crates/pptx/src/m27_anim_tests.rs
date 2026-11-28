@@ -1039,3 +1039,65 @@ fn m49_s1_pptx_group_entrance_lands_on_group_record() {
     );
     assert_eq!(grp.entrance.as_ref().map(|a| a.duration_ms), Some(500));
 }
+
+#[test]
+fn m49_s1_pptx_group_appear_omits_empty_record_and_sanitizes_hostile_spid() {
+    let sp_tree_inner = r#"
+        <p:grpSp>
+          <p:nvGrpSpPr><p:cNvPr id="bad id!@#" name="Hostile Group"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+          <p:grpSpPr>
+            <a:xfrm><a:off x="0" y="0"/><a:ext cx="1828800" cy="914400"/>
+              <a:chOff x="0" y="0"/><a:chExt cx="1828800" cy="914400"/></a:xfrm>
+          </p:grpSpPr>
+          <p:sp>
+            <p:nvSpPr><p:cNvPr id="21" name="A"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+            <p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm>
+              <a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
+          </p:sp>
+          <p:sp>
+            <p:nvSpPr><p:cNvPr id="22" name="B"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+            <p:spPr><a:xfrm><a:off x="914400" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm>
+              <a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
+          </p:sp>
+        </p:grpSp>
+        <p:grpSp>
+          <p:nvGrpSpPr><p:cNvPr id="30" name="Appear Group"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+          <p:grpSpPr>
+            <a:xfrm><a:off x="0" y="1000000"/><a:ext cx="1828800" cy="914400"/>
+              <a:chOff x="0" y="0"/><a:chExt cx="1828800" cy="914400"/></a:xfrm>
+          </p:grpSpPr>
+          <p:sp>
+            <p:nvSpPr><p:cNvPr id="31" name="C"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+            <p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm>
+              <a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
+          </p:sp>
+          <p:sp>
+            <p:nvSpPr><p:cNvPr id="32" name="D"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+            <p:spPr><a:xfrm><a:off x="914400" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm>
+              <a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
+          </p:sp>
+        </p:grpSp>"#;
+    let timing_xml = r#"
+      <p:timing>
+        <p:tnLst><p:par><p:cTn id="1" nodeType="tmRoot"><p:childTnLst>
+          <p:seq><p:cTn id="2" nodeType="mainSeq"><p:childTnLst>
+            <p:par><p:cTn id="3" presetID="10" presetClass="entr" nodeType="withEffect" dur="500">
+              <p:stCondLst><p:cond delay="100"/></p:stCondLst>
+              <p:childTnLst><p:set><p:cBhvr><p:tgtEl><p:spTgt spid="bad id!@#"/></p:tgtEl></p:cBhvr></p:set></p:childTnLst>
+            </p:cTn></p:par>
+            <p:par><p:cTn id="4" presetID="1" presetClass="entr" nodeType="withEffect" dur="1">
+              <p:stCondLst><p:cond delay="300"/></p:stCondLst>
+              <p:childTnLst><p:set><p:cBhvr><p:tgtEl><p:spTgt spid="30"/></p:tgtEl></p:cBhvr></p:set></p:childTnLst>
+            </p:cTn></p:par>
+          </p:childTnLst></p:cTn></p:seq>
+        </p:childTnLst></p:cTn></p:par></p:tnLst>
+      </p:timing>"#;
+
+    let (course, _report) = import_and_validate(sp_tree_inner, timing_xml);
+    let slide = &course.scenes[0].slides[0];
+    // Only the faded group gets a Group record; Appear (presetID=1) leaves no empty record.
+    assert_eq!(slide.groups.len(), 1);
+    assert_eq!(slide.groups[0].id, "pptx_grp_badid");
+    assert_eq!(obj_by_name(slide, "C").timing.start_ms, 300);
+    assert_eq!(obj_by_name(slide, "D").timing.start_ms, 300);
+}

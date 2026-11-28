@@ -268,6 +268,44 @@ fn collect_effects_from_par<'a>(
     }
 }
 
+fn set_group_animation(
+    groups: &mut Vec<coursecraft_course::Group>,
+    group_id: &str,
+    is_entrance: bool,
+    anim: Option<Animation>,
+) {
+    if let Some(a) = anim {
+        let g_idx = if let Some(pos) = groups.iter().position(|g| g.id == group_id) {
+            pos
+        } else {
+            groups.push(coursecraft_course::Group {
+                id: group_id.to_owned(),
+                name: String::new(),
+                interactive: false,
+                initial_state: "normal".to_owned(),
+                focus_order: None,
+                description: None,
+                entrance: None,
+                exit: None,
+                emphasis: Vec::new(),
+            });
+            groups.len() - 1
+        };
+        if is_entrance {
+            groups[g_idx].entrance = Some(a);
+        } else {
+            groups[g_idx].exit = Some(a);
+        }
+    } else if let Some(g) = groups.iter_mut().find(|g| g.id == group_id) {
+        if is_entrance {
+            g.entrance = None;
+        } else {
+            g.exit = None;
+        }
+        groups.retain(|g| g.id != group_id || !g.is_plain_empty());
+    }
+}
+
 fn schedule_main_sequence(
     effects: &[ParsedEffect<'_>],
     layout: &SlideLayout,
@@ -342,24 +380,6 @@ fn schedule_main_sequence(
                 easing: eff.easing,
                 sequence: Default::default(),
             });
-            let ensure_group = |groups: &mut Vec<coursecraft_course::Group>| -> usize {
-                if let Some(pos) = groups.iter().position(|g| g.id == group_id) {
-                    pos
-                } else {
-                    groups.push(coursecraft_course::Group {
-                        id: group_id.clone(),
-                        name: String::new(),
-                        interactive: false,
-                        initial_state: "normal".to_owned(),
-                        focus_order: None,
-                        description: None,
-                        entrance: None,
-                        exit: None,
-                        emphasis: Vec::new(),
-                    });
-                    groups.len() - 1
-                }
-            };
             match eff.preset_class {
                 PresetClass::Entrance => {
                     if !had_group_entrance.insert(group_id.clone()) {
@@ -368,8 +388,7 @@ fn schedule_main_sequence(
                         ));
                         continue;
                     }
-                    let g_idx = ensure_group(groups);
-                    groups[g_idx].entrance = anim;
+                    set_group_animation(groups, &group_id, true, anim);
                     for obj_id in &target_obj_ids {
                         if let Some(&obj_idx) = id_to_index.get(obj_id) {
                             objects[obj_idx].timing.start_ms = start_ms;
@@ -382,8 +401,7 @@ fn schedule_main_sequence(
                             "Earlier exit animation replaced on group {group_id}"
                         ));
                     }
-                    let g_idx = ensure_group(groups);
-                    groups[g_idx].exit = anim;
+                    set_group_animation(groups, &group_id, false, anim);
                     for obj_id in &target_obj_ids {
                         if let Some(&obj_idx) = id_to_index.get(obj_id) {
                             let obj = &mut objects[obj_idx];

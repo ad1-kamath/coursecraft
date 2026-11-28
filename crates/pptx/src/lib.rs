@@ -2895,11 +2895,21 @@ fn process_group_children(
                 process_group_children(child, new_transform, depth.saturating_add(1), cx)?;
                 if depth == 0 && cx.objects.len().saturating_sub(before) >= 2 {
                     let spid = drawing_id(child);
-                    let base =
-                        spid.map_or_else(|| "pptx_grp".to_owned(), |id| format!("pptx_grp_{id}"));
+                    let clean_spid: String = spid
+                        .unwrap_or("")
+                        .chars()
+                        .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+                        .take(90)
+                        .collect();
+                    let base = if clean_spid.is_empty() {
+                        "pptx_grp".to_owned()
+                    } else {
+                        format!("pptx_grp_{clean_spid}")
+                    };
                     let mut gid = base.clone();
                     let mut suffix = 2usize;
-                    while cx.objects[..before]
+                    while cx
+                        .objects
                         .iter()
                         .any(|o| o.group.as_deref() == Some(gid.as_str()) || o.id == gid)
                     {

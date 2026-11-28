@@ -632,6 +632,9 @@ impl Slide {
             }
             let x2 = f.x + f.w;
             let y2 = f.y + f.h;
+            if !x2.is_finite() || !y2.is_finite() {
+                continue;
+            }
             bounds = Some(match bounds {
                 None => (f.x, f.y, x2, y2),
                 Some((min_x, min_y, max_x, max_y)) => {
@@ -639,11 +642,10 @@ impl Slide {
                 }
             });
         }
-        bounds.map(|(x, y, x2, y2)| Rect {
-            x,
-            y,
-            w: x2 - x,
-            h: y2 - y,
+        bounds.and_then(|(x, y, x2, y2)| {
+            let w = x2 - x;
+            let h = y2 - y;
+            (w.is_finite() && h.is_finite()).then_some(Rect { x, y, w, h })
         })
     }
 

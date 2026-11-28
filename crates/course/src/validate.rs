@@ -1639,7 +1639,7 @@ fn check_groups_list<'a>(
                     };
                 }
                 let timing = crate::Timing { start_ms, end_ms };
-                let who = if slide.id.is_empty() {
+                let who = if is_master || slide.id.is_empty() {
                     format!("group {:?}", g.id)
                 } else {
                     format!("group {:?} on slide {:?}", g.id, slide.id)

@@ -8618,3 +8618,76 @@ fn m49_s1_group_animation_validation_checks_durations_and_windows() {
         e.severity == Severity::Error && e.message.contains("must not have interactive group")
     }));
 }
+
+#[test]
+fn m49_s1_group_frame_and_timing_handle_hostile_bounds() {
+    let mut course = Course::from_json(HELLO).expect("parse hello");
+    let slide = &mut course.scenes[0].slides[0];
+
+    let mut o1 = slide.objects[0].clone();
+    o1.id = "gm1".into();
+    o1.group = Some("g-bounds".into());
+    o1.frame = crate::Rect {
+        x: 10.0,
+        y: 20.0,
+        w: 30.0,
+        h: 40.0,
+    };
+    o1.timing = crate::Timing {
+        start_ms: 500,
+        end_ms: Some(1500),
+    };
+
+    let mut o2 = o1.clone();
+    o2.id = "gm2".into();
+    o2.frame = crate::Rect {
+        x: f32::MAX,
+        y: 0.0,
+        w: f32::MAX,
+        h: 10.0,
+    };
+    o2.timing = crate::Timing {
+        start_ms: 200,
+        end_ms: None,
+    };
+
+    slide.objects.push(o1);
+    slide.objects.push(o2);
+
+    // Overflowing member frame is skipped; valid member frame is preserved.
+    let frame = slide.group_frame("g-bounds", None).expect("finite frame");
+    assert_eq!(
+        frame,
+        crate::Rect {
+            x: 10.0,
+            y: 20.0,
+            w: 30.0,
+            h: 40.0,
+        }
+    );
+    let timing = slide.group_timing("g-bounds", None).expect("group timing");
+    assert_eq!(timing.start_ms, 200);
+    assert_eq!(timing.end_ms, None);
+
+    // Two finite frames whose span overflows f32 return None rather than inf width.
+    let mut o3 = slide.objects[0].clone();
+    o3.id = "gm3".into();
+    o3.group = Some("g-span".into());
+    o3.frame = crate::Rect {
+        x: -2.0e38,
+        y: 0.0,
+        w: 10.0,
+        h: 10.0,
+    };
+    let mut o4 = o3.clone();
+    o4.id = "gm4".into();
+    o4.frame = crate::Rect {
+        x: 2.0e38,
+        y: 0.0,
+        w: 10.0,
+        h: 10.0,
+    };
+    slide.objects.push(o3);
+    slide.objects.push(o4);
+    assert_eq!(slide.group_frame("g-span", None), None);
+}
