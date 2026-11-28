@@ -2,6 +2,11 @@
 
 What changed in each release, newest first. Versions follow [semantic versioning](https://semver.org): until 1.0, a minor version (0.x) may change things, but a project saved by an older CourseCraft always opens in a newer one.
 
+## Unreleased
+
+**Downloads**
+- Windows: a portable download is back (`-portable.zip`). Unzip it and run CourseCraft without installing, handy for trying it out. The installer is still there too.
+
 ## 0.6.6
 
 Fixes from using 0.6.5: easier split buttons, no more pile of slide tabs, a layer bar you can always see, and shadows that follow what a shape draws.

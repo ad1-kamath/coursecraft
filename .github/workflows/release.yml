@@ -9,8 +9,10 @@ name: Release
 # File names follow the Craft suite's convention, which the in-app update check
 # (craft-update) reads: coursecraft-<version>-<os>-<arch>.<ext>, the version
 # without the tag's "v". macOS ships a .dmg, Windows ships the Inno Setup
-# -setup.exe installer only, and Linux ships both an .AppImage and a .tar.gz
-# archive holding one folder with bin/coursecraft.
+# -setup.exe installer and a -portable.zip (one folder with coursecraft.exe and
+# portable.txt, which tells the update check it is a portable copy), and Linux
+# ships both an .AppImage and a .tar.gz archive holding one folder with
+# bin/coursecraft.
 on:
   push:
     tags: ["v*"]
@@ -80,6 +82,18 @@ jobs:
           $ver = $tag.TrimStart('v')
           & $iscc "/DAppVersion=$ver" "/DOutputName=coursecraft-$ver-windows-x64-setup" "/DOutputDir=$PWD\dist" "/DRepoRoot=$PWD" "packaging/windows/coursecraft.iss"
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
+      - name: Package for Windows (portable)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          $ver = $env:GITHUB_REF_NAME.TrimStart('v')
+          $name = "coursecraft-$ver-windows-x64-portable"
+          $root = "stage\$name"
+          New-Item -ItemType Directory -Force dist, $root | Out-Null
+          Copy-Item target\release\coursecraft.exe "$root\coursecraft.exe"
+          Copy-Item LICENSE-MIT, LICENSE-APACHE, ATTRIBUTION.md $root
+          Set-Content -Path "$root\portable.txt" -Value "CourseCraft portable copy. Run coursecraft.exe. To update, download the new -portable.zip and unpack it in place of this folder."
+          Compress-Archive -Path $root -DestinationPath "dist\$name.zip" -Force
       - name: Package for Linux
         if: matrix.name == 'linux'
         run: |

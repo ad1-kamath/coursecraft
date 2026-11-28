@@ -12,9 +12,10 @@
 //! - macOS and Linux self-updates select `.dmg`, `.AppImage` (when `$APPIMAGE` is set), or
 //!   `.tar.gz`, verify `SHA256SUMS.txt`, and only start when the user clicks **Update and
 //!   Restart** with no unsaved work.
-//! - Windows releases ship only the Inno Setup `-setup.exe` installer (no portable `.zip`), so
-//!   Windows copies open the prompt in manual-download mode pointing at `-setup.exe` (with a
-//!   short notice on legacy portable copies that have `portable.txt` beside the executable).
+//! - Windows releases ship the Inno Setup `-setup.exe` installer and a `-portable.zip`. Windows
+//!   copies open the prompt in manual-download mode: installed copies point at `-setup.exe`;
+//!   portable copies (`portable.txt` beside the executable) point at `-portable.zip` with a short
+//!   note on how to update a portable folder.
 //!
 //! Desktop only; the web build has no updates.
 
@@ -35,9 +36,9 @@ use craft_update::{
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Notice shown in the update prompt when running an older Windows portable build (`portable.txt`
-/// beside the executable), since portable builds stopped in 0.5.0.
-pub const PORTABLE_DISCONTINUED_NOTE: &str = "The portable Windows version is no longer published. Download the Windows installer (-setup.exe) to update.";
+/// Notice shown in the update prompt when running a Windows portable copy (`portable.txt` beside
+/// the executable).
+pub const PORTABLE_NOTE: &str = "This is the portable version. To update, download the new portable .zip and unpack it in place of this folder.";
 
 /// CourseCraft as craft-update knows it: its releases live in the upstream repository, and the
 /// prompt shows its icon and teal accent.
@@ -63,15 +64,15 @@ pub(crate) enum InstallMode {
     CraftUpdate,
     /// Windows Inno Setup installation: manual download of `-setup.exe`.
     WindowsSetup,
-    /// Legacy Windows portable copy (`portable.txt` beside the executable): manual download of
-    /// `-setup.exe` with [`PORTABLE_DISCONTINUED_NOTE`].
-    WindowsLegacyPortable,
+    /// Windows portable copy (`portable.txt` beside the executable): manual download of
+    /// `-portable.zip` with [`PORTABLE_NOTE`].
+    WindowsPortable,
 }
 
-/// Whether `exe` belongs to an older Windows portable build (marked by `portable.txt` beside it).
+/// Whether `exe` belongs to a Windows portable copy (marked by `portable.txt` beside it).
 #[must_use]
 #[cfg_attr(not(windows), allow(dead_code))]
-pub(crate) fn is_legacy_portable_at(exe: &Path) -> bool {
+pub(crate) fn is_portable_at(exe: &Path) -> bool {
     exe.parent()
         .is_some_and(|dir| dir.join("portable.txt").is_file())
 }
@@ -82,9 +83,9 @@ fn detect_install_mode() -> InstallMode {
     {
         if std::env::current_exe()
             .ok()
-            .is_some_and(|exe| is_legacy_portable_at(&exe))
+            .is_some_and(|exe| is_portable_at(&exe))
         {
-            InstallMode::WindowsLegacyPortable
+            InstallMode::WindowsPortable
         } else {
             InstallMode::WindowsSetup
         }
@@ -139,10 +140,11 @@ fn windows_tokens(arch: Arch) -> &'static [&'static str] {
     }
 }
 
-/// Parses a Windows Inno Setup installer asset name (`<stem>-<version>-windows-<arch>-setup.exe`),
-/// returning its `<os>-<arch>` token when it matches one of `stems` and a valid version.
-fn parse_windows_setup_token(name: &str, stems: &[&str]) -> Option<String> {
-    let base = name.strip_suffix("-setup.exe")?;
+/// Parses a Windows asset name (`<stem>-<version>-windows-<arch><suffix>`, where `suffix` is
+/// `-setup.exe` or `-portable.zip`), returning its `<os>-<arch>` token when it matches one of
+/// `stems` and a valid version.
+fn parse_windows_token(name: &str, suffix: &str, stems: &[&str]) -> Option<String> {
+    let base = name.strip_suffix(suffix)?;
     for stem in stems {
         let Some(rest) = base.strip_prefix(stem).and_then(|r| r.strip_prefix('-')) else {
             continue;
@@ -163,19 +165,18 @@ fn parse_windows_setup_token(name: &str, stems: &[&str]) -> Option<String> {
     None
 }
 
-/// Picks the Windows `-setup.exe` installer asset from `release` for `arch`. Never selects a
-/// portable zip or a non-Windows file.
-#[must_use]
-pub(crate) fn select_windows_setup_asset<'a>(
+/// Picks the Windows asset ending in `suffix` from `release` for `arch` (native first).
+fn select_windows_asset<'a>(
     release: &'a Release,
     stems: &[&str],
     arch: Arch,
+    suffix: &str,
 ) -> Option<&'a Asset> {
     let parsed: Vec<(&Asset, String)> = release
         .assets
         .iter()
         .filter_map(|asset| {
-            parse_windows_setup_token(&asset.name, stems).map(|token| (asset, token))
+            parse_windows_token(&asset.name, suffix, stems).map(|token| (asset, token))
         })
         .collect();
     for token in windows_tokens(arch) {
@@ -186,13 +187,48 @@ pub(crate) fn select_windows_setup_asset<'a>(
     None
 }
 
-/// The safe download link for a Windows update: the release's `-setup.exe` asset when present and
-/// bound to `app`'s repository/tag, otherwise the release page or the app's releases page.
+/// Picks the Windows `-setup.exe` installer asset from `release` for `arch`. Never selects a
+/// portable zip or a non-Windows file.
 #[must_use]
+pub(crate) fn select_windows_setup_asset<'a>(
+    release: &'a Release,
+    stems: &[&str],
+    arch: Arch,
+) -> Option<&'a Asset> {
+    select_windows_asset(release, stems, arch, "-setup.exe")
+}
+
+/// Picks the Windows `-portable.zip` asset from `release` for `arch`. Never selects the
+/// installer or a non-Windows file.
+#[must_use]
+pub(crate) fn select_windows_portable_asset<'a>(
+    release: &'a Release,
+    stems: &[&str],
+    arch: Arch,
+) -> Option<&'a Asset> {
+    select_windows_asset(release, stems, arch, "-portable.zip")
+}
+
+/// The safe download link for a Windows update: the release's `-setup.exe` asset (or, when
+/// `portable`, its `-portable.zip`) when present and bound to `app`'s repository/tag, otherwise
+/// the release page or the app's releases page.
+#[must_use]
+#[cfg(test)]
 pub(crate) fn windows_download_url(
     app: &craft_update::App,
     release: &Release,
     arch: Arch,
+) -> Option<String> {
+    windows_download_url_for(app, release, arch, false)
+}
+
+/// Like [`windows_download_url`], choosing the portable zip when `portable` is true.
+#[must_use]
+pub(crate) fn windows_download_url_for(
+    app: &craft_update::App,
+    release: &Release,
+    arch: Arch,
+    portable: bool,
 ) -> Option<String> {
     let stems: Vec<&str> = app.stems().collect();
     let repo = if release.repo.is_empty() {
@@ -200,7 +236,12 @@ pub(crate) fn windows_download_url(
     } else {
         release.repo.as_str()
     };
-    if let Some(asset) = select_windows_setup_asset(release, &stems, arch)
+    let asset = if portable {
+        select_windows_portable_asset(release, &stems, arch)
+    } else {
+        select_windows_setup_asset(release, &stems, arch)
+    };
+    if let Some(asset) = asset
         && safe_web_link(&asset.url)
         && expected_download_url(repo, &release.tag, &asset.name)
             .is_some_and(|expected| same_download_url(&asset.url, &expected))
@@ -250,8 +291,8 @@ fn build_prompt(release: Release, mode: InstallMode, installs_itself: bool) -> S
     let mut prompt =
         StartupPrompt::with_self_update(&UPDATE_APP, release, running_version(), self_update)
             .with_translator(translate);
-    if mode == InstallMode::WindowsLegacyPortable {
-        prompt.set_note(Note::new(PORTABLE_DISCONTINUED_NOTE, &[]));
+    if mode == InstallMode::WindowsPortable {
+        prompt.set_note(Note::new(PORTABLE_NOTE, &[]));
     }
     prompt
 }
@@ -690,11 +731,12 @@ impl Runtime {
                         InstallMode::CraftUpdate => {
                             release_download_url(&UPDATE_APP, &prompt.release)
                         }
-                        InstallMode::WindowsSetup | InstallMode::WindowsLegacyPortable => {
-                            windows_download_url(
+                        InstallMode::WindowsSetup | InstallMode::WindowsPortable => {
+                            windows_download_url_for(
                                 &UPDATE_APP,
                                 &prompt.release,
                                 current_windows_arch(),
+                                self.mode == InstallMode::WindowsPortable,
                             )
                         }
                     };
@@ -919,12 +961,30 @@ mod tests {
         ] {
             assert!(yml.contains(part), "release.yml lacks {part}");
         }
-        for forbidden in ["portable.txt", "-windows-x64-portable", "-portable.zip"] {
-            assert!(
-                !yml.contains(forbidden),
-                "release.yml must not reference {forbidden}"
-            );
+        // The portable zip carries portable.txt and is named the way the portable picker reads.
+        for part in [
+            "portable.txt",
+            "coursecraft-$ver-windows-x64-portable",
+            "dist\\$name.zip",
+        ] {
+            assert!(yml.contains(part), "release.yml lacks {part}");
         }
+        let mut with_zip = release.clone();
+        let zip = "coursecraft-0.5.0-windows-x64-portable.zip";
+        with_zip.assets.push(Asset {
+            name: zip.into(),
+            size: 1,
+            url: String::new(),
+            sha256: None,
+        });
+        assert_eq!(
+            select_windows_portable_asset(&with_zip, &stems, Arch::X64).map(|a| a.name.as_str()),
+            Some(zip)
+        );
+        assert_eq!(
+            select_windows_setup_asset(&with_zip, &stems, Arch::X64).map(|a| a.name.as_str()),
+            Some("coursecraft-0.5.0-windows-x64-setup.exe")
+        );
         let mac = std::fs::read_to_string(root.join("scripts/package-macos.sh")).unwrap();
         assert!(mac.contains("coursecraft-$version-macos-$arch.dmg"));
     }
@@ -1009,25 +1069,31 @@ mod tests {
     }
 
     #[test]
-    fn legacy_portable_marker_detection_checks_sibling_portable_txt() {
+    fn portable_marker_detection_checks_sibling_portable_txt() {
         let dir = records_dir("portable-marker");
         std::fs::create_dir_all(&dir).unwrap();
         let exe = dir.join("coursecraft.exe");
         std::fs::write(&exe, b"exe").unwrap();
-        assert!(!is_legacy_portable_at(&exe));
+        assert!(!is_portable_at(&exe));
         std::fs::write(dir.join("portable.txt"), b"").unwrap();
-        assert!(is_legacy_portable_at(&exe));
+        assert!(is_portable_at(&exe));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn windows_legacy_portable_offers_setup_exe_with_notice_and_no_error() {
+    fn windows_portable_offers_portable_zip_with_notice_and_no_error() {
         let root = records_dir("win-portable");
-        let mut rt = windows_runtime(
-            &root,
-            InstallMode::WindowsLegacyPortable,
-            Some(release_0_5_0()),
-        );
+        let mut release = release_0_5_0();
+        let name = "coursecraft-0.5.0-windows-x64-portable.zip";
+        release.assets.push(Asset {
+            name: name.into(),
+            size: 1,
+            url: format!(
+                "https://github.com/ad1-kamath/coursecraft/releases/download/v0.5.0/{name}"
+            ),
+            sha256: None,
+        });
+        let mut rt = windows_runtime(&root, InstallMode::WindowsPortable, Some(release));
         let ctx = egui::Context::default();
         rt.request_check();
         for _ in 0..200 {
@@ -1042,7 +1108,7 @@ mod tests {
         let prompt = rt
             .prompt
             .as_ref()
-            .expect("Windows legacy portable copy should open the update prompt");
+            .expect("Windows portable copy should open the update prompt");
         assert!(
             !prompt.is_self_updating,
             "must not attempt PortableZip self-update"
@@ -1050,16 +1116,23 @@ mod tests {
         assert_eq!(rt.updater.status(), &Status::Idle, "must not show an error");
         let msg = prompt
             .message()
-            .expect("legacy portable prompt must explain portable builds stopped");
+            .expect("portable prompt must explain how to update a portable folder");
         assert!(msg.contains("portable"), "{msg}");
-        assert!(msg.contains("no longer published"), "{msg}");
-        assert!(msg.contains("-setup.exe"), "{msg}");
+        assert!(msg.contains(".zip"), "{msg}");
 
-        // Choosing Download points straight to the -setup.exe installer.
-        let url = windows_download_url(&UPDATE_APP, &prompt.release, Arch::X64).unwrap();
-        assert!(
-            url.ends_with("coursecraft-0.5.0-windows-x64-setup.exe"),
-            "{url}"
+        // Choosing Download points straight to the portable zip; installed copies still get
+        // the installer.
+        let url = windows_download_url_for(&UPDATE_APP, &prompt.release, Arch::X64, true).unwrap();
+        assert!(url.ends_with(name), "{url}");
+        let setup = windows_download_url(&UPDATE_APP, &prompt.release, Arch::X64).unwrap();
+        assert!(setup.ends_with("-setup.exe"), "{setup}");
+
+        // A release without a portable zip falls back to the release page.
+        let fallback =
+            windows_download_url_for(&UPDATE_APP, &release_0_5_0(), Arch::X64, true).unwrap();
+        assert_eq!(
+            fallback,
+            "https://github.com/ad1-kamath/coursecraft/releases/tag/v0.5.0"
         );
 
         let _ = std::fs::remove_dir_all(&root);
